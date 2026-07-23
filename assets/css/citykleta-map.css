@@ -1,11 +1,13 @@
 /*
  * Repaints Leaflet.markercluster's default cluster bubbles and adds the
- * bike/user marker + popup styles. Marker/cluster colors default to the
- * same palette as bike-cards.css (accent yellow #FED94C) but are meant to
- * be overridden per-page via CSS custom properties set on the .citykleta-map
+ * bike/user marker + popup styles. Cluster colors default to the same
+ * palette as bike-cards.css (accent yellow #FED94C) but are meant to be
+ * overridden per-page via CSS custom properties set on the .citykleta-map
  * container's inline style — see Citykleta_Settings::map_color_style_attr()
  * (Settings → Maps tab), which both the Elementor widget and the wp-admin
- * overview page use.
+ * overview page use. The individual bike marker's own colors
+ * (available/unavailable circle, glyph) are hardcoded below instead — not
+ * configurable.
  */
 
 .citykleta-map {
@@ -55,26 +57,68 @@
 	font-weight: 600;
 }
 
-/* Individual bike marker: just the bike glyph, no circle backdrop — used
-   only when Settings → Maps → Marker design has no custom icon uploaded
-   (citykleta-map.js falls back to a real <img> via L.icon() when it does).
-   Cut out of marker-bike.svg via mask-image and filled with the state
-   color directly (--available/--unavailable modifier below), so the same
-   one-color source file works for both states without a colored copy per
-   state. assets/images/marker-bike.svg doesn't ship with the plugin (drop
-   your own single-path/solid-fill SVG there) — until it exists the mask
-   has nothing to show and the marker is invisible, same
-   graceful-degradation pattern used for the optional vendor files
-   (Leaflet, Flatpickr, etc.) elsewhere in this plugin, just via CSS here
-   instead of a file_exists() check.
+/* Individual bike marker: same two-layer ring shape as the cluster bubbles
+   above — a translucent outer circle plus a smaller solid inner one — with
+   the bike glyph centered on top of the inner circle. Not configurable (no
+   custom icon, no per-color settings anymore): both circles' fill is fixed
+   per availability state, the glyph is always the built-in marker-bike.svg
+   in a fixed dark color chosen to read on both states below.
    Sized at 100% on purpose, not a fixed px value: citykleta-map.js reads
    "Icon Size" (Settings → Maps) and passes it to Leaflet as the divIcon's
    iconSize, which Leaflet applies as width/height on the wrapping element
    it creates around this span — 100% just inherits whatever that is. */
 .citykleta-map__bike-icon-circle {
-	display: block;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	width: 100%;
 	height: 100%;
+	border-radius: 50%;
+}
+
+/* Diluted with color-mix() the same way the cluster rings are — 45% is the
+   cluster's own "small" tier dilution, reused here since the bike marker
+   doesn't have a size tier of its own to pick a different one from. */
+.citykleta-map__bike-icon-circle--available {
+	background-color: color-mix( in srgb, #fed94c 45%, transparent );
+}
+
+.citykleta-map__bike-icon-circle--unavailable {
+	background-color: color-mix( in srgb, #e5e0d3 45%, transparent );
+}
+
+.citykleta-map__bike-icon-inner {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 75%;
+	height: 75%;
+	border-radius: 50%;
+}
+
+.citykleta-map__bike-icon-inner--available {
+	background-color: #fed94c;
+}
+
+.citykleta-map__bike-icon-inner--unavailable {
+	background-color: #e5e0d3;
+}
+
+/* Cut out of marker-bike.svg via mask-image, same technique the cluster
+   digits' backdrop doesn't need but this glyph does — a single-color,
+   single-path source file recolored in CSS instead of needing a colored
+   copy. assets/images/marker-bike.svg doesn't ship with the plugin (drop
+   your own single-path/solid-fill SVG there) — until it exists the mask
+   has nothing to show, so both circles above are still visible, just
+   without a glyph inside them (a softer degradation than the marker going
+   fully invisible). Sized as a percentage of the inner circle, not a fixed
+   px value, for the same "Icon Size" scaling reason as the circles
+   themselves. */
+.citykleta-map__bike-icon-glyph {
+	display: block;
+	width: 65%;
+	height: 65%;
+	background-color: #151b1d;
 	-webkit-mask-image: url( '../images/marker-bike.svg' );
 	mask-image: url( '../images/marker-bike.svg' );
 	-webkit-mask-size: contain;
@@ -83,34 +127,6 @@
 	mask-repeat: no-repeat;
 	-webkit-mask-position: center;
 	mask-position: center;
-}
-
-/* The shadow lives on .citykleta-map__bike-icon (the wrapper Leaflet
-   creates around .citykleta-map__bike-icon-circle above), not on the
-   masked element itself — filter: drop-shadow() and mask-image on the
-   very same element is unreliable across browsers (the shadow silently
-   doesn't render in several of them). One level up, drop-shadow traces
-   the child's already-masked (bike-shaped) alpha just fine.
-   Offset X/Y and blur are plain px numbers (Settings → Maps → "Shadow
-   Offset X/Y"/"Shadow Blur"); the color is one more entry in
-   Citykleta_Settings::MAP_COLORS ("Shadow Color"), diluted with
-   color-mix() the same way the cluster rings are, since the color picker
-   itself has no alpha channel to pull from. */
-.citykleta-map__bike-icon {
-	filter: drop-shadow(
-		var( --citykleta-map-marker-shadow-offset-x, 0px )
-		var( --citykleta-map-marker-shadow-offset-y, 1px )
-		var( --citykleta-map-marker-shadow-size, 2px )
-		color-mix( in srgb, var( --citykleta-map-marker-shadow-color, #151b1d ) 55%, transparent )
-	);
-}
-
-.citykleta-map__bike-icon-circle--available {
-	background-color: var( --citykleta-map-available-color, #fed94c );
-}
-
-.citykleta-map__bike-icon-circle--unavailable {
-	background-color: var( --citykleta-map-unavailable-color, #e5e0d3 );
 }
 
 /* "You are here" marker: kept off the yellow brand palette on purpose, so

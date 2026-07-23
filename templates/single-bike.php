@@ -1,9 +1,13 @@
 <?php
 /**
- * Plantilla de detalle de una bicicleta: HTML básico, sin diseño propio —
- * se diseña visualmente con templates de Elementor. Solo separa lo que se
- * muestra siempre de lo que queda detrás del muro de registro (la reserva
- * real la maneja la app). Ver Citykleta_Templates::load_single_template().
+ * Plantilla de detalle de una bicicleta: muestra todos los datos que tenemos
+ * (ficha técnica, tipos, propietario y precio). La reserva real la maneja la
+ * app de Citykleta, por eso el bloque final es solo una llamada a la acción,
+ * no un muro que esconda contenido.
+ *
+ * Diseño en assets/css/single-bike.css, encolado desde
+ * Citykleta_Templates::enqueue_styles(). Ver también
+ * Citykleta_Templates::load_single_template().
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -34,95 +38,123 @@ else :
 endif;
 ?>
 
-<?php while ( have_posts() ) : the_post(); ?>
+<?php
+while ( have_posts() ) :
+	the_post();
 
-	<?php
-	$model        = get_post_meta( get_the_ID(), 'model', true );
-	$location     = get_post_meta( get_the_ID(), 'location', true );
-	$price        = get_post_meta( get_the_ID(), 'price_per_hour', true );
-	$available    = '1' === (string) get_post_meta( get_the_ID(), 'available', true );
-	$brand        = get_post_meta( get_the_ID(), 'brand', true );
-	$size         = get_post_meta( get_the_ID(), 'size', true );
-	$wheel_size   = get_post_meta( get_the_ID(), 'wheel_size', true );
-	$is_electric  = '1' === (string) get_post_meta( get_the_ID(), 'is_electric', true );
-	$owner_name   = get_post_meta( get_the_ID(), 'owner_name', true );
-	$owner_photo  = get_post_meta( get_the_ID(), 'owner_photo', true );
-	$bike_types   = get_the_terms( get_the_ID(), Citykleta_Bike_Type_Taxonomy::TAXONOMY );
+	$model       = get_post_meta( get_the_ID(), 'model', true );
+	$location    = get_post_meta( get_the_ID(), 'location', true );
+	$price       = get_post_meta( get_the_ID(), 'price_per_hour', true );
+	$available   = '1' === (string) get_post_meta( get_the_ID(), 'available', true );
+	$brand       = get_post_meta( get_the_ID(), 'brand', true );
+	$size        = get_post_meta( get_the_ID(), 'size', true );
+	$wheel_size  = get_post_meta( get_the_ID(), 'wheel_size', true );
+	$is_electric = '1' === (string) get_post_meta( get_the_ID(), 'is_electric', true );
+	$owner_name  = get_post_meta( get_the_ID(), 'owner_name', true );
+	$owner_photo = get_post_meta( get_the_ID(), 'owner_photo', true );
+	$bike_types  = get_the_terms( get_the_ID(), Citykleta_Bike_Type_Taxonomy::TAXONOMY );
 
 	if ( ! is_array( $bike_types ) ) {
 		$bike_types = array();
 	}
+
+	// Etiquetas: los tipos de bici de la taxonomía, más "Eléctrica" cuando aplica.
+	$tags = wp_list_pluck( $bike_types, 'name' );
+
+	if ( $is_electric ) {
+		$tags[] = 'Eléctrica';
+	}
+
+	// Ficha técnica: solo se listan los campos que tienen valor.
+	$specs = array_filter(
+		array(
+			'Marca'           => $brand,
+			'Modelo'          => $model,
+			'Talla'           => $size,
+			'Tamaño de rueda' => $wheel_size,
+		)
+	);
 	?>
 
 	<main class="citykleta-bike-single">
 
-		<a href="<?php echo esc_url( get_post_type_archive_link( Citykleta_Bike_Post_Type::POST_TYPE ) ); ?>">&larr; Volver a bicicletas</a>
+		<a class="citykleta-bike-single__back" href="<?php echo esc_url( get_post_type_archive_link( Citykleta_Bike_Post_Type::POST_TYPE ) ); ?>">&larr; Volver a bicicletas</a>
 
-		<?php if ( has_post_thumbnail() ) : ?>
-			<?php the_post_thumbnail( 'large' ); ?>
-		<?php endif; ?>
+		<div class="citykleta-bike-single__layout">
 
-		<h1><?php the_title(); ?></h1>
+			<div class="citykleta-bike-single__media">
+				<?php if ( has_post_thumbnail() ) : ?>
+					<?php the_post_thumbnail( 'large' ); ?>
+				<?php endif; ?>
 
-		<?php if ( $model ) : ?>
-			<p><?php echo esc_html( $model ); ?></p>
-		<?php endif; ?>
+				<?php if ( $available ) : ?>
+					<span class="citykleta-bike-single__badge citykleta-bike-single__badge--available">Disponible</span>
+				<?php else : ?>
+					<span class="citykleta-bike-single__badge citykleta-bike-single__badge--unavailable">No disponible</span>
+				<?php endif; ?>
+			</div>
 
-		<p><?php echo $available ? 'Disponible' : 'No disponible'; ?></p>
+			<div class="citykleta-bike-single__info">
 
-		<?php if ( $bike_types || $is_electric ) : ?>
-			<p>
-				<?php
-				$tags = wp_list_pluck( $bike_types, 'name' );
-				if ( $is_electric ) {
-					$tags[] = 'Eléctrica';
-				}
-				echo esc_html( implode( ', ', $tags ) );
-				?>
-			</p>
-		<?php endif; ?>
+				<h1 class="citykleta-bike-single__title"><?php the_title(); ?></h1>
 
-		<?php if ( $location ) : ?>
-			<p><?php echo esc_html( $location ); ?></p>
-		<?php endif; ?>
+				<?php if ( $location ) : ?>
+					<p class="citykleta-bike-single__location"><?php echo esc_html( $location ); ?></p>
+				<?php endif; ?>
 
-		<ul>
-			<?php if ( $brand ) : ?>
-				<li>Marca: <?php echo esc_html( $brand ); ?></li>
-			<?php endif; ?>
-			<?php if ( $size ) : ?>
-				<li>Talla: <?php echo esc_html( $size ); ?></li>
-			<?php endif; ?>
-			<?php if ( $wheel_size ) : ?>
-				<li>Tamaño de rueda: <?php echo esc_html( $wheel_size ); ?></li>
-			<?php endif; ?>
-		</ul>
+				<?php if ( $tags ) : ?>
+					<ul class="citykleta-bike-single__tags">
+						<?php foreach ( $tags as $tag ) : ?>
+							<li class="citykleta-bike-single__tag"><?php echo esc_html( $tag ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+				<?php endif; ?>
 
-		<?php if ( get_the_content() ) : ?>
-			<div>
-				<h2>Especificaciones</h2>
+				<?php if ( $price ) : ?>
+					<p class="citykleta-bike-single__price">
+						<?php echo esc_html( $price ); ?> CUP <span>/ hora</span>
+					</p>
+				<?php endif; ?>
+
+				<?php if ( $specs ) : ?>
+					<dl class="citykleta-bike-single__specs">
+						<?php foreach ( $specs as $label => $value ) : ?>
+							<div class="citykleta-bike-single__spec">
+								<dt><?php echo esc_html( $label ); ?></dt>
+								<dd><?php echo esc_html( $value ); ?></dd>
+							</div>
+						<?php endforeach; ?>
+					</dl>
+				<?php endif; ?>
+
+				<?php if ( $owner_name ) : ?>
+					<div class="citykleta-bike-single__owner">
+						<?php if ( $owner_photo ) : ?>
+							<img src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="40" height="40" />
+						<?php endif; ?>
+						<div>
+							<span class="citykleta-bike-single__owner-label">Publicado por</span>
+							<span class="citykleta-bike-single__owner-name"><?php echo esc_html( $owner_name ); ?></span>
+						</div>
+					</div>
+				<?php endif; ?>
+
+				<div class="citykleta-bike-single__cta">
+					<p>Reserva esta bicicleta desde la app de Citykleta.</p>
+					<a class="citykleta-bike-single__button" href="<?php echo esc_url( wp_registration_url() ); ?>">Crear cuenta</a>
+					<a class="citykleta-bike-single__button citykleta-bike-single__button--secondary" href="<?php echo esc_url( wp_login_url() ); ?>">Iniciar sesión</a>
+				</div>
+
+			</div>
+
+		</div>
+
+		<?php if ( trim( get_the_content() ) ) : ?>
+			<div class="citykleta-bike-single__description">
+				<h2>Sobre esta bicicleta</h2>
 				<?php the_content(); ?>
 			</div>
 		<?php endif; ?>
-
-		<?php if ( $owner_name ) : ?>
-			<p>
-				Publicado por <?php echo esc_html( $owner_name ); ?>
-				<?php if ( $owner_photo ) : ?>
-					<img src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="32" height="32" />
-				<?php endif; ?>
-			</p>
-		<?php endif; ?>
-
-		<?php if ( $price ) : ?>
-			<p><?php echo esc_html( $price ); ?> CUP/hora</p>
-		<?php endif; ?>
-
-		<div>
-			<p>Crea una cuenta o inicia sesión para reservar esta bicicleta desde la app de Citykleta.</p>
-			<a href="<?php echo esc_url( wp_registration_url() ); ?>">Crear cuenta</a>
-			<a href="<?php echo esc_url( wp_login_url() ); ?>">Iniciar sesión</a>
-		</div>
 
 	</main>
 

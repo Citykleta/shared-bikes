@@ -75,62 +75,79 @@ class Citykleta_Settings {
 	 * in code, same "one place controls every map" reasoning as
 	 * self::MAP_COLORS.
 	 *
-	 * Every URL here is each provider's free/keyless tile endpoint — fine
-	 * for this LocalWP prototype, but worth revisiting before a real
-	 * production launch: OpenStreetMap's usage policy only allows light
-	 * interactive traffic (operations.osmfoundation.org/policies/tiles/),
-	 * and CARTO's terms require an Enterprise license for commercial use
-	 * (docs.carto.com/faqs/carto-basemaps). Esri's World_Imagery/World_Topo
-	 * don't require a key but don't publish a hard free-tier limit either.
+	 * The first six are each provider's free/keyless tile endpoint — fine
+	 * for this LocalWP prototype, but not really meant for a live commercial
+	 * app: OpenStreetMap's usage policy only allows light interactive
+	 * traffic (operations.osmfoundation.org/policies/tiles/), CARTO's terms
+	 * require an Enterprise license for commercial use
+	 * (docs.carto.com/faqs/carto-basemaps), and Esri's World_Imagery/
+	 * World_Topo don't publish a hard free-tier limit either. MapTiler,
+	 * Stadia Maps, and Mapbox are the ones with a documented free tier that
+	 * explicitly covers small commercial/production use — hence
+	 * 'key_param': all three need an API key (see self::tile_layer(),
+	 * citykleta_map_tile_api_key option). MapTiler's and Mapbox's requests
+	 * fail without one; Stadia's tiles work keyless for light/dev use but a
+	 * key is what makes production traffic count against a registered
+	 * free-tier quota instead of being rate-limited as anonymous use.
 	 */
 	const TILE_STYLES = array(
-		'osm'          => array(
+		'osm'                   => array(
 			'label'       => 'OpenStreetMap (default)',
 			'tile_url'    => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 		),
-		'positron'     => array(
+		'positron'              => array(
 			'label'       => 'CARTO Positron (light, minimal)',
 			'tile_url'    => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
 			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 		),
-		'voyager'      => array(
+		'voyager'               => array(
 			'label'       => 'CARTO Voyager (light, more color)',
 			'tile_url'    => 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
 			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 		),
-		'dark_matter'  => array(
+		'dark_matter'           => array(
 			'label'       => 'CARTO Dark Matter (dark)',
 			'tile_url'    => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
 			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 		),
-		'esri_imagery' => array(
+		'esri_imagery'          => array(
 			'label'       => 'Esri World Imagery (satellite)',
 			'tile_url'    => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
 			'attribution' => 'Tiles &copy; Esri',
 		),
-		'esri_topo'    => array(
+		'esri_topo'             => array(
 			'label'       => 'Esri World Topo (topographic)',
 			'tile_url'    => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
 			'attribution' => 'Tiles &copy; Esri',
 		),
-	);
-
-	/**
-	 * Marker shadow offset fields (Marker design section) — how far the
-	 * shadow is pushed horizontally/vertically from the icon. Kept apart
-	 * from self::MAP_COLORS since these are sizes, not colors.
-	 */
-	const SHADOW_OFFSETS = array(
-		'x' => array(
-			'option'  => 'citykleta_map_marker_shadow_offset_x',
-			'label'   => 'Shadow Offset X',
-			'default' => 0,
+		'maptiler_streets'      => array(
+			'label'       => 'MapTiler Streets (needs API Key)',
+			'tile_url'    => 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png',
+			'attribution' => '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+			'key_param'   => 'key',
 		),
-		'y' => array(
-			'option'  => 'citykleta_map_marker_shadow_offset_y',
-			'label'   => 'Shadow Offset Y',
-			'default' => 1,
+		'stadia_alidade_smooth' => array(
+			'label'       => 'Stadia Maps — Alidade Smooth, light (API Key recommended)',
+			'tile_url'    => 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
+			'attribution' => '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+			'key_param'   => 'api_key',
+		),
+		'stadia_alidade_dark'   => array(
+			'label'       => 'Stadia Maps — Alidade Smooth Dark (API Key recommended)',
+			'tile_url'    => 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+			'attribution' => '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+			'key_param'   => 'api_key',
+		),
+		// Mapbox's ToS technically also requires their logo to stay visible
+		// on the map, not just this text credit — fine for a prototype,
+		// worth double-checking their attribution guidelines again before a
+		// real commercial launch.
+		'mapbox'                => array(
+			'label'       => 'Mapbox Streets (needs API Key)',
+			'tile_url'    => 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}{r}',
+			'attribution' => '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+			'key_param'   => 'access_token',
 		),
 	);
 
@@ -146,24 +163,6 @@ class Citykleta_Settings {
 	 * on its own instead of forcing all three to the same color.
 	 */
 	const MAP_COLORS = array(
-		'available'      => array(
-			'option'  => 'citykleta_map_available_color',
-			'label'   => 'Available Color',
-			'default' => '#fed94c',
-			'section' => self::SECTION_MARKER_DESIGN,
-		),
-		'unavailable'    => array(
-			'option'  => 'citykleta_map_unavailable_color',
-			'label'   => 'Unavailable Color',
-			'default' => '#e5e0d3',
-			'section' => self::SECTION_MARKER_DESIGN,
-		),
-		'marker-shadow'  => array(
-			'option'  => 'citykleta_map_marker_shadow_color',
-			'label'   => 'Shadow Color',
-			'default' => '#151b1d',
-			'section' => self::SECTION_MARKER_DESIGN,
-		),
 		'cluster-small'  => array(
 			'option'  => 'citykleta_map_cluster_small_color',
 			'label'   => 'Small Cluster',
@@ -261,41 +260,7 @@ class Citykleta_Settings {
 			$style .= '--citykleta-map-' . $key . '-color:' . esc_attr( $value ) . ';';
 		}
 
-		$style .= '--citykleta-map-marker-shadow-size:' . self::marker_shadow_size() . 'px;';
-		$style .= '--citykleta-map-marker-shadow-offset-x:' . self::marker_shadow_offset( 'x' ) . 'px;';
-		$style .= '--citykleta-map-marker-shadow-offset-y:' . self::marker_shadow_offset( 'y' ) . 'px;';
-
 		return $style;
-	}
-
-	/**
-	 * How blurry the individual bike marker's drop shadow is, in pixels
-	 * (Settings → Maps → "Shadow Blur"). The shadow's color comes from
-	 * self::map_colors()'s 'marker-shadow' entry instead — a separate
-	 * option here because it's a size, not a color, so it can't reuse
-	 * self::MAP_COLORS' color-picker rendering.
-	 *
-	 * @return int
-	 */
-	public static function marker_shadow_size() {
-		return (int) get_option( 'citykleta_map_marker_shadow_size', 2 );
-	}
-
-	/**
-	 * How far the marker shadow is pushed on one axis (Settings → Maps →
-	 * "Shadow Offset X"/"Shadow Offset Y").
-	 *
-	 * @param string $axis 'x' or 'y'.
-	 * @return int
-	 */
-	public static function marker_shadow_offset( $axis ) {
-		if ( ! isset( self::SHADOW_OFFSETS[ $axis ] ) ) {
-			return 0;
-		}
-
-		$config = self::SHADOW_OFFSETS[ $axis ];
-
-		return (int) get_option( $config['option'], $config['default'] );
 	}
 
 	/**
@@ -304,6 +269,12 @@ class Citykleta_Settings {
 	 * Citykleta_Map_Widget, Citykleta_Admin_Map, and this class's own
 	 * preview map — same single-source-of-truth reasoning as
 	 * self::map_colors().
+	 *
+	 * For a style with a 'key_param' (MapTiler, Stadia Maps), appends
+	 * citykleta_map_tile_api_key as that provider's own query parameter
+	 * name. If that option is empty, the URL goes out without a key at all
+	 * — MapTiler will fail to load (it requires one from the first
+	 * request), Stadia Maps still works keyless for light/dev traffic.
 	 *
 	 * @return array { 'tileUrl' => string, 'attribution' => string }.
 	 */
@@ -314,26 +285,27 @@ class Citykleta_Settings {
 			$style = 'osm';
 		}
 
+		$config   = self::TILE_STYLES[ $style ];
+		$tile_url = $config['tile_url'];
+
+		if ( ! empty( $config['key_param'] ) ) {
+			$api_key = get_option( 'citykleta_map_tile_api_key', '' );
+
+			if ( $api_key ) {
+				$separator = false === strpos( $tile_url, '?' ) ? '?' : '&';
+				$tile_url .= $separator . $config['key_param'] . '=' . rawurlencode( $api_key );
+			}
+		}
+
 		return array(
-			'tileUrl'     => self::TILE_STYLES[ $style ]['tile_url'],
-			'attribution' => self::TILE_STYLES[ $style ]['attribution'],
+			'tileUrl'     => $tile_url,
+			'attribution' => $config['attribution'],
 		);
 	}
 
 	/**
-	 * The custom marker icon configured in "Marker design" (Maps tab), if
-	 * any. Used by both Citykleta_Map_Widget and Citykleta_Admin_Map —
-	 * same single-source-of-truth reasoning as the colors above.
-	 *
-	 * @return string Empty string if no custom icon was set (built-in circular icon is used instead).
-	 */
-	public static function marker_icon_url() {
-		return get_option( 'citykleta_map_marker_icon', '' );
-	}
-
-	/**
 	 * The individual bike marker's size in pixels (Settings → Maps →
-	 * "Icon Size"), for both the built-in glyph and a custom uploaded icon.
+	 * "Icon Size").
 	 *
 	 * @return int
 	 */
@@ -375,36 +347,30 @@ class Citykleta_Settings {
 			'jQuery( function ( $ ) { $( ".citykleta-color-field" ).wpColorPicker(); } );'
 		);
 
-		// Media Library popup for the "Custom Icon" field.
-		wp_enqueue_media();
+		// "API Key" field only makes sense for a self::TILE_STYLES entry
+		// that declares a 'key_param' (MapTiler, Stadia Maps) — hides its
+		// whole settings row for the other styles instead of leaving a
+		// field there that self::tile_layer() would just ignore.
+		$tile_styles_needing_key = array();
+
+		foreach ( self::TILE_STYLES as $key => $config ) {
+			if ( ! empty( $config['key_param'] ) ) {
+				$tile_styles_needing_key[] = $key;
+			}
+		}
 
 		wp_add_inline_script(
-			'media-editor',
+			'wp-color-picker',
 			'jQuery( function ( $ ) {
-				var frame;
-				$( ".citykleta-icon-select" ).on( "click", function ( e ) {
-					e.preventDefault();
-					var $wrap = $( this ).closest( ".citykleta-icon-field" );
+				var citykletaTileKeysNeeded = ' . wp_json_encode( $tile_styles_needing_key ) . ';
 
-					frame = wp.media( { title: "Select Icon", button: { text: "Use this image" }, multiple: false } );
+				function citykletaToggleApiKeyRow() {
+					var selected = $( "#citykleta_map_tile_style" ).val();
+					$( "#citykleta_map_tile_api_key" ).closest( "tr" ).toggle( -1 !== $.inArray( selected, citykletaTileKeysNeeded ) );
+				}
 
-					frame.on( "select", function () {
-						var attachment = frame.state().get( "selection" ).first().toJSON();
-						$wrap.find( ".citykleta-icon-value" ).val( attachment.url );
-						$wrap.find( ".citykleta-icon-preview" ).attr( "src", attachment.url ).show();
-						$wrap.find( ".citykleta-icon-remove" ).show();
-					} );
-
-					frame.open();
-				} );
-
-				$( ".citykleta-icon-remove" ).on( "click", function ( e ) {
-					e.preventDefault();
-					var $wrap = $( this ).closest( ".citykleta-icon-field" );
-					$wrap.find( ".citykleta-icon-value" ).val( "" );
-					$wrap.find( ".citykleta-icon-preview" ).attr( "src", $wrap.data( "defaultIcon" ) );
-					$( this ).hide();
-				} );
+				citykletaToggleApiKeyRow();
+				$( "#citykleta_map_tile_style" ).on( "change", citykletaToggleApiKeyRow );
 			} );'
 		);
 
@@ -494,12 +460,6 @@ class Citykleta_Settings {
 		}
 
 		$options = array_merge( array( 'centerOnUser' => false ), self::tile_layer() );
-		$icon    = self::marker_icon_url();
-
-		if ( $icon ) {
-			$options['icon'] = $icon;
-		}
-
 		$options['iconSize'] = self::marker_icon_size();
 
 		printf(
@@ -648,12 +608,20 @@ class Citykleta_Settings {
 
 		register_setting(
 			self::OPTION_GROUP_MAPS,
-			'citykleta_map_marker_icon',
+			'citykleta_map_tile_api_key',
 			array(
 				'type'              => 'string',
-				'sanitize_callback' => 'esc_url_raw',
+				'sanitize_callback' => 'sanitize_text_field',
 				'default'           => '',
 			)
+		);
+
+		add_settings_field(
+			'citykleta_map_tile_api_key',
+			'API Key',
+			array( $this, 'render_tile_api_key_field' ),
+			self::PAGE_SLUG . '-maps',
+			self::SECTION_TILE_STYLE
 		);
 
 		register_setting(
@@ -691,17 +659,9 @@ class Citykleta_Settings {
 			self::SECTION_MARKER_DESIGN,
 			'Marker design',
 			function () {
-				echo '<p>Icon and colors for individual bike markers. Used by the Elementor "Bikes Map" widget and the wp-admin overview page (Bicicletas → Map), so there\'s one place to keep them on-brand.</p>';
+				echo '<p>Size for individual bike markers — a fixed circle showing the built-in bike glyph, colored by availability (not configurable, see assets/css/citykleta-map.css). Used by the Elementor "Bikes Map" widget and the wp-admin overview page (Bicicletas → Map), so there\'s one place to keep them on-brand.</p>';
 			},
 			self::PAGE_SLUG . '-maps'
-		);
-
-		add_settings_field(
-			'citykleta_map_marker_icon',
-			'Custom Icon',
-			array( $this, 'render_icon_field' ),
-			self::PAGE_SLUG . '-maps',
-			self::SECTION_MARKER_DESIGN
 		);
 
 		add_settings_field(
@@ -732,49 +692,6 @@ class Citykleta_Settings {
 			);
 		}
 
-		register_setting(
-			self::OPTION_GROUP_MAPS,
-			'citykleta_map_marker_shadow_size',
-			array(
-				'type'              => 'integer',
-				'sanitize_callback' => array( $this, 'sanitize_shadow_size' ),
-				'default'           => 2,
-			)
-		);
-
-		// Added after the loop above (not inside self::MAP_COLORS, since it's
-		// a size, not a color) so it lands right after "Shadow Color" —
-		// do_settings_sections() only cares about call order within the same
-		// section, so the Cluster Colors fields the loop also added don't
-		// affect where this shows up in Marker design.
-		add_settings_field(
-			'citykleta_map_marker_shadow_size',
-			'Shadow Blur',
-			array( $this, 'render_shadow_size_field' ),
-			self::PAGE_SLUG . '-maps',
-			self::SECTION_MARKER_DESIGN
-		);
-
-		foreach ( self::SHADOW_OFFSETS as $config ) {
-			register_setting(
-				self::OPTION_GROUP_MAPS,
-				$config['option'],
-				array(
-					'type'              => 'integer',
-					'sanitize_callback' => array( $this, 'sanitize_shadow_offset' ),
-					'default'           => $config['default'],
-				)
-			);
-
-			add_settings_field(
-				$config['option'],
-				$config['label'],
-				array( $this, 'render_shadow_offset_field' ),
-				self::PAGE_SLUG . '-maps',
-				self::SECTION_MARKER_DESIGN,
-				$config
-			);
-		}
 	}
 
 	/**
@@ -786,28 +703,6 @@ class Citykleta_Settings {
 	public function sanitize_icon_size( $value ) {
 		$value = is_numeric( $value ) ? (int) $value : 30;
 		return max( 12, min( 80, $value ) );
-	}
-
-	/**
-	 * Clamps the marker shadow's blur to a sane range.
-	 *
-	 * @param mixed $value Value submitted by the form.
-	 * @return int
-	 */
-	public function sanitize_shadow_size( $value ) {
-		$value = is_numeric( $value ) ? (int) $value : 2;
-		return max( 0, min( 10, $value ) );
-	}
-
-	/**
-	 * Clamps a shadow offset (X or Y) to a sane range.
-	 *
-	 * @param mixed $value Value submitted by the form.
-	 * @return int
-	 */
-	public function sanitize_shadow_offset( $value ) {
-		$value = is_numeric( $value ) ? (int) $value : 0;
-		return max( -10, min( 10, $value ) );
 	}
 
 	/**
@@ -903,12 +798,23 @@ class Citykleta_Settings {
 	 */
 	public function render_tile_style_field() {
 		$value = get_option( 'citykleta_map_tile_style', 'osm' );
-		echo '<select name="citykleta_map_tile_style">';
+		echo '<select name="citykleta_map_tile_style" id="citykleta_map_tile_style">';
 		foreach ( self::TILE_STYLES as $key => $config ) {
 			echo '<option value="' . esc_attr( $key ) . '" ' . selected( $value, $key, false ) . '>' . esc_html( $config['label'] ) . '</option>';
 		}
 		echo '</select>';
-		echo '<p class="description">Free/keyless tiles from each provider — fine for development, but check usage terms before relying on this for real production traffic (see CLAUDE.md).</p>';
+		echo '<p class="description">Free/keyless tiles from each provider — fine for development, but check usage terms before relying on this for real production traffic (see CLAUDE.md). MapTiler, Stadia Maps, and Mapbox below are the ones with a free tier meant for actual production use.</p>';
+	}
+
+	/**
+	 * Renders the API Key field used by any self::TILE_STYLES entry that
+	 * declares a 'key_param' (currently MapTiler and Stadia Maps). Left
+	 * empty when the selected style doesn't need one.
+	 */
+	public function render_tile_api_key_field() {
+		$value = get_option( 'citykleta_map_tile_api_key', '' );
+		echo '<input type="text" name="citykleta_map_tile_api_key" id="citykleta_map_tile_api_key" value="' . esc_attr( $value ) . '" class="regular-text" placeholder="Only needed for MapTiler / Stadia Maps / Mapbox styles" />';
+		echo '<p class="description">Free account: <a href="https://www.maptiler.com/" target="_blank" rel="noopener noreferrer">maptiler.com</a> or <a href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer">mapbox.com</a> (both required — those tiles won\'t load without a key) or <a href="https://stadiamaps.com/" target="_blank" rel="noopener noreferrer">stadiamaps.com</a> (optional for light use, needed once you register a production domain). Ignored by the other styles above.</p>';
 	}
 
 	/**
@@ -922,59 +828,7 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Renders the marker shadow's blur field. The shadow's color is a
-	 * regular entry in self::MAP_COLORS ("Shadow Color") rendered by
-	 * render_color_field() above — this is just the size, which needs a
-	 * plain number input instead of a color picker.
-	 */
-	public function render_shadow_size_field() {
-		$value = get_option( 'citykleta_map_marker_shadow_size', 2 );
-		echo '<input type="number" min="0" max="10" name="citykleta_map_marker_shadow_size" value="' . esc_attr( $value ) . '" class="small-text" /> px';
-		echo '<p class="description">How soft the individual bike marker\'s drop shadow looks. 0 turns it off.</p>';
-	}
-
-	/**
-	 * Renders one shadow offset field. Shared by both entries in self::SHADOW_OFFSETS.
-	 *
-	 * @param array $args One of self::SHADOW_OFFSETS' entries: { 'option' => string, 'label' => string, 'default' => int }.
-	 */
-	public function render_shadow_offset_field( $args ) {
-		$value = get_option( $args['option'], $args['default'] );
-		echo '<input type="number" min="-10" max="10" name="' . esc_attr( $args['option'] ) . '" value="' . esc_attr( $value ) . '" class="small-text" /> px';
-	}
-
-	/**
-	 * Renders the "Custom Icon" field: a Media Library picker that stores
-	 * the chosen image's URL. Replaces the built-in bike glyph for every
-	 * marker on every map when set; left empty, the built-in icon (which
-	 * can show the Available/Unavailable color above) is used — and the
-	 * preview shows that built-in icon itself, so it's clear what "empty"
-	 * actually looks like instead of just showing nothing.
-	 */
-	public function render_icon_field() {
-		$value        = get_option( 'citykleta_map_marker_icon', '' );
-		$default_icon = CITYKLETA_URL . 'assets/images/marker-bike.svg';
-		$preview_src  = $value ? $value : $default_icon;
-		?>
-		<div class="citykleta-icon-field" data-default-icon="<?php echo esc_url( $default_icon ); ?>">
-			<img class="citykleta-icon-preview" src="<?php echo esc_url( $preview_src ); ?>" style="max-width:60px;max-height:60px;display:block;margin-bottom:8px;" alt="" />
-			<input type="hidden" class="citykleta-icon-value" name="citykleta_map_marker_icon" value="<?php echo esc_attr( $value ); ?>" />
-			<button type="button" class="button citykleta-icon-select">Select Image</button>
-			<button type="button" class="button citykleta-icon-remove" style="<?php echo $value ? '' : 'display:none;'; ?>">Remove</button>
-			<p class="description">
-				<?php if ( $value ) : ?>
-					Optional. Replaces the built-in bike glyph for every marker. A custom image can't show the Available/Unavailable color below — that only works with the built-in icon.
-				<?php else : ?>
-					Showing the built-in icon (colorable by Available/Unavailable below). Optionally replace it with your own image — a custom image can't show that color.
-				<?php endif; ?>
-			</p>
-		</div>
-		<?php
-	}
-
-	/**
-	 * Renders the marker icon's size field. Applies to both the built-in
-	 * glyph and a custom uploaded icon (see render_icon_field() above).
+	 * Renders the marker icon's size field.
 	 */
 	public function render_icon_size_field() {
 		$value = get_option( 'citykleta_map_marker_icon_size', 30 );

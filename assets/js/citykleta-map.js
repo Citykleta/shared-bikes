@@ -28,27 +28,23 @@
 	}
 
 	function bikeIcon( bike, options ) {
-		// Settings → Maps → Marker design → "Icon Size"; applies to both the
-		// built-in glyph and a custom uploaded icon, so the two stay
-		// comparable in size if someone switches between them.
+		// Settings → Maps → Marker design → "Icon Size" — the only thing
+		// about the marker that's still configurable; the circle + glyph
+		// itself is fixed (see assets/css/citykleta-map.css).
 		var size = options.iconSize || 30;
+		var state = false === bike.available ? 'unavailable' : 'available';
 
-		if ( options.icon ) {
-			return L.icon( {
-				iconUrl: options.icon,
-				iconSize: [ size, size ],
-				iconAnchor: [ size / 2, size ],
-				popupAnchor: [ 0, -( size + 2 ) ],
-			} );
-		}
-
-		// No custom icon configured (Settings → Maps → Marker design) — just
-		// the colored circle, no glyph inside it.
-		var stateClass = false === bike.available ? 'citykleta-map__bike-icon-circle--unavailable' : 'citykleta-map__bike-icon-circle--available';
-
+		// Same two-layer ring shape as the cluster bubbles (citykleta-map.css):
+		// a translucent outer circle plus a smaller solid inner one, so a lone
+		// bike reads consistently with a cluster of bikes at the same spot.
 		return L.divIcon( {
 			className: 'citykleta-map__bike-icon',
-			html: '<span class="citykleta-map__bike-icon-circle ' + stateClass + '"></span>',
+			html:
+				'<span class="citykleta-map__bike-icon-circle citykleta-map__bike-icon-circle--' + state + '">' +
+					'<span class="citykleta-map__bike-icon-inner citykleta-map__bike-icon-inner--' + state + '">' +
+						'<span class="citykleta-map__bike-icon-glyph"></span>' +
+					'</span>' +
+				'</span>',
 			iconSize: [ size, size ],
 			iconAnchor: [ size / 2, size / 2 ],
 			popupAnchor: [ 0, -( size / 2 + 3 ) ],

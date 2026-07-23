@@ -39,6 +39,7 @@ require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-list-columns.php';
 require_once CITYKLETA_PATH . 'includes/map/class-citykleta-bike-map-data.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-admin-map.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-templates.php';
+require_once CITYKLETA_PATH . 'includes/front/class-citykleta-bike-router.php';
 require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-elementor.php';
 
 if ( CITYKLETA_USE_MOCK_API ) {
@@ -80,6 +81,9 @@ function citykleta_init() {
 
 	// Plantilla del archivo de bicis (grid de tarjetas de vista previa).
 	( new Citykleta_Templates() )->register();
+
+	// Permalinks individuales /bikes/{external_id}/{slug}/.
+	( new Citykleta_Bike_Router() )->register();
 
 	// Widget de Elementor (no hace nada si Elementor no está activo).
 	( new Citykleta_Elementor() )->register();

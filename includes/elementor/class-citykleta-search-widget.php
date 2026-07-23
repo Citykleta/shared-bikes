@@ -952,7 +952,13 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			<?php if ( 'yes' === $settings['show_electric_filter'] ) : ?>
 				<div class="citykleta-search-bar__divider"></div>
 				<div class="citykleta-search-bar__field citykleta-search-bar__field--electric">
-					<label class="citykleta-search-bar__checkbox-label<?php echo 'icon' === $settings['electric_filter_style'] ? ' citykleta-search-bar__checkbox-label--icon' : ''; ?>" for="citykleta-electric-<?php echo esc_attr( $this->get_id() ); ?>">
+					<label
+						class="citykleta-search-bar__checkbox-label<?php echo 'icon' === $settings['electric_filter_style'] ? ' citykleta-search-bar__checkbox-label--icon' : ''; ?>"
+						for="citykleta-electric-<?php echo esc_attr( $this->get_id() ); ?>"
+						<?php if ( 'icon' === $settings['electric_filter_style'] ) : ?>
+							title="<?php echo esc_attr( $settings['electric_filter_label'] ); ?>"
+						<?php endif; ?>
+					>
 						<?php /* Input oculto con valor "0" antes del checkbox: si el checkbox queda
 						sin marcar, este es el único valor que se manda para "electric",
 						así el servidor puede distinguir "sin marcar" de "formulario nunca enviado". */ ?>

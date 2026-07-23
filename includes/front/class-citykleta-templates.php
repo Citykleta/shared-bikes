@@ -156,19 +156,28 @@ class Citykleta_Templates {
 	}
 
 	/**
-	 * Loads the bike archive's CSS. The single page intentionally has no
-	 * CSS of its own: its design is built with Elementor templates.
+	 * Loads each front-end view's CSS: the card grid on the archive, the
+	 * detail layout on a single bike. Designing the single view with
+	 * Elementor would need the Theme Builder (Pro only), so it ships with
+	 * its own stylesheet instead.
 	 */
 	public function enqueue_styles() {
-		if ( ! is_post_type_archive( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
-			return;
+		if ( is_post_type_archive( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
+			wp_enqueue_style(
+				'citykleta-bike-cards',
+				CITYKLETA_URL . 'assets/css/bike-cards.css',
+				array(),
+				CITYKLETA_VERSION
+			);
 		}
 
-		wp_enqueue_style(
-			'citykleta-bike-cards',
-			CITYKLETA_URL . 'assets/css/bike-cards.css',
-			array(),
-			CITYKLETA_VERSION
-		);
+		if ( is_singular( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
+			wp_enqueue_style(
+				'citykleta-single-bike',
+				CITYKLETA_URL . 'assets/css/single-bike.css',
+				array(),
+				CITYKLETA_VERSION
+			);
+		}
 	}
 }

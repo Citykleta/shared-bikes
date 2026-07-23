@@ -210,12 +210,15 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 		$this->end_controls_section();
 
-		// The bike icon and marker/cluster colors used to live here as
-		// per-instance Content/Style controls; they're now global (Settings
-		// → Maps tab, see Citykleta_Settings::MAP_COLORS and
-		// Citykleta_Settings::marker_icon_url()) so every map on the site —
+		// Marker/cluster colors and the base map tile style used to live
+		// here as per-instance Content/Style controls; they're now global
+		// (Settings → Maps tab, see Citykleta_Settings::MAP_COLORS and
+		// Citykleta_Settings::tile_layer()) so every map on the site —
 		// this widget and the wp-admin overview page — stays on the same
 		// look from one place instead of being set per widget instance.
+		// The bike marker itself (a circle showing the built-in glyph,
+		// colored by availability) isn't configurable at all anymore —
+		// see assets/css/citykleta-map.css.
 	}
 
 	/**
@@ -253,12 +256,6 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 		if ( is_numeric( $settings['default_lat'] ) && is_numeric( $settings['default_lng'] ) ) {
 			$options['fallbackCenter'] = array( (float) $settings['default_lat'], (float) $settings['default_lng'] );
-		}
-
-		$icon_url = Citykleta_Settings::marker_icon_url();
-
-		if ( $icon_url ) {
-			$options['icon'] = $icon_url;
 		}
 
 		$options['iconSize'] = Citykleta_Settings::marker_icon_size();

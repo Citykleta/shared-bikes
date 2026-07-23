@@ -177,27 +177,34 @@ por separado, nunca uno compartido entre formularios distintos.
   sincronización y el botón "Sync now". `Citykleta_Settings::get_endpoint_url( $key )` arma la URL
   final (base + path) — agregar un recurso nuevo (ej. `/owners`) solo necesita una entrada nueva en
   `ENDPOINTS`, no un campo a mano.
-- **Maps** — dos secciones (`Citykleta_Settings::SECTION_MARKER_DESIGN` / `SECTION_CLUSTER_COLORS`):
-  - **Marker design** — el ícono propio (`citykleta_map_marker_icon`, un picker de la Media Library
-    de WordPress armado a mano con `wp.media()` porque esta página no tiene a Elementor disponible
-    para su control `MEDIA`; ver `render_icon_field()` + el JS inline en `enqueue_assets()`) y los
-    colores "Available"/"Unavailable" del marcador individual.
+- **Maps** — tres secciones (`Citykleta_Settings::SECTION_TILE_STYLE` / `SECTION_MARKER_DESIGN` /
+  `SECTION_CLUSTER_COLORS`):
+  - **Base Map** — el estilo de tiles usado como mapa base (`citykleta_map_tile_style`, dropdown
+    sobre `Citykleta_Settings::TILE_STYLES`: OpenStreetMap, tres estilos de CARTO, dos de Esri,
+    MapTiler, dos de Stadia Maps, y Mapbox) más un campo "API Key" (`citykleta_map_tile_api_key`)
+    que solo se muestra si el estilo elegido lo necesita — JS inline en `enqueue_assets()` oculta la
+    fila entera según cuáles entradas de `TILE_STYLES` declaran `'key_param'`.
+    `Citykleta_Settings::tile_layer()` arma la URL final agregando `?{key_param}={key}` solo si hay
+    una key guardada y el estilo la usa — OpenStreetMap/CARTO/Esri no necesitan key, MapTiler y
+    Mapbox fallan sin una desde la primera petición, Stadia Maps funciona sin key para uso liviano.
+    Varios de estos proveedores no son aptos para tráfico de producción real sin cuenta paga — ver
+    el docblock de `TILE_STYLES` para el detalle de cada uno.
+  - **Marker design** — solo tamaño (`citykleta_map_marker_icon_size`, "Icon Size"). El ícono en sí,
+    sus colores por disponibilidad, y la sombra que tenía antes ya no son configurables — ver la
+    sección "Mapa de bicis" más abajo.
   - **Cluster Colors** — un color por cada nivel de tamaño que ya usa Leaflet.markercluster (Small/
     Medium/Large), en vez de un solo color para los tres.
 
-  Todo esto vive en `Citykleta_Settings::MAP_COLORS` (colores) + la opción suelta
-  `citykleta_map_marker_icon` (ícono), con el color picker nativo de WordPress (`wp-color-picker`,
-  encolado solo en esta página vía el mismo patrón de hook suffix que `Citykleta_Admin_Map`).
-  `Citykleta_Settings::map_colors()` / `map_color_style_attr()` son genéricos sobre `MAP_COLORS`
-  (cada entrada declara su `'section'`) — arman el `style=""` con una variable CSS
-  `--citykleta-map-{key}-color` por cada entrada (agregar un color nuevo a la constante no necesita
-  tocar estos dos métodos), y `marker_icon_url()` hace lo mismo para el ícono. Tanto
-  `Citykleta_Map_Widget` (Elementor) como `Citykleta_Admin_Map` (wp-admin) llaman a los mismos
-  helpers, así que **un solo lugar** controla el look de todos los mapas del sitio. Antes el ícono y
-  los colores vivían como controles de Content/Style por instancia en el widget de Elementor; se
-  sacaron de ahí para no tener dos fuentes de verdad para lo mismo. El aro translúcido de cada
-  cluster usa `color-mix()` en CSS para diluir ese mismo color sólido en vez de necesitar un segundo
-  valor rgba() por nivel.
+  Esos colores de cluster viven en `Citykleta_Settings::MAP_COLORS`, con el color picker
+  nativo de WordPress (`wp-color-picker`, encolado solo en esta página vía el mismo patrón de hook
+  suffix que `Citykleta_Admin_Map`). `Citykleta_Settings::map_colors()` / `map_color_style_attr()`
+  son genéricos sobre `MAP_COLORS` (cada entrada declara su `'section'`) — arman el `style=""` con
+  una variable CSS `--citykleta-map-{key}-color` por cada entrada (agregar un color nuevo a la
+  constante no necesita tocar estos dos métodos). Tanto `Citykleta_Map_Widget` (Elementor) como
+  `Citykleta_Admin_Map` (wp-admin) llaman a los mismos helpers (`map_color_style_attr()`,
+  `tile_layer()`, `marker_icon_size()`), así que **un solo lugar** controla el look de todos los
+  mapas del sitio. El aro translúcido de cada cluster usa `color-mix()` en CSS para diluir ese mismo
+  color sólido en vez de necesitar un segundo valor rgba() por nivel.
 
 `Citykleta_Bike_Type_Sync` corre primero en cada sincronización: trae `/bike-types` (la lista
 canónica de tipos de bici de la app) y crea/actualiza los términos de la taxonomía `bike_type` por
@@ -425,25 +432,24 @@ nodo) — `init()` guarda la instancia en `el._citykletaMap` y la remueve con
 (los JSON de `data-bikes`/`data-options` concatenados) en el dataset del
 contenedor y se compara antes de reinicializar.
 
-Cada bici sin ícono personalizado se dibuja como el glyph de bici solo, sin ningún
-círculo de fondo, recortado vía CSS `mask-image` sobre `assets/images/marker-bike.svg`
-(`.citykleta-map__bike-icon-circle` en `citykleta-map.css`) y coloreado directamente
-con el color de marca (amarillo `#FED94C` si `available`, gris `#E5E0D3` si no, por
-defecto — configurable en Settings → Maps → "Marker design"), en vez de un `<img>`.
-Por eso el mismo archivo, de un solo color/trazo, sirve para los dos estados sin tener
-que guardar una copia por color. **Ese archivo NO viene con el plugin** (a diferencia
-de otros vendor assets, acá no hay una URL fija para descargarlo — hay que
-conseguir/dibujar un SVG de bici propio, un solo `<path>` con relleno sólido y sin
-degradados, y ponerlo en esa ruta); mientras no exista, la máscara no tiene nada que
-mostrar y el marcador queda invisible — la misma degradación que usan los demás vendor
-files opcionales del plugin, solo que resuelta en CSS puro en vez de con un
-`file_exists()` en PHP, porque acá no hay que encolar ningún script/estilo condicional.
+Cada bici se dibuja como un círculo sólido — mismo lenguaje visual que las burbujas de
+cluster — con el glyph de bici recortado vía CSS `mask-image` sobre
+`assets/images/marker-bike.svg` centrado adentro (`.citykleta-map__bike-icon-circle` +
+`.citykleta-map__bike-icon-glyph`, anidados, en `citykleta-map.css`). Ni el ícono ni sus
+colores son configurables: el color del círculo es fijo por disponibilidad (amarillo
+`#FED94C` si `available`, gris `#E5E0D3` si no) y el glyph siempre se pinta de un gris
+oscuro fijo (`#151b1d`) elegido para leerse bien sobre los dos. **`marker-bike.svg` NO
+viene con el plugin** (a diferencia de otros vendor assets, acá no hay una URL fija para
+descargarlo — hay que conseguir/dibujar un SVG de bici propio, un solo `<path>` con
+relleno sólido y sin degradados, y ponerlo en esa ruta); mientras no exista, la máscara
+no tiene nada que mostrar, pero el círculo de fondo sigue siendo visible (solo falta el
+glyph adentro) — una degradación más suave que dejar el marcador completamente
+invisible.
 
-Ese mismo tab de Settings permite además subir un ícono propio (Media Library, ver
-`Citykleta_Settings::render_icon_field()`); en ese caso se pierde el color por
-disponibilidad, porque no se puede recolorear una imagen arbitraria (PNG/JPG) solo
-con CSS — la técnica de `mask-image` de arriba solo funciona con el ícono por defecto,
-que sabemos que es un SVG de un solo color.
+Esto reemplazó una versión anterior con ícono personalizable vía Media Library y colores
+Available/Unavailable configurables en Settings → Maps → "Marker design" — se simplificó
+a un círculo fijo para no mantener dos rutas de estilo (ícono por defecto recoloreable
+vs. imagen arbitraria que no se puede recolorear con CSS).
 
 Si `center_on_user` está activo (default), el módulo pide geolocalización al
 navegador (`navigator.geolocation`) y, si el visitante la concede, centra el mapa
@@ -499,8 +505,10 @@ Para descargar los archivos que faltan:
 5. Comprobar la API falsa (mock) en: `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/bikes`
 6. Ir a "Bicicletas" → "Settings" (pestaña "Sync") en wp-admin, revisar/guardar la URL de la API y
    la frecuencia, y probar el botón "Sync now". Debe crear/actualizar posts `bike`. En la pestaña
-   "Maps" de esa misma página se configura el ícono propio y los colores del mapa, agrupados en
-   "Marker design" (ícono, disponible/no disponible) y "Cluster Colors" (pequeño/mediano/grande).
+   "Maps" de esa misma página se configura el mapa base y sus colores, agrupados en "Base Map"
+   (estilo de tiles + API Key si el proveedor la necesita), "Marker design" (solo tamaño — el
+   círculo, sus colores por disponibilidad, y la sombra que tenía antes ya no son configurables) y
+   "Cluster Colors" (pequeño/mediano/grande).
 7. Ver el estado de la última sincronización sin entrar a wp-admin en:
    `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/sync-status`
 8. Forzar una sincronización inmediata sin esperar al cron (útil en desarrollo), con un

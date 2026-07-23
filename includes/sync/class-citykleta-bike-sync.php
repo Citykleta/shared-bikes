@@ -189,9 +189,16 @@ class Citykleta_Bike_Sync {
 			)
 		);
 
+		$title = $this->build_title( $item );
+
 		$post_data = array(
 			'post_type'    => Citykleta_Bike_Post_Type::POST_TYPE,
-			'post_title'   => isset( $item['title'] ) ? sanitize_text_field( $item['title'] ) : '',
+			'post_title'   => $title,
+			// Recalculated every sync so the human-friendly slug stays in sync
+			// with brand/model/owner; the id-prefixed URL (see
+			// Citykleta_Bike_Router) keeps old links working via canonical
+			// redirect when it changes.
+			'post_name'    => sanitize_title( $title ),
 			'post_content' => isset( $item['description'] ) ? sanitize_textarea_field( $item['description'] ) : '',
 			'post_status'  => 'publish',
 		);
@@ -255,6 +262,41 @@ class Citykleta_Bike_Sync {
 			update_post_meta( $post_id, 'lat', floatval( $item['coordinates']['lat'] ) );
 			update_post_meta( $post_id, 'lng', floatval( $item['coordinates']['lng'] ) );
 		}
+	}
+
+	/**
+	 * Builds the bike's post title from brand + model + owner name
+	 * (e.g. "COGA Supersonic — Betty"), which also drives the human-friendly
+	 * URL slug. Falls back to the API's own title, then to the id, so the post
+	 * is never left untitled.
+	 *
+	 * @param array $item Bike data, as returned by the API.
+	 * @return string
+	 */
+	private function build_title( array $item ) {
+		$parts = array_filter(
+			array(
+				isset( $item['brand'] ) ? sanitize_text_field( $item['brand'] ) : '',
+				isset( $item['model'] ) ? sanitize_text_field( $item['model'] ) : '',
+			)
+		);
+
+		$title = implode( ' ', $parts );
+
+		if ( ! empty( $item['owner']['name'] ) ) {
+			$owner = sanitize_text_field( $item['owner']['name'] );
+			$title = '' !== $title ? $title . ' — ' . $owner : $owner;
+		}
+
+		if ( '' !== $title ) {
+			return $title;
+		}
+
+		if ( ! empty( $item['title'] ) ) {
+			return sanitize_text_field( $item['title'] );
+		}
+
+		return 'Bike #' . (int) $item['id'];
 	}
 
 	/**
