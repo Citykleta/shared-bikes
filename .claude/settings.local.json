@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(php --version)",
+      "Bash(curl -s \"http://mysite.local/wp-json/citykleta-mock/v1/bicicletas/1\")",
+      "Bash(curl -s \"http://mysite.local/wp-json/citykleta-mock/v1/bicicletas\")",
+      "Bash(php -r \"echo count\\(json_decode\\(file_get_contents\\('php://stdin'\\)\\)\\) . PHP_EOL;\")",
+      "PowerShell(php --version 2>&1)",
+      "Bash(curl -s \"http://mysite.local/wp-json/citykleta-mock/v1/bikes\")",
+      "Bash(curl -s \"http://mysite.local/wp-json/citykleta-mock/v1/bikes/1\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://mysite.local/wp-json/wp/v2/bike\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://mysite.local/\")",
+      "Bash(curl -s \"http://mysite.local/wp-json/wp/v2/bike?per_page=20\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://mysite.local/wp-json/citykleta-mock/v1/bikes\")",
+      "Bash(curl -s \"http://mysite.local/wp-cron.php?doing_wp_cron=$\\(date +%s.%N\\)\" -o /tmp/cron_out.txt -w \"HTTP:%{http_code}\\\\n\" --max-time 30)",
+      "Read(//tmp/**)",
+      "Bash(curl -s \"http://mysite.local/wp-json/wp/v2/bike/OPTIONS\" -X OPTIONS)",
+      "Bash(curl -s \"http://mysite.local/wp-json/wp/v2/bike\" -X OPTIONS)",
+      "Bash(curl -s \"http://mysite.local/wp-json/wp/v2/bike\" -X OPTIONS -o /tmp/schema.json)",
+      "Bash(curl -s \"http://mysite.local/wp-json/wp/v2/bike\" -X OPTIONS -o /tmp/schema2.json)",
+      "Bash(curl -s \"http://mysite.local/wp-json/citykleta-mock/v1/sync-status\")",
+      "Bash(python3 -c ' *)",
+      "Bash(grep -oP '\"meta\":\\\\{.{0,1500}')",
+      "Bash(curl -s \"http://mysite.local/wp-json/wp/v2/bike?per_page=1&_fields=id,title,meta\")",
+      "Bash(curl -s -o /dev/null -w \"home=%{http_code}\\\\n\" \"http://mysite.local/\" --max-time 10)",
+      "Bash(curl -s -o /dev/null -w \"bikes=%{http_code}\\\\n\" \"http://mysite.local/bikes/\" --max-time 10)",
+      "Bash(curl -s \"http://mysite.local/bikes/\")",
+      "Bash(curl -s \"http://mysite.local/bikes/?citykleta_include_electric=1\")",
+      "Bash(curl -s \"http://mysite.local/bikes/?citykleta_include_electric=0\")",
+      "Bash(curl -sf -o js/leaflet.js https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js)",
+      "Bash(curl -sf -o css/leaflet.css https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css)",
+      "Bash(curl -sf -o js/leaflet.markercluster.js https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js)",
+      "Bash(curl -sf -o css/MarkerCluster.css https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css)",
+      "Bash(curl -sf -o css/MarkerCluster.Default.css https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css)",
+      "Bash(node -e \"const d=require\\('./bikes-mock.json'\\); console.log\\('total entries:', d.data.length, 'meta.total:', d.meta.total\\); const ids=d.data.map\\(b=>b.id\\); console.log\\('ids ok:', JSON.stringify\\(ids\\)===JSON.stringify\\([...Array\\(41\\)].map\\(\\(_,i\\)=>i+1\\)\\)\\);\")"
+    ]
+  }
+}

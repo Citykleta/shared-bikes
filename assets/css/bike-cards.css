@@ -1,0 +1,158 @@
+/*
+ * Colores y tipografía tomados del sitio real (citykleta.org):
+ * fondo crema #FFFBEE, texto casi negro #151B1D/#282120, acento
+ * amarillo #FED94C, títulos en Poppins, texto en Inter. No se
+ * encolan esas fuentes aquí a propósito — en producción (Elementor)
+ * ya están cargadas por el tema; si no están disponibles, cae en
+ * sans-serif del sistema.
+ */
+
+.citykleta-bike-archive {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 2rem 1rem;
+}
+
+.citykleta-bike-archive__title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	color: #151b1d;
+	margin-bottom: 1.5rem;
+}
+
+.citykleta-bike-archive__search-note {
+	font-size: 0.9rem;
+	color: #5a5250;
+	margin: -1rem 0 1.5rem;
+}
+
+.citykleta-bike-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 1.5rem;
+}
+
+/* Usadas por el widget de Elementor, donde el usuario elige la cantidad de columnas. */
+.citykleta-bike-grid--cols-2 {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.citykleta-bike-grid--cols-3 {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.citykleta-bike-grid--cols-4 {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 780px) {
+	.citykleta-bike-grid--cols-2,
+	.citykleta-bike-grid--cols-3,
+	.citykleta-bike-grid--cols-4 {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 480px) {
+	.citykleta-bike-grid--cols-2,
+	.citykleta-bike-grid--cols-3,
+	.citykleta-bike-grid--cols-4 {
+		grid-template-columns: 1fr;
+	}
+}
+
+.citykleta-bike-card {
+	display: block;
+	border-radius: 3px;
+	overflow: hidden;
+	text-decoration: none;
+	color: #282120;
+	background: #fff;
+	box-shadow: 0 0 0 0.5px rgba(21, 27, 29, 0.12);
+	font-family: 'Inter', sans-serif;
+	transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.citykleta-bike-card:hover {
+	box-shadow: 0 4px 12px rgba(21, 27, 29, 0.15);
+	transform: translateY(-2px);
+}
+
+.citykleta-bike-card__image {
+	position: relative;
+	aspect-ratio: 3 / 2;
+	background: #f0ece0;
+}
+
+.citykleta-bike-card__image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.citykleta-bike-card__image-placeholder {
+	width: 100%;
+	height: 100%;
+	background: #f0ece0;
+}
+
+.citykleta-bike-card__badge {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	padding: 0.2rem 0.7rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+.citykleta-bike-card__badge--available {
+	background: #fed94c;
+	color: #151b1d;
+}
+
+.citykleta-bike-card__badge--unavailable {
+	background: #e5e0d3;
+	color: #5a5250;
+}
+
+.citykleta-bike-card__image .citykleta-bike-card__owner {
+	position: absolute;
+	bottom: var(--citykleta-owner-offset, 0.5rem);
+	left: var(--citykleta-owner-offset, 0.5rem);
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 2px solid #fff;
+	object-fit: cover;
+	box-shadow: 0 0 0 0.5px rgba(21, 27, 29, 0.15);
+}
+
+.citykleta-bike-card__body {
+	padding: 1rem;
+}
+
+.citykleta-bike-card__title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	color: #151b1d;
+	margin: 0 0 0.25rem;
+	font-size: 1.05rem;
+}
+
+.citykleta-bike-card__location {
+	margin: 0 0 0.35rem;
+	font-size: 0.85rem;
+	color: #5a5250;
+}
+
+.citykleta-bike-card__price {
+	margin: 0;
+	font-weight: 600;
+	color: #282120;
+}
+
+.citykleta-bike-card__body > *:last-child {
+	margin-bottom: 0;
+}

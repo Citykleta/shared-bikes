@@ -1,0 +1,211 @@
+/*
+ * Repaints Leaflet.markercluster's default cluster bubbles and adds the
+ * bike/user marker + popup styles. Marker/cluster colors default to the
+ * same palette as bike-cards.css (accent yellow #FED94C) but are meant to
+ * be overridden per-page via CSS custom properties set on the .citykleta-map
+ * container's inline style — see Citykleta_Settings::map_color_style_attr()
+ * (Settings → Maps tab), which both the Elementor widget and the wp-admin
+ * overview page use.
+ */
+
+.citykleta-map {
+	height: 400px;
+	border-radius: 3px;
+	overflow: hidden;
+	font-family: 'Inter', sans-serif;
+}
+
+/* Cluster bubbles (Leaflet.markercluster default classes) — small/medium/large
+   already vary in size via the vendor CSS; each tier now has its own
+   configurable color (Settings → Maps → "Cluster Color (Small/Medium/Large)"),
+   instead of one color for all three. The outer ring reuses the same solid
+   color as the inner circle, just diluted with color-mix() so it stays
+   translucent without needing a separate rgba() value per tier. The var()
+   fallbacks are only used if the container is missing its inline custom
+   properties (e.g. Citykleta_Settings::map_color_style_attr() didn't run). */
+.citykleta-map .marker-cluster-small {
+	background-color: color-mix( in srgb, var( --citykleta-map-cluster-small-color, #fed94c ) 45%, transparent );
+}
+
+.citykleta-map .marker-cluster-small div {
+	background-color: var( --citykleta-map-cluster-small-color, #fed94c );
+	color: #151b1d;
+}
+
+.citykleta-map .marker-cluster-medium {
+	background-color: color-mix( in srgb, var( --citykleta-map-cluster-medium-color, #fac114 ) 50%, transparent );
+}
+
+.citykleta-map .marker-cluster-medium div {
+	background-color: var( --citykleta-map-cluster-medium-color, #fac114 );
+	color: #151b1d;
+}
+
+.citykleta-map .marker-cluster-large {
+	background-color: color-mix( in srgb, var( --citykleta-map-cluster-large-color, #e0960a ) 55%, transparent );
+}
+
+.citykleta-map .marker-cluster-large div {
+	background-color: var( --citykleta-map-cluster-large-color, #e0960a );
+	color: #151b1d;
+}
+
+.citykleta-map .marker-cluster span {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+}
+
+/* Individual bike marker: just the bike glyph, no circle backdrop — used
+   only when Settings → Maps → Marker design has no custom icon uploaded
+   (citykleta-map.js falls back to a real <img> via L.icon() when it does).
+   Cut out of marker-bike.svg via mask-image and filled with the state
+   color directly (--available/--unavailable modifier below), so the same
+   one-color source file works for both states without a colored copy per
+   state. assets/images/marker-bike.svg doesn't ship with the plugin (drop
+   your own single-path/solid-fill SVG there) — until it exists the mask
+   has nothing to show and the marker is invisible, same
+   graceful-degradation pattern used for the optional vendor files
+   (Leaflet, Flatpickr, etc.) elsewhere in this plugin, just via CSS here
+   instead of a file_exists() check.
+   Sized at 100% on purpose, not a fixed px value: citykleta-map.js reads
+   "Icon Size" (Settings → Maps) and passes it to Leaflet as the divIcon's
+   iconSize, which Leaflet applies as width/height on the wrapping element
+   it creates around this span — 100% just inherits whatever that is. */
+.citykleta-map__bike-icon-circle {
+	display: block;
+	width: 100%;
+	height: 100%;
+	-webkit-mask-image: url( '../images/marker-bike.svg' );
+	mask-image: url( '../images/marker-bike.svg' );
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+}
+
+/* The shadow lives on .citykleta-map__bike-icon (the wrapper Leaflet
+   creates around .citykleta-map__bike-icon-circle above), not on the
+   masked element itself — filter: drop-shadow() and mask-image on the
+   very same element is unreliable across browsers (the shadow silently
+   doesn't render in several of them). One level up, drop-shadow traces
+   the child's already-masked (bike-shaped) alpha just fine.
+   Offset X/Y and blur are plain px numbers (Settings → Maps → "Shadow
+   Offset X/Y"/"Shadow Blur"); the color is one more entry in
+   Citykleta_Settings::MAP_COLORS ("Shadow Color"), diluted with
+   color-mix() the same way the cluster rings are, since the color picker
+   itself has no alpha channel to pull from. */
+.citykleta-map__bike-icon {
+	filter: drop-shadow(
+		var( --citykleta-map-marker-shadow-offset-x, 0px )
+		var( --citykleta-map-marker-shadow-offset-y, 1px )
+		var( --citykleta-map-marker-shadow-size, 2px )
+		color-mix( in srgb, var( --citykleta-map-marker-shadow-color, #151b1d ) 55%, transparent )
+	);
+}
+
+.citykleta-map__bike-icon-circle--available {
+	background-color: var( --citykleta-map-available-color, #fed94c );
+}
+
+.citykleta-map__bike-icon-circle--unavailable {
+	background-color: var( --citykleta-map-unavailable-color, #e5e0d3 );
+}
+
+/* "You are here" marker: kept off the yellow brand palette on purpose, so
+   it reads as the person rather than another bike. */
+.citykleta-map__user-dot {
+	display: block;
+	width: 14px;
+	height: 14px;
+	margin: 2px;
+	border-radius: 50%;
+	background: #4285f4;
+	border: 2px solid #fff;
+	box-shadow: 0 0 0 rgba( 66, 133, 244, 0.5 );
+	animation: citykleta-map-pulse 2s infinite;
+}
+
+@keyframes citykleta-map-pulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba( 66, 133, 244, 0.5 );
+	}
+	70% {
+		box-shadow: 0 0 0 10px rgba( 66, 133, 244, 0 );
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba( 66, 133, 244, 0 );
+	}
+}
+
+/* Popup — same visual language as .citykleta-bike-card. */
+.citykleta-map .leaflet-popup-content-wrapper {
+	padding: 0;
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.citykleta-map .leaflet-popup-content {
+	margin: 0;
+	width: 220px !important;
+}
+
+.citykleta-map__popup-image {
+	display: block;
+	width: 100%;
+	height: 120px;
+	object-fit: cover;
+	background: #f0ece0;
+}
+
+.citykleta-map__popup-body {
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.citykleta-map__popup-title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	color: #151b1d;
+	font-size: 0.95rem;
+}
+
+.citykleta-map__popup-location,
+.citykleta-map__popup-price {
+	font-size: 0.85rem;
+	color: #5a5250;
+}
+
+.citykleta-map__popup-price {
+	font-weight: 600;
+	color: #282120;
+}
+
+.citykleta-map__popup-status {
+	align-self: flex-start;
+	padding: 0.15rem 0.6rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+.citykleta-map__popup-status--available {
+	background: #fed94c;
+	color: #151b1d;
+}
+
+.citykleta-map__popup-status--unavailable {
+	background: #e5e0d3;
+	color: #5a5250;
+}
+
+.citykleta-map__popup-link {
+	margin-top: 0.2rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #151b1d;
+	text-decoration: underline;
+}

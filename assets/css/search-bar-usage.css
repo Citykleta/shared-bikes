@@ -1,0 +1,108 @@
+/*
+ * Skin de Tom Select (assets/js/tom-select.complete.min.js) para el
+ * selector de "tipo de uso" del widget de búsqueda, con los colores de
+ * marca en vez del estilo genérico de la librería. Se carga después de
+ * tom-select.min.css para poder sobreescribirlo sin !important.
+ */
+
+.citykleta-search-bar__field--usage .ts-wrapper {
+	width: 100%;
+}
+
+.citykleta-search-bar__field--usage .ts-control {
+	border: none;
+	box-shadow: none;
+	padding: 0;
+	background: transparent;
+	font-family: 'Inter', sans-serif;
+	font-size: 0.95rem;
+	color: #282120;
+	min-height: 0;
+	/*
+	 * Tom Select only hides its internal search <input> (via the
+	 * "input-hidden" class) once the control loses focus or an item is
+	 * keyboard-highlighted — right after a click selection neither is
+	 * true yet, so the input (min-width: 7rem in the vendor CSS) stays in
+	 * the flex row. With this field this narrow, "flex-wrap: wrap" (also
+	 * vendor default) lets it drop to a second line, stretching the field
+	 * until blur. Forcing nowrap keeps it on one line; the min-width
+	 * override below lets it actually shrink instead of overflowing.
+	 */
+	flex-wrap: nowrap;
+}
+
+.citykleta-search-bar__field--usage .ts-control.focus {
+	box-shadow: none;
+}
+
+.citykleta-search-bar__field--usage .ts-control input {
+	font-family: 'Inter', sans-serif;
+	color: #282120;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.citykleta-search-bar__field--usage .ts-control > .item {
+	color: #282120;
+}
+
+.ts-dropdown {
+	font-family: 'Inter', sans-serif;
+	border-radius: 12px;
+	border: 1px solid #e5e0d3;
+	box-shadow: 0 8px 24px rgba(21, 27, 29, 0.16);
+	margin-top: 0.5rem;
+	overflow: hidden;
+}
+
+/*
+ * Tom Select fija el ancho del menú igual al del campo (lo pone inline
+ * por JS al posicionarlo), y con la descripción de cada uso ese ancho no
+ * alcanza para leer el texto — se ve encimado como en la captura. Se
+ * fuerza un ancho propio con !important (sí le gana a un inline style
+ * sin !important) y se deja min-width por si el campo es aún más angosto
+ * en pantallas chicas.
+ */
+.citykleta-search-bar__field--usage .ts-dropdown {
+	width: 320px !important;
+	min-width: 100%;
+	max-width: min(320px, 90vw);
+	/*
+	 * El widget de mapa (citykleta-map.css / leaflet.css) usa z-index hasta
+	 * 1000 en sus controles internos (.leaflet-top/.leaflet-bottom). Ni este
+	 * campo ni el contenedor del mapa generan su propio stacking context, así
+	 * que compiten en el mismo nivel — sin esto, un mapa colocado debajo de
+	 * la barra de búsqueda tapa el desplegable al abrirse.
+	 */
+	z-index: 1001;
+}
+
+.ts-dropdown .option,
+.ts-dropdown .no-results {
+	padding: 0.6rem 0.9rem;
+}
+
+.ts-dropdown .active {
+	background: #fdf1cc;
+	color: #151b1d;
+}
+
+.citykleta-usage-option {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+}
+
+.citykleta-usage-option__title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: 0.9rem;
+	color: #151b1d;
+}
+
+.citykleta-usage-option__desc {
+	font-size: 0.78rem;
+	color: #5a5250;
+	line-height: 1.35;
+	white-space: normal;
+}

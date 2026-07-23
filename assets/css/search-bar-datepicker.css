@@ -1,0 +1,80 @@
+/*
+ * Skin del calendario de Flatpickr (assets/js/flatpickr.min.js) con los
+ * colores de marca de Citykleta, en vez del estilo genérico de la
+ * librería. Se carga después de flatpickr.min.css para poder
+ * sobreescribirlo sin !important.
+ */
+
+.flatpickr-calendar {
+	font-family: 'Inter', sans-serif;
+	box-shadow: 0 8px 24px rgba(21, 27, 29, 0.16);
+	border-radius: 12px;
+	border: 1px solid #e5e0d3;
+}
+
+.flatpickr-months {
+	padding-top: 0.5rem;
+}
+
+.flatpickr-current-month {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: 1rem;
+	color: #151b1d;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+}
+
+.flatpickr-weekday {
+	font-family: 'Inter', sans-serif;
+	font-weight: 600;
+	color: #5a5250;
+}
+
+.flatpickr-day {
+	border-radius: 999px;
+	color: #282120;
+}
+
+.flatpickr-day.today {
+	border-color: #fed94c;
+}
+
+.flatpickr-day:hover,
+.flatpickr-day:focus {
+	background: #f0ece0;
+	border-color: #f0ece0;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+	background: #fed94c;
+	border-color: #fed94c;
+	color: #151b1d;
+}
+
+.flatpickr-day.inRange {
+	background: #fdf1cc;
+	border-color: #fdf1cc;
+	box-shadow: -5px 0 0 #fdf1cc, 5px 0 0 #fdf1cc;
+}
+
+.flatpickr-day.selected.startRange + .endRange:not(:nth-child(7n+1)),
+.flatpickr-day.startRange.startRange + .endRange:not(:nth-child(7n+1)),
+.flatpickr-day.endRange.startRange + .endRange:not(:nth-child(7n+1)) {
+	box-shadow: -10px 0 0 #fed94c;
+}
+
+.flatpickr-day.disabled,
+.flatpickr-day.disabled:hover {
+	color: #d3cec3;
+}
+
+.flatpickr-prev-month:hover svg,
+.flatpickr-next-month:hover svg {
+	fill: #151b1d;
+}
