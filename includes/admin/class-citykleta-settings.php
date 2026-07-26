@@ -87,9 +87,10 @@ class Citykleta_Settings {
 	/**
 	 * Settings section IDs the "Maps" tab groups its fields into.
 	 */
-	const SECTION_TILE_STYLE     = 'citykleta_tile_style_section';
-	const SECTION_MARKER_DESIGN  = 'citykleta_marker_design_section';
-	const SECTION_CLUSTER_COLORS = 'citykleta_cluster_colors_section';
+	const SECTION_TILE_STYLE       = 'citykleta_tile_style_section';
+	const SECTION_MARKER_DESIGN    = 'citykleta_marker_design_section';
+	const SECTION_CLUSTER_BEHAVIOR = 'citykleta_cluster_behavior_section';
+	const SECTION_CLUSTER_COLORS   = 'citykleta_cluster_colors_section';
 
 	/**
 	 * Base map tile providers offered by the "Base Map" field (Maps tab).
@@ -328,6 +329,30 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * Cluster grouping behavior currently configured ("Cluster Behavior",
+	 * Maps tab): how close bikes need to be, in screen pixels, to group into
+	 * one cluster (maxClusterRadius — Leaflet.markercluster's own default is
+	 * 80), and, optionally, a zoom level past which clustering turns off
+	 * entirely so every bike always shows on its own
+	 * (disableClusteringAtZoom — 0 stored means "never", which this returns
+	 * as null since that's what tells Leaflet.markercluster to keep its own
+	 * default behavior). Used by Citykleta_Map_Widget, Citykleta_Admin_Map,
+	 * Citykleta_Templates (archive-bike.php's map view), and this class's
+	 * own preview map — same single-source-of-truth reasoning as
+	 * self::tile_layer().
+	 *
+	 * @return array { 'maxClusterRadius' => int, 'disableClusteringAtZoom' => int|null }.
+	 */
+	public static function cluster_options() {
+		$disable_at_zoom = (int) get_option( 'citykleta_map_cluster_disable_zoom', 0 );
+
+		return array(
+			'maxClusterRadius'        => (int) get_option( 'citykleta_map_cluster_radius', 80 ),
+			'disableClusteringAtZoom' => $disable_at_zoom > 0 ? $disable_at_zoom : null,
+		);
+	}
+
+	/**
 	 * The individual bike marker's size in pixels (Settings → Maps →
 	 * "Icon Size").
 	 *
@@ -527,7 +552,7 @@ class Citykleta_Settings {
 			return;
 		}
 
-		$options = array_merge( array( 'centerOnUser' => false ), self::tile_layer() );
+		$options = array_merge( array( 'centerOnUser' => false ), self::tile_layer(), self::cluster_options() );
 		$options['iconSize'] = self::marker_icon_size();
 
 		printf(
@@ -742,6 +767,51 @@ class Citykleta_Settings {
 			self::SECTION_MARKER_DESIGN
 		);
 
+		register_setting(
+			self::OPTION_GROUP_MAPS,
+			'citykleta_map_cluster_radius',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_cluster_radius' ),
+				'default'           => 80,
+			)
+		);
+
+		register_setting(
+			self::OPTION_GROUP_MAPS,
+			'citykleta_map_cluster_disable_zoom',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_cluster_disable_zoom' ),
+				'default'           => 0,
+			)
+		);
+
+		add_settings_section(
+			self::SECTION_CLUSTER_BEHAVIOR,
+			'Cluster Behavior',
+			function () {
+				echo '<p>Controls when nearby bikes group into a cluster instead of showing as individual markers.</p>';
+			},
+			self::PAGE_SLUG . '-maps'
+		);
+
+		add_settings_field(
+			'citykleta_map_cluster_radius',
+			'Cluster Radius',
+			array( $this, 'render_cluster_radius_field' ),
+			self::PAGE_SLUG . '-maps',
+			self::SECTION_CLUSTER_BEHAVIOR
+		);
+
+		add_settings_field(
+			'citykleta_map_cluster_disable_zoom',
+			'Unfold At Zoom',
+			array( $this, 'render_cluster_disable_zoom_field' ),
+			self::PAGE_SLUG . '-maps',
+			self::SECTION_CLUSTER_BEHAVIOR
+		);
+
 		add_settings_section(
 			self::SECTION_CLUSTER_COLORS,
 			'Cluster Colors',
@@ -821,6 +891,28 @@ class Citykleta_Settings {
 	 */
 	public function sanitize_tile_style( $value ) {
 		return isset( self::TILE_STYLES[ $value ] ) ? $value : 'osm';
+	}
+
+	/**
+	 * Clamps the cluster grouping radius to a sane pixel range.
+	 *
+	 * @param mixed $value Value submitted by the form.
+	 * @return int
+	 */
+	public function sanitize_cluster_radius( $value ) {
+		$value = is_numeric( $value ) ? (int) $value : 80;
+		return max( 10, min( 200, $value ) );
+	}
+
+	/**
+	 * Clamps the "Unfold At Zoom" level. 0 means never disable clustering.
+	 *
+	 * @param mixed $value Value submitted by the form.
+	 * @return int
+	 */
+	public function sanitize_cluster_disable_zoom( $value ) {
+		$value = is_numeric( $value ) ? (int) $value : 0;
+		return max( 0, min( 19, $value ) );
 	}
 
 	/**
@@ -926,6 +1018,24 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * Renders the cluster grouping radius field.
+	 */
+	public function render_cluster_radius_field() {
+		$value = get_option( 'citykleta_map_cluster_radius', 80 );
+		echo '<input type="number" min="10" max="200" name="citykleta_map_cluster_radius" value="' . esc_attr( $value ) . '" class="small-text" /> px';
+		echo '<p class="description">How close bikes need to be, in screen pixels, to group into one cluster. Smaller means bikes need to be closer together to cluster, so more of them show individually. Leaflet.markercluster\'s own default is 80.</p>';
+	}
+
+	/**
+	 * Renders the "Unfold At Zoom" field.
+	 */
+	public function render_cluster_disable_zoom_field() {
+		$value = get_option( 'citykleta_map_cluster_disable_zoom', 0 );
+		echo '<input type="number" min="0" max="19" name="citykleta_map_cluster_disable_zoom" value="' . esc_attr( $value ) . '" class="small-text" />';
+		echo '<p class="description">Zoom level from which bikes always show individually, never clustered, no matter how close together they are. 0 = never — always cluster nearby bikes regardless of zoom.</p>';
+	}
+
+	/**
 	 * Renders one map color field. Shared by every entry in self::MAP_COLORS.
 	 *
 	 * @param array $args One of self::MAP_COLORS' entries: { 'option' => string, 'label' => string, 'default' => string }.
@@ -991,12 +1101,28 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * The settings tabs, slug => label. Filterable so a separate plugin (e.g.
+	 * the HubSpot connector) can add its own tab to this page without its code
+	 * living here: it adds a slug/label via the 'citykleta_settings_tabs'
+	 * filter and renders that tab's body on the matching
+	 * 'citykleta_settings_render_tab_{slug}' action (see render_page()). The
+	 * external tab owns its own <form>, option group, and settings_fields() —
+	 * same "one option group per form" rule the built-in tabs follow.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function tabs() {
+		return apply_filters( 'citykleta_settings_tabs', self::TABS );
+	}
+
+	/**
 	 * Renders the full settings page: tab nav + the active tab's form.
 	 */
 	public function render_page() {
+		$tabs       = self::tabs();
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'sync';
 
-		if ( ! array_key_exists( $active_tab, self::TABS ) ) {
+		if ( ! array_key_exists( $active_tab, $tabs ) ) {
 			$active_tab = 'sync';
 		}
 
@@ -1006,7 +1132,7 @@ class Citykleta_Settings {
 			<h1>Settings</h1>
 
 			<h2 class="nav-tab-wrapper">
-				<?php foreach ( self::TABS as $tab_slug => $tab_label ) : ?>
+				<?php foreach ( $tabs as $tab_slug => $tab_label ) : ?>
 					<a href="<?php echo esc_url( $base_url . '&tab=' . $tab_slug ); ?>" class="nav-tab <?php echo $active_tab === $tab_slug ? 'nav-tab-active' : ''; ?>">
 						<?php echo esc_html( $tab_label ); ?>
 					</a>
@@ -1037,7 +1163,7 @@ class Citykleta_Settings {
 					submit_button( 'Save changes' );
 					?>
 				</form>
-			<?php else : ?>
+			<?php elseif ( 'sync' === $active_tab ) : ?>
 				<?php if ( isset( $_GET['citykleta_synced'] ) ) : ?>
 					<div class="notice notice-success"><p>Sync completed.</p></div>
 				<?php endif; ?>
@@ -1059,6 +1185,16 @@ class Citykleta_Settings {
 					submit_button( 'Save changes' );
 					?>
 				</form>
+			<?php else : ?>
+				<?php
+				/**
+				 * Body of a tab registered by another plugin through the
+				 * 'citykleta_settings_tabs' filter. That plugin hooks this
+				 * action and prints its own <form> (its own option group +
+				 * settings_fields()). See self::tabs().
+				 */
+				do_action( 'citykleta_settings_render_tab_' . $active_tab );
+				?>
 			<?php endif; ?>
 		</div>
 		<?php

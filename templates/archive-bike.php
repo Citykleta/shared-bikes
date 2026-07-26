@@ -168,7 +168,8 @@ endif;
 
 			$map_options = array_merge(
 				array( 'centerOnUser' => false ),
-				Citykleta_Settings::tile_layer()
+				Citykleta_Settings::tile_layer(),
+				Citykleta_Settings::cluster_options()
 			);
 
 			$map_options['iconSize'] = Citykleta_Settings::marker_icon_size();

@@ -146,7 +146,7 @@ class Citykleta_Admin_Map {
 			<?php else : ?>
 				<p><?php echo count( $bikes ); ?> bike<?php echo 1 === count( $bikes ) ? '' : 's'; ?> shown.</p>
 				<?php
-				$options              = array_merge( array( 'centerOnUser' => false ), Citykleta_Settings::tile_layer() );
+				$options              = array_merge( array( 'centerOnUser' => false ), Citykleta_Settings::tile_layer(), Citykleta_Settings::cluster_options() );
 				$options['iconSize'] = Citykleta_Settings::marker_icon_size();
 
 				printf(

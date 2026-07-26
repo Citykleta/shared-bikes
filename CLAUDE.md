@@ -208,8 +208,8 @@ por separado, nunca uno compartido entre formularios distintos.
   sincronización y el botón "Sync now". `Citykleta_Settings::get_endpoint_url( $key )` arma la URL
   final (base + path) — agregar un recurso nuevo (ej. `/owners`) solo necesita una entrada nueva en
   `ENDPOINTS`, no un campo a mano.
-- **Maps** — tres secciones (`Citykleta_Settings::SECTION_TILE_STYLE` / `SECTION_MARKER_DESIGN` /
-  `SECTION_CLUSTER_COLORS`):
+- **Maps** — cuatro secciones (`Citykleta_Settings::SECTION_TILE_STYLE` / `SECTION_MARKER_DESIGN` /
+  `SECTION_CLUSTER_BEHAVIOR` / `SECTION_CLUSTER_COLORS`):
   - **Base Map** — el estilo de tiles usado como mapa base (`citykleta_map_tile_style`, dropdown
     sobre `Citykleta_Settings::TILE_STYLES`: OpenStreetMap, tres estilos de CARTO, dos de Esri,
     MapTiler, dos de Stadia Maps, y Mapbox) más un campo "API Key" (`citykleta_map_tile_api_key`)
@@ -223,6 +223,13 @@ por separado, nunca uno compartido entre formularios distintos.
   - **Marker design** — solo tamaño (`citykleta_map_marker_icon_size`, "Icon Size"). El ícono en sí,
     sus colores por disponibilidad, y la sombra que tenía antes ya no son configurables — ver la
     sección "Mapa de bicis" más abajo.
+  - **Cluster Behavior** — cuándo se agrupan las bicis cercanas en vez de mostrarse desplegadas:
+    "Cluster Radius" (`citykleta_map_cluster_radius`, px — qué tan cerca en pantalla tienen que estar
+    para agruparse; default 80, el mismo que trae Leaflet.markercluster de fábrica) y "Unfold At Zoom"
+    (`citykleta_map_cluster_disable_zoom` — nivel de zoom a partir del cual se desactiva el
+    agrupamiento del todo, sin importar qué tan cerca estén; 0 = nunca). No es un umbral por
+    *cantidad* de bicis — Leaflet.markercluster agrupa por proximidad en píxeles y zoom, no por
+    cuántos marcadores hay.
   - **Cluster Colors** — un color por cada nivel de tamaño que ya usa Leaflet.markercluster (Small/
     Medium/Large), en vez de un solo color para los tres.
 

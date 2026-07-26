@@ -141,7 +141,15 @@
 			maxZoom: 19,
 		} ).addTo( map );
 
-		var clusterGroup = L.markerClusterGroup();
+		// Settings → Maps → Cluster Behavior: maxClusterRadius (px, how close
+		// bikes need to be to group) and disableClusteringAtZoom (zoom level
+		// past which every bike always shows on its own). Both fall back to
+		// Leaflet.markercluster's own defaults (80, never disabled) when the
+		// caller didn't pass them — e.g. a direct CityKletaMap.init() call.
+		var clusterGroup = L.markerClusterGroup( {
+			maxClusterRadius: options.maxClusterRadius || 80,
+			disableClusteringAtZoom: options.disableClusteringAtZoom || null,
+		} );
 		var bounds = [];
 
 		for ( var i = 0; i < bikes.length; i++ ) {

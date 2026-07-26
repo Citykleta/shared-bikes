@@ -247,7 +247,8 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 		$options = array_merge(
 			array( 'centerOnUser' => 'yes' === $settings['center_on_user'] ),
-			Citykleta_Settings::tile_layer()
+			Citykleta_Settings::tile_layer(),
+			Citykleta_Settings::cluster_options()
 		);
 
 		if ( ! empty( $settings['zoom']['size'] ) ) {

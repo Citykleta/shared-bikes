@@ -217,8 +217,10 @@ class Citykleta_Search_Stats {
 		$pending        = Citykleta_Subscriber::count_pending();
 		$not_downloaded = max( 0, $signups - $downloads );
 
-		$view_to_signup = $views > 0 ? (int) round( $signups / $views * 100 ) : null;
-		$signup_to_dl   = $signups > 0 ? (int) round( $downloads / $signups * 100 ) : null;
+		// With no base yet (0 views / 0 sign-ups) the rate is shown as 0%, not a
+		// dash — the user prefers always seeing a number.
+		$view_to_signup = $views > 0 ? (int) round( $signups / $views * 100 ) : 0;
+		$signup_to_dl   = $signups > 0 ? (int) round( $downloads / $signups * 100 ) : 0;
 
 		echo '<h2>App download wall</h2>';
 
@@ -231,7 +233,7 @@ class Citykleta_Search_Stats {
 		echo '</div>';
 
 		echo '<div style="display:flex;gap:12px;max-width:640px;margin-bottom:24px;">';
-		echo self::stat_card( 'Conversión inscrito → descarga', null === $signup_to_dl ? '—' : $signup_to_dl . '%' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::stat_card( 'Conversión inscrito → descarga', $signup_to_dl . '%' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo self::stat_card( 'Sin descargar aún', (string) $not_downloaded ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo self::stat_card( 'Pendientes de HubSpot', (string) $pending ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '</div>';
@@ -261,15 +263,13 @@ class Citykleta_Search_Stats {
 	/**
 	 * The arrow between two funnel boxes, with the conversion rate under it.
 	 *
-	 * @param int|null $pct Conversion percentage, or null if undefined (no base).
+	 * @param int $pct Conversion percentage (0 when there's no base yet).
 	 * @return string HTML.
 	 */
 	private static function funnel_arrow( $pct ) {
-		$text = null === $pct ? '—' : $pct . '%';
-
 		return '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:52px;color:#646970;">'
 			. '<span style="font-size:18px;line-height:1;">&rarr;</span>'
-			. '<span style="font-size:12px;margin-top:2px;">' . esc_html( $text ) . '</span>'
+			. '<span style="font-size:12px;margin-top:2px;">' . esc_html( $pct . '%' ) . '</span>'
 			. '</div>';
 	}
 
