@@ -43,6 +43,36 @@ includes/
   front/
     class-citykleta-templates.php    → Carga templates/archive-bike.php (grid de tarjetas), permite que
                                         el tema activo lo sobreescriba con su propio archive-bike.php.
+  stats/
+    class-citykleta-view-stats.php   → Cuenta las vistas de la página individual de cada bici (WordPress
+                                          core no cuenta vistas). Al cargar la página, un navigator.sendBeacon()
+                                          pega a un endpoint REST que suma la vista al día de hoy en un único
+                                          meta por bici (_citykleta_views_by_day, arreglo 'Y-m-d' => cantidad —
+                                          una fila por bici, no por vista, así conserva la demanda por día sin
+                                          inflar wp_postmeta). Muestra el total en una columna "Views" de la
+                                          lista de bicis y el desglose por día en una caja lateral de la
+                                          pantalla de edición. Cada bici se cuenta una sola vez por sesión
+                                          del navegador (sessionStorage) para no inflar con recargas. Pronto
+                                          se moverá a un módulo de stats propio.
+    class-citykleta-search-stats.php  → Registra qué ubicaciones se buscan en el archivo /bikes/ y cuáles
+                                        no dan resultados (huecos de oferta). Agrega en una sola opción
+                                        (citykleta_search_stats) término => {count, zero, label, last}, sin
+                                        una fila por búsqueda. Dueña de la página "Stats" bajo Shared Bikes:
+                                        arriba el embudo del muro de descarga (Vistas → Inscripciones →
+                                        Descargas, con desglose por día), debajo las dos tablas de búsquedas
+                                        (más buscadas / sin resultados). El embudo lee las vistas de
+                                        Citykleta_View_Stats::site_total() y los agregados de sign-up/descarga
+                                        de Citykleta_Subscriber; esta clase solo los maqueta.
+  subscribers/
+    class-citykleta-subscriber.php    → CPT privado "citykleta_subscriber": la lista de leads del muro de
+                                        descarga (email, nombre, consentimiento + timestamp, source, estado
+                                        de sync, downloaded_at). Staging para HubSpot; ver sección "Muro de
+                                        descarga de la app" más abajo.
+    class-citykleta-subscriber-rest.php → Endpoints REST del muro: POST /citykleta/v1/subscribers (captura el
+                                        sign-up) y POST /citykleta/v1/subscribers/{id}/download (marca la
+                                        descarga). Públicos, validan payload (mismo criterio que view-stats).
+    class-citykleta-app-cta.php       → Shortcode [citykleta_app_download]: botón → formulario de sign-up →
+                                        enlaces a las tiendas. URLs de tienda por atributos (ios/android/button).
   elementor/
     class-citykleta-elementor.php     → Registra los widgets de Elementor (no hace nada si Elementor no
                                          está activo) y encola su CSS desde temprano (wp_enqueue_scripts).
@@ -124,6 +154,7 @@ languages/                           → Traducciones (vacío por ahora).
 | is_electric        | boolean | ¿Es eléctrica?              | Convencional vs. eléctrica  |
 | owner_name         | string  | Nombre del propietario      | Solo nombre, sin perfil completo todavía |
 | owner_photo        | string  | Foto del propietario (URL)  | URL directa, no se descarga a la biblioteca de medios (a diferencia de la imagen de la bici) |
+| owner_phone        | string  | Teléfono del propietario (WhatsApp) | Viene de `owner.phone` en la API. Usado por el botón "Contactar por WhatsApp" de la página individual (ver `single-bike.php` + pestaña Communication de Settings). |
 
 ## Arquitectura: WordPress sincroniza desde la app, no es la fuente de verdad
 
@@ -155,13 +186,13 @@ app, borrar `includes/mock/` y apuntar el sync a esa URL.
 
 ## Settings page (pestañas Sync / Maps)
 
-`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con dos pestañas
+`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con tres pestañas
 (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
 Cada pestaña registra sus secciones/campos bajo su propio "page" interno (`self::PAGE_SLUG . '-sync'` /
-`'-maps'`), así que `do_settings_sections()` únicamente muestra los campos de la pestaña activa — pero
-eso solo controla qué se *muestra*, no qué se *guarda*. Por eso las dos pestañas usan `OPTION_GROUP`
-**distintos** (`OPTION_GROUP_SYNC` / `OPTION_GROUP_MAPS`), cada uno con su propio `settings_fields()`
-en el `<form>` correspondiente.
+`'-maps'` / `'-comm'`), así que `do_settings_sections()` únicamente muestra los campos de la pestaña
+activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso las tres pestañas usan
+`OPTION_GROUP` **distintos** (`OPTION_GROUP_SYNC` / `OPTION_GROUP_MAPS` / `OPTION_GROUP_COMM`), cada uno
+con su propio `settings_fields()` en el `<form>` correspondiente.
 
 **Gotcha ya resuelto, por si se repite en una página nueva con pestañas:** `wp-admin/options.php`
 recorre *todas* las opciones registradas bajo el grupo que llega en el formulario (`option_page`), no
@@ -205,6 +236,14 @@ por separado, nunca uno compartido entre formularios distintos.
   `tile_layer()`, `marker_icon_size()`), así que **un solo lugar** controla el look de todos los
   mapas del sitio. El aro translúcido de cada cluster usa `color-mix()` en CSS para diluir ese mismo
   color sólido en vez de necesitar un segundo valor rgba() por nivel.
+- **Communication** — una sola opción (`citykleta_whatsapp_message`): la plantilla del mensaje que se
+  pre-rellena cuando un visitante toca "Contactar por WhatsApp" en la página individual de una bici.
+  Soporta placeholders (`Citykleta_Settings::MESSAGE_PLACEHOLDERS`: `{owner}`, `{bike}`, `{price}`,
+  `{url}`). `whatsapp_message( $replacements )` rellena la plantilla para una bici concreta y
+  `whatsapp_url( $phone, $message )` arma el enlace `wa.me` (deja solo dígitos del teléfono, devuelve
+  `''` si no hay número usable para que el llamador oculte el botón). El texto por defecto
+  (`DEFAULT_MESSAGE`) está en español, como el resto del front-end, aunque los identificadores/labels
+  sigan en inglés.
 
 `Citykleta_Bike_Type_Sync` corre primero en cada sincronización: trae `/bike-types` (la lista
 canónica de tipos de bici de la app) y crea/actualiza los términos de la taxonomía `bike_type` por
@@ -476,6 +515,68 @@ Para descargar los archivos que faltan:
 `https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js` → `assets/js/leaflet.markercluster.js`,
 `https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css` → `assets/css/MarkerCluster.css`,
 `https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css` → `assets/css/MarkerCluster.Default.css`.
+
+## Muro de descarga de la app (Subscribers → HubSpot)
+
+La conversión del sitio es: **muro de sign-up (correo + nombre + consentimiento) →
+botón de descarga de la app**. Reemplaza el viejo "Contactar por WhatsApp" (el botón
+ya se quitó de `single-bike.php`; la pestaña Communication de Settings se conserva).
+De qué bici salió una descarga **no** se rastrea a propósito — las inscripciones y
+descargas son globales, solo las *vistas* son por bici (ver `Citykleta_View_Stats`).
+
+`Citykleta_App_Cta` registra el shortcode `[citykleta_app_download]` (colócalo donde
+sea — página, widget, Elementor). Las URLs de tienda van por atributos, así no hace
+falta una sección de Settings todavía:
+`[citykleta_app_download ios="https://apps.apple.com/…" android="https://play.google.com/…" button="Descargar la app"]`.
+Si no se pasa ninguna URL, el shortcode no renderiza nada (en vez de un botón muerto).
+Flujo en `assets/js/citykleta-app-cta.js`: botón → formulario → tiendas; el sign-up se
+captura por REST y el clic en una tienda reporta la descarga de ese lead. Un visitante
+que ya se inscribió (recordado en `localStorage`) salta del botón directo a las tiendas,
+y la descarga se reporta una sola vez por navegador. El formulario trae un honeypot
+(campo `website` oculto) contra bots.
+
+`Citykleta_Subscriber` es un **CPT privado** `citykleta_subscriber` (no público, sin
+front-end, sin REST — el correo es dato personal y solo se ve en wp-admin), listado como
+submenú "Subscribers" bajo "Shared Bikes". Campos (meta interno): correo (identidad
+única — un sign-up repetido actualiza el registro, no duplica la persona),
+consentimiento + timestamp (la base legal que le importa a HubSpot, **no** un correo
+verificado), `source`, estado de sync (`pending` → `synced_to_hubspot`) y `downloaded_at`
+(mide el paso sign-up → descarga por persona). Columnas y caja de detalle de solo lectura
+en wp-admin.
+
+**WP es solo staging; la fuente de verdad de leads es HubSpot** (igual que la app lo es
+de las bicis). Por eso WP **nunca crea cuentas** (no `WP_User`) ni **manda correo de
+verificación** — el doble opt-in lo hace HubSpot, que tiene mejor entregabilidad (el
+envío desde WP en local/Cuba es poco fiable) y en el free es sensible a los rebotes. WP
+solo valida el correo con `is_email()`, guarda el consentimiento y marca `pending`. La
+sincronización a HubSpot vive en un **plugin aparte** (`citykleta-hubspot-crm-connector`,
+carpeta hermana de este plugin), no en este plugin, porque HubSpot es un CRM de toda la
+empresa, no algo específico de bicis.
+
+**Contrato con ese conector (lo único que este plugin expone hacia HubSpot):**
+- `Citykleta_Subscriber_Rest::capture()` dispara la action `citykleta_subscriber_captured`
+  (`$post_id`, `$email`, `$name`, `$source`) tras guardar el lead. Es el único punto de
+  acoplamiento; este plugin no sabe que HubSpot existe. La action también se dispara en
+  re-inscripciones (el push del conector es idempotente, create-or-update por email).
+- `Citykleta_Subscriber` es el dueño de los datos del lead, así que el conector nunca
+  toca las meta keys directo: se las pide por métodos estáticos — `get_data()`,
+  `get_pending_ids()` (reintentos por cron), `get_synced_before()` (purga), `mark_synced()`
+  (setea `STATUS_SYNCED` + el nuevo `META_SYNCED_AT`) y `delete()` (borrado real, sin
+  papelera). Regla: si el conector necesita otro dato del suscriptor, se agrega un método
+  acá, no un `get_post_meta()` con la key hardcodeada del otro lado.
+
+El conector es **push-only** (WP → HubSpot, nunca al revés), tiempo real con
+auto-reparación (push inmediato en la action; si falla, el lead queda `pending` y un
+WP-Cron cada 15 min reintenta y sincroniza el backlog viejo), auth por Private App token,
+y una purga opcional configurable (30/60/90 días / nunca) que solo borra los ya
+sincronizados. Ver el propio plugin para el detalle.
+
+`Citykleta_Subscriber_Rest` expone dos rutas públicas (mismo criterio que `Citykleta_View_Stats`:
+un visitante anónimo no puede firmar un nonce, así que se valida el payload):
+`POST /wp-json/citykleta/v1/subscribers` (captura: exige correo válido y consentimiento,
+descarta el honeypot) y `POST /wp-json/citykleta/v1/subscribers/{id}/download` (marca
+`downloaded_at` una sola vez). El abuso máximo es inflar un lead basura o el conteo de
+descargas — agregar rate-limit por IP si algún día importa.
 
 ## Ideas / próximos pasos posibles
 

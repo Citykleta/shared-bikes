@@ -41,7 +41,29 @@ class Citykleta_Templates {
 			return;
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only, just filters results, no state change.
+		$filters = self::request_filters();
+
+		if ( $filters['meta_query'] ) {
+			$query->set( 'meta_query', $filters['meta_query'] ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+		}
+
+		if ( $filters['tax_query'] ) {
+			$query->set( 'tax_query', $filters['tax_query'] ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+		}
+	}
+
+	/**
+	 * Builds the meta_query / tax_query pieces from the current request's
+	 * search params (location, electric, usage). Shared by
+	 * apply_search_filters() (the paginated grid, via pre_get_posts) and the
+	 * archive template's map query (Citykleta_Bike_Map_Data), so both views
+	 * respond to exactly the same filters while each keeps its own behavior:
+	 * the grid paginates/scrolls, the map plots everything matching at once.
+	 *
+	 * @return array Keys 'meta_query' and 'tax_query' (each an array, possibly empty).
+	 */
+	public static function request_filters() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only filtering, no state change.
 		$meta_query = array();
 
 		if ( ! empty( $_GET['location'] ) ) {
@@ -62,28 +84,25 @@ class Citykleta_Templates {
 				'value' => '0',
 			);
 		}
+
+		$usage = isset( $_GET['usage'] ) ? sanitize_title( wp_unslash( $_GET['usage'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		if ( $meta_query ) {
-			$query->set( 'meta_query', $meta_query ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$usage    = isset( $_GET['usage'] ) ? sanitize_title( wp_unslash( $_GET['usage'] ) ) : '';
-		$type_ids = $this->usage_to_bike_types( $usage );
+		$type_ids  = self::usage_to_bike_types( $usage );
+		$tax_query = array();
 
 		if ( $type_ids ) {
-			$query->set(
-				'tax_query', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-				array(
-					array(
-						'taxonomy' => Citykleta_Bike_Type_Taxonomy::TAXONOMY,
-						'field'    => 'term_id',
-						'terms'    => $type_ids,
-					),
-				)
+			$tax_query[] = array(
+				'taxonomy' => Citykleta_Bike_Type_Taxonomy::TAXONOMY,
+				'field'    => 'term_id',
+				'terms'    => $type_ids,
 			);
 		}
+
+		return array(
+			'meta_query' => $meta_query,
+			'tax_query'  => $tax_query,
+		);
 	}
 
 	/**
@@ -96,7 +115,7 @@ class Citykleta_Templates {
 	 * @param string $usage `bike_usage` term slug.
 	 * @return array List of `bike_type` term IDs (empty if the usage doesn't exist).
 	 */
-	public function usage_to_bike_types( $usage ) {
+	public static function usage_to_bike_types( $usage ) {
 		if ( ! $usage ) {
 			return array();
 		}
@@ -167,7 +186,31 @@ class Citykleta_Templates {
 				'citykleta-bike-cards',
 				CITYKLETA_URL . 'assets/css/bike-cards.css',
 				array(),
-				CITYKLETA_VERSION
+				$this->asset_version( 'assets/css/bike-cards.css' )
+			);
+
+			$this->enqueue_map_assets();
+
+			// Alterna entre la vista de tarjetas y la de mapa (un botón). No
+			// declara dependencia dura de citykleta-map: si Leaflet no está,
+			// el toggle igual funciona (comprueba window.CityKletaMap antes de
+			// tocar el mapa) y solo se pierde el dibujado del mapa.
+			wp_enqueue_script(
+				'citykleta-view-toggle',
+				CITYKLETA_URL . 'assets/js/citykleta-view-toggle.js',
+				array(),
+				$this->asset_version( 'assets/js/citykleta-view-toggle.js' ),
+				true
+			);
+
+			// Carga infinita del grid: reemplaza la paginación clásica,
+			// trayendo la página siguiente por fetch al acercarse el final.
+			wp_enqueue_script(
+				'citykleta-infinite-scroll',
+				CITYKLETA_URL . 'assets/js/citykleta-infinite-scroll.js',
+				array(),
+				$this->asset_version( 'assets/js/citykleta-infinite-scroll.js' ),
+				true
 			);
 		}
 
@@ -176,8 +219,88 @@ class Citykleta_Templates {
 				'citykleta-single-bike',
 				CITYKLETA_URL . 'assets/css/single-bike.css',
 				array(),
-				CITYKLETA_VERSION
+				$this->asset_version( 'assets/css/single-bike.css' )
 			);
 		}
+	}
+
+	/**
+	 * Asset version for cache-busting: filemtime() changes on every edit, so
+	 * the browser always gets the latest file without a hard refresh. Falls
+	 * back to CITYKLETA_VERSION if the file is missing (e.g. vendor not there).
+	 *
+	 * @param string $relative_path Path relative to the plugin folder.
+	 * @return string|int
+	 */
+	private function asset_version( $relative_path ) {
+		$file = CITYKLETA_PATH . $relative_path;
+
+		return file_exists( $file ) ? filemtime( $file ) : CITYKLETA_VERSION;
+	}
+
+	/**
+	 * Loads Leaflet + Leaflet.markercluster + the plugin's map module for the
+	 * archive's results map, independently of Elementor (the archive can't
+	 * depend on Elementor being active). Reuses the same script/style handles
+	 * as Citykleta_Elementor, so if both enqueue them WordPress dedupes by
+	 * handle and they only download once. No-op if the vendor files haven't
+	 * been dropped in (they don't ship with the plugin — see CLAUDE.md).
+	 */
+	private function enqueue_map_assets() {
+		if ( ! file_exists( CITYKLETA_PATH . 'assets/js/leaflet.js' ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'leaflet',
+			CITYKLETA_URL . 'assets/css/leaflet.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_style(
+			'leaflet-markercluster',
+			CITYKLETA_URL . 'assets/css/MarkerCluster.css',
+			array( 'leaflet' ),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_style(
+			'leaflet-markercluster-default',
+			CITYKLETA_URL . 'assets/css/MarkerCluster.Default.css',
+			array( 'leaflet-markercluster' ),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_style(
+			'citykleta-map',
+			CITYKLETA_URL . 'assets/css/citykleta-map.css',
+			array( 'leaflet-markercluster-default' ),
+			$this->asset_version( 'assets/css/citykleta-map.css' )
+		);
+
+		wp_enqueue_script(
+			'leaflet',
+			CITYKLETA_URL . 'assets/js/leaflet.js',
+			array(),
+			CITYKLETA_VERSION,
+			true
+		);
+
+		wp_enqueue_script(
+			'leaflet-markercluster',
+			CITYKLETA_URL . 'assets/js/leaflet.markercluster.js',
+			array( 'leaflet' ),
+			CITYKLETA_VERSION,
+			true
+		);
+
+		wp_enqueue_script(
+			'citykleta-map',
+			CITYKLETA_URL . 'assets/js/citykleta-map.js',
+			array( 'leaflet-markercluster' ),
+			$this->asset_version( 'assets/js/citykleta-map.js' ),
+			true
+		);
 	}
 }

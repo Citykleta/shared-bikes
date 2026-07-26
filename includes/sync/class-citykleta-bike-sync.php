@@ -191,6 +191,13 @@ class Citykleta_Bike_Sync {
 
 		$title = $this->build_title( $item );
 
+		// The URL slug keeps the owner name for a more identifiable link, even
+		// though the visible title doesn't (see build_title()).
+		$slug_source = $title;
+		if ( ! empty( $item['owner']['name'] ) ) {
+			$slug_source .= ' ' . sanitize_text_field( $item['owner']['name'] );
+		}
+
 		$post_data = array(
 			'post_type'    => Citykleta_Bike_Post_Type::POST_TYPE,
 			'post_title'   => $title,
@@ -198,7 +205,7 @@ class Citykleta_Bike_Sync {
 			// with brand/model/owner; the id-prefixed URL (see
 			// Citykleta_Bike_Router) keeps old links working via canonical
 			// redirect when it changes.
-			'post_name'    => sanitize_title( $title ),
+			'post_name'    => sanitize_title( $slug_source ),
 			'post_content' => isset( $item['description'] ) ? sanitize_textarea_field( $item['description'] ) : '',
 			'post_status'  => 'publish',
 		);
@@ -242,6 +249,10 @@ class Citykleta_Bike_Sync {
 			update_post_meta( $post_id, 'owner_photo', esc_url_raw( $item['owner']['photo'] ) );
 		}
 
+		if ( isset( $item['owner']['phone'] ) ) {
+			update_post_meta( $post_id, 'owner_phone', sanitize_text_field( $item['owner']['phone'] ) );
+		}
+
 		// Only the first image is used until gallery support exists.
 		if ( ! empty( $item['images'][0] ) ) {
 			$this->sync_image( $post_id, esc_url_raw( $item['images'][0] ) );
@@ -265,10 +276,10 @@ class Citykleta_Bike_Sync {
 	}
 
 	/**
-	 * Builds the bike's post title from brand + model + owner name
-	 * (e.g. "COGA Supersonic — Betty"), which also drives the human-friendly
-	 * URL slug. Falls back to the API's own title, then to the id, so the post
-	 * is never left untitled.
+	 * Builds the bike's visible post title from brand + model (e.g. "COGA
+	 * Supersonic"). The owner name is intentionally left out of the title — it
+	 * only goes into the URL slug (see upsert_bike()). Falls back to the API's
+	 * own title, then to the id, so the post is never left untitled.
 	 *
 	 * @param array $item Bike data, as returned by the API.
 	 * @return string
@@ -282,11 +293,6 @@ class Citykleta_Bike_Sync {
 		);
 
 		$title = implode( ' ', $parts );
-
-		if ( ! empty( $item['owner']['name'] ) ) {
-			$owner = sanitize_text_field( $item['owner']['name'] );
-			$title = '' !== $title ? $title . ' — ' . $owner : $owner;
-		}
 
 		if ( '' !== $title ) {
 			return $title;

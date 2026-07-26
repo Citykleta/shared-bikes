@@ -11,7 +11,6 @@
  */
 
 .citykleta-map {
-	height: 400px;
 	border-radius: 3px;
 	overflow: hidden;
 	font-family: 'Inter', sans-serif;
@@ -127,6 +126,46 @@
 	mask-repeat: no-repeat;
 	-webkit-mask-position: center;
 	mask-position: center;
+}
+
+/* Price tag bubble hanging off the top-right of the bike circle, its tail
+   pointing diagonally down-left (~7 o'clock on the circle). Kept small and
+   non-interactive so it never blocks a click on the marker. Only rendered
+   when the bike has a price (see bikeIcon() in citykleta-map.js). The bike
+   marker root is absolutely positioned by Leaflet, so this absolute child
+   anchors to it. */
+.citykleta-map__price-bubble {
+	position: absolute;
+	left: 58%;
+	bottom: 62%;
+	z-index: 1;
+	padding: 2px 6px;
+	border-radius: 9px;
+	background-color: #fff;
+	color: #151b1d;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+	box-shadow: 0 1px 3px rgba( 21, 27, 29, 0.25 );
+	pointer-events: none;
+}
+
+/* Downward triangle rotated toward the lower-left so its tip aims at the
+   circle sitting below-left of the bubble. */
+.citykleta-map__price-bubble::after {
+	content: "";
+	position: absolute;
+	left: 7px;
+	top: 100%;
+	width: 0;
+	height: 0;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-top: 7px solid #fff;
+	transform: rotate( -32deg );
+	transform-origin: top center;
+	filter: drop-shadow( 0 1px 1px rgba( 21, 27, 29, 0.18 ) );
 }
 
 /* "You are here" marker: kept off the yellow brand palette on purpose, so

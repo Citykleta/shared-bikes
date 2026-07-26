@@ -34,6 +34,13 @@
 		var size = options.iconSize || 30;
 		var state = false === bike.available ? 'unavailable' : 'available';
 
+		// Small price tag hanging off the top-right of the circle, tail
+		// pointing back down-left at it (styled in citykleta-map.css). Only
+		// shown when the bike carries a price; the circle itself is untouched.
+		var priceBubble = bike.price_tag
+			? '<span class="citykleta-map__price-bubble">' + escapeHtml( bike.price_tag ) + '</span>'
+			: '';
+
 		// Same two-layer ring shape as the cluster bubbles (citykleta-map.css):
 		// a translucent outer circle plus a smaller solid inner one, so a lone
 		// bike reads consistently with a cluster of bikes at the same spot.
@@ -44,7 +51,7 @@
 					'<span class="citykleta-map__bike-icon-inner citykleta-map__bike-icon-inner--' + state + '">' +
 						'<span class="citykleta-map__bike-icon-glyph"></span>' +
 					'</span>' +
-				'</span>',
+				'</span>' + priceBubble,
 			iconSize: [ size, size ],
 			iconAnchor: [ size / 2, size / 2 ],
 			popupAnchor: [ 0, -( size / 2 + 3 ) ],

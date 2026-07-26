@@ -78,25 +78,41 @@ while ( have_posts() ) :
 
 	<main class="citykleta-bike-single">
 
-		<a class="citykleta-bike-single__back" href="<?php echo esc_url( get_post_type_archive_link( Citykleta_Bike_Post_Type::POST_TYPE ) ); ?>">&larr; Volver a bicicletas</a>
+		<?php
+		// "Volver a bicicletas" conserva la búsqueda: si el visitante vino del
+		// archivo de bicis (con su query string ?location=... etc.), volvemos a
+		// ESA URL en vez de al archivo pelado, para no perder los filtros. Solo
+		// cae al archivo sin filtros en una visita directa (sin referer válido).
+		$citykleta_archive_url = get_post_type_archive_link( Citykleta_Bike_Post_Type::POST_TYPE );
+		$citykleta_back_url    = wp_get_referer();
+
+		if ( ! $citykleta_back_url || ! $citykleta_archive_url || 0 !== strpos( $citykleta_back_url, $citykleta_archive_url ) ) {
+			$citykleta_back_url = $citykleta_archive_url;
+		}
+		?>
+		<a class="citykleta-bike-single__back" href="<?php echo esc_url( $citykleta_back_url ); ?>">&larr; Volver a bicicletas</a>
 
 		<div class="citykleta-bike-single__layout">
 
-			<div class="citykleta-bike-single__media">
-				<?php if ( has_post_thumbnail() ) : ?>
-					<?php the_post_thumbnail( 'large' ); ?>
-				<?php endif; ?>
+			<div class="citykleta-bike-single__main">
 
-				<?php if ( $available ) : ?>
-					<span class="citykleta-bike-single__badge citykleta-bike-single__badge--available">Disponible</span>
-				<?php else : ?>
-					<span class="citykleta-bike-single__badge citykleta-bike-single__badge--unavailable">No disponible</span>
-				<?php endif; ?>
+				<div class="citykleta-bike-single__media">
+					<?php if ( has_post_thumbnail() ) : ?>
+						<?php the_post_thumbnail( 'large' ); ?>
+					<?php endif; ?>
+
+					<?php if ( $available ) : ?>
+						<span class="citykleta-bike-single__badge citykleta-bike-single__badge--available">Disponible</span>
+					<?php else : ?>
+						<span class="citykleta-bike-single__badge citykleta-bike-single__badge--unavailable">No disponible</span>
+					<?php endif; ?>
+				</div>
+
+				<h1 class="citykleta-bike-single__title"><?php the_title(); ?></h1>
+
 			</div>
 
 			<div class="citykleta-bike-single__info">
-
-				<h1 class="citykleta-bike-single__title"><?php the_title(); ?></h1>
 
 				<?php if ( $location ) : ?>
 					<p class="citykleta-bike-single__location"><?php echo esc_html( $location ); ?></p>
@@ -138,12 +154,6 @@ while ( have_posts() ) :
 						</div>
 					</div>
 				<?php endif; ?>
-
-				<div class="citykleta-bike-single__cta">
-					<p>Reserva esta bicicleta desde la app de Citykleta.</p>
-					<a class="citykleta-bike-single__button" href="<?php echo esc_url( wp_registration_url() ); ?>">Crear cuenta</a>
-					<a class="citykleta-bike-single__button citykleta-bike-single__button--secondary" href="<?php echo esc_url( wp_login_url() ); ?>">Iniciar sesión</a>
-				</div>
 
 			</div>
 

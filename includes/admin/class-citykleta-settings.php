@@ -1,8 +1,10 @@
 <?php
 /**
- * Settings page: "Sync" tab (bike API URL, sync frequency, URL slug) and
+ * Settings page: "Sync" tab (bike API URL, sync frequency, URL slug),
  * "Maps" tab (marker/cluster colors used by the bikes map everywhere it
- * appears — Elementor widget and the wp-admin overview page).
+ * appears — Elementor widget and the wp-admin overview page), and
+ * "Communication" tab (the WhatsApp message template pre-filled on each
+ * bike's contact box).
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -28,6 +30,7 @@ class Citykleta_Settings {
 	 */
 	const OPTION_GROUP_SYNC = 'citykleta_settings_sync';
 	const OPTION_GROUP_MAPS = 'citykleta_settings_maps';
+	const OPTION_GROUP_COMM = 'citykleta_settings_comm';
 
 	/**
 	 * Settings page slug.
@@ -40,7 +43,28 @@ class Citykleta_Settings {
 	const TABS = array(
 		'sync' => 'Sync',
 		'maps' => 'Maps',
+		'comm' => 'Communication',
 	);
+
+	/**
+	 * Placeholders the WhatsApp message template understands, mapped to a
+	 * short human description shown next to the field. Filled per bike by
+	 * self::whatsapp_message() from the values the single-bike template
+	 * passes in.
+	 */
+	const MESSAGE_PLACEHOLDERS = array(
+		'{owner}' => 'Owner name',
+		'{bike}'  => 'Bike title',
+		'{price}' => 'Price per hour',
+		'{url}'   => 'Link to the bike page',
+	);
+
+	/**
+	 * Default WhatsApp message when the admin hasn't set one. Front-end
+	 * copy is Spanish (like the templates), even though labels/identifiers
+	 * stay English.
+	 */
+	const DEFAULT_MESSAGE = 'Hola {owner}, vi tu bicicleta "{bike}" en Citykleta y me interesa alquilarla. ¿Está disponible? {url}';
 
 	/**
 	 * API resources this plugin syncs, keyed by the slug used in option
@@ -314,6 +338,50 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * The WhatsApp message template configured on the Communication tab,
+	 * falling back to self::DEFAULT_MESSAGE.
+	 *
+	 * @return string
+	 */
+	public static function whatsapp_message_template() {
+		$template = get_option( 'citykleta_whatsapp_message', self::DEFAULT_MESSAGE );
+		return '' !== trim( $template ) ? $template : self::DEFAULT_MESSAGE;
+	}
+
+	/**
+	 * Fills the message template's placeholders (see
+	 * self::MESSAGE_PLACEHOLDERS) with a single bike's data.
+	 *
+	 * @param array $replacements Placeholder => value, e.g. { '{owner}' => 'Laura' }.
+	 * @return string
+	 */
+	public static function whatsapp_message( array $replacements ) {
+		return strtr( self::whatsapp_message_template(), $replacements );
+	}
+
+	/**
+	 * Builds a click-to-chat WhatsApp URL (wa.me) for a phone number and a
+	 * ready message. Returns '' if there's no usable phone number, so the
+	 * caller can hide the button entirely.
+	 *
+	 * wa.me needs the number in international format with digits only (no
+	 * "+", spaces, or dashes), so everything else is stripped.
+	 *
+	 * @param string $phone   Owner phone, however the API formatted it.
+	 * @param string $message Message already run through self::whatsapp_message().
+	 * @return string
+	 */
+	public static function whatsapp_url( $phone, $message ) {
+		$digits = preg_replace( '/\D+/', '', (string) $phone );
+
+		if ( '' === $digits ) {
+			return '';
+		}
+
+		return 'https://wa.me/' . $digits . '?text=' . rawurlencode( $message );
+	}
+
+	/**
 	 * Adds the settings page as a submenu of "Shared Bikes".
 	 */
 	public function add_menu() {
@@ -535,9 +603,11 @@ class Citykleta_Settings {
 		add_settings_section(
 			'citykleta_sync_section',
 			'Bike sync',
-			function () {
-				echo '<p>These settings control where bikes are fetched from and how often they\'re updated.</p>';
-			},
+			// Description + "Sync now" button are rendered at the top of the tab
+			// instead (see render_page()), so the button can sit right after the
+			// description — it can't live inside this settings <form> (its own
+			// form posts elsewhere, and nested forms are invalid HTML).
+			'__return_null',
 			self::PAGE_SLUG . '-sync'
 		);
 
@@ -692,6 +762,44 @@ class Citykleta_Settings {
 			);
 		}
 
+		register_setting(
+			self::OPTION_GROUP_COMM,
+			'citykleta_whatsapp_message',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_message' ),
+				'default'           => self::DEFAULT_MESSAGE,
+			)
+		);
+
+		add_settings_section(
+			'citykleta_comm_section',
+			'WhatsApp contact',
+			function () {
+				echo '<p>Default message pre-filled when a visitor taps "Contact via WhatsApp" on a bike page. The visitor can still edit it before sending.</p>';
+			},
+			self::PAGE_SLUG . '-comm'
+		);
+
+		add_settings_field(
+			'citykleta_whatsapp_message',
+			'Message template',
+			array( $this, 'render_message_field' ),
+			self::PAGE_SLUG . '-comm',
+			'citykleta_comm_section'
+		);
+	}
+
+	/**
+	 * Sanitizes the WhatsApp message template, keeping it as multi-line
+	 * plain text and falling back to the default if left blank.
+	 *
+	 * @param string $value Value submitted by the form.
+	 * @return string
+	 */
+	public function sanitize_message( $value ) {
+		$value = sanitize_textarea_field( $value );
+		return '' !== trim( $value ) ? $value : self::DEFAULT_MESSAGE;
 	}
 
 	/**
@@ -828,6 +936,21 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * Renders the WhatsApp message template field: a textarea plus the list
+	 * of placeholders it understands (self::MESSAGE_PLACEHOLDERS).
+	 */
+	public function render_message_field() {
+		$value = get_option( 'citykleta_whatsapp_message', self::DEFAULT_MESSAGE );
+		echo '<textarea name="citykleta_whatsapp_message" rows="4" class="large-text">' . esc_textarea( $value ) . '</textarea>';
+		echo '<p class="description">Available placeholders:</p>';
+		echo '<ul class="description" style="list-style:disc;margin-left:1.5em;">';
+		foreach ( self::MESSAGE_PLACEHOLDERS as $token => $label ) {
+			echo '<li><code>' . esc_html( $token ) . '</code> — ' . esc_html( $label ) . '</li>';
+		}
+		echo '</ul>';
+	}
+
+	/**
 	 * Renders the marker icon's size field.
 	 */
 	public function render_icon_size_field() {
@@ -906,6 +1029,14 @@ class Citykleta_Settings {
 						<?php $this->render_preview_map(); ?>
 					</div>
 				</div>
+			<?php elseif ( 'comm' === $active_tab ) : ?>
+				<form method="post" action="options.php">
+					<?php
+					settings_fields( self::OPTION_GROUP_COMM );
+					do_settings_sections( self::PAGE_SLUG . '-comm' );
+					submit_button( 'Save changes' );
+					?>
+				</form>
 			<?php else : ?>
 				<?php if ( isset( $_GET['citykleta_synced'] ) ) : ?>
 					<div class="notice notice-success"><p>Sync completed.</p></div>
@@ -913,18 +1044,20 @@ class Citykleta_Settings {
 
 				<?php $this->render_status(); ?>
 
+				<p>These settings control where bikes are fetched from and how often they're updated.</p>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="citykleta_manual_sync" />
+					<?php wp_nonce_field( 'citykleta_manual_sync', 'citykleta_sync_nonce' ); ?>
+					<?php submit_button( 'Sync now', 'secondary' ); ?>
+				</form>
+
 				<form method="post" action="options.php">
 					<?php
 					settings_fields( self::OPTION_GROUP_SYNC );
 					do_settings_sections( self::PAGE_SLUG . '-sync' );
 					submit_button( 'Save changes' );
 					?>
-				</form>
-
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="citykleta_manual_sync" />
-					<?php wp_nonce_field( 'citykleta_manual_sync', 'citykleta_sync_nonce' ); ?>
-					<?php submit_button( 'Sync now', 'secondary' ); ?>
 				</form>
 			<?php endif; ?>
 		</div>

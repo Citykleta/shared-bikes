@@ -15,7 +15,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Trek%20Marlin%207"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 2,
@@ -32,7 +32,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Giant%20Escape%203"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 3,
@@ -49,7 +49,7 @@
       "wheel_size": "20\"",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Xiaomi%20Himo%20C20"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 4,
@@ -66,7 +66,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Specialized%20Rockhopper"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 5,
@@ -83,7 +83,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Bianchi%20Aria"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 6,
@@ -100,7 +100,7 @@
       "wheel_size": "28\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Flying%20Pigeon%20PA-02"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 7,
@@ -117,7 +117,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Cannondale%20Trail%205"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 8,
@@ -134,7 +134,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Merida%20Speeder"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 9,
@@ -151,7 +151,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Scott%20Aspect%20950"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 10,
@@ -168,7 +168,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Orbea%20Gain"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 11,
@@ -185,7 +185,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Forever%20Urban%20Folding"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 12,
@@ -202,7 +202,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Cube%20Aim"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 13,
@@ -219,7 +219,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Colnago%20V3"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 14,
@@ -236,7 +236,7 @@
       "wheel_size": "28\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Gazelle%20Chamonix"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 15,
@@ -253,7 +253,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Dahon%20Mariner"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 16,
@@ -270,7 +270,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Giant%20Escape%202"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 17,
@@ -287,7 +287,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=GT%20Aggressor"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 18,
@@ -304,7 +304,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Cervelo%20Caledonia"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 19,
@@ -321,7 +321,7 @@
       "wheel_size": "28\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Batavus%20Fuente"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 20,
@@ -338,7 +338,7 @@
       "wheel_size": "20\"",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Tern%20Link"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 21,
@@ -355,7 +355,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Trek%20FX%202"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 22,
@@ -372,7 +372,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Kona%20Fire%20Mountain"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 23,
@@ -389,7 +389,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=BMC%20Teammachine"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 24,
@@ -406,7 +406,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Electra%20Loft"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 25,
@@ -423,7 +423,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Brompton%20A-Line"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 26,
@@ -440,7 +440,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Cannondale%20Quick"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 27,
@@ -457,7 +457,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Diamondback%20Line"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 28,
@@ -474,7 +474,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Pinarello%20Prima"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 29,
@@ -491,7 +491,7 @@
       "wheel_size": "28\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Raleigh%20Superbe"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 30,
@@ -508,7 +508,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Priority%20Bit"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 31,
@@ -525,7 +525,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Norco%20Indie"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 32,
@@ -542,7 +542,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Marin%20Bobcat%20Trail"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 33,
@@ -559,7 +559,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Fuji%20Sportif"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 34,
@@ -576,7 +576,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Schwinn%20Discover"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 35,
@@ -593,7 +593,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Java%20Fit"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 36,
@@ -610,7 +610,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Fuji%20Absolute"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 37,
@@ -627,7 +627,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Mongoose%20Tyax"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 38,
@@ -644,7 +644,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Look%20785"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 39,
@@ -661,7 +661,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Momentum%20iNeed"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 40,
@@ -678,7 +678,7 @@
       "wheel_size": "20\"",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Xiaomi%20Qicycle"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 41,
@@ -695,7 +695,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Haro%20Bridgeport"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 42,
@@ -712,7 +712,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Trek%20X-Caliber"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 43,
@@ -729,7 +729,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Specialized%20Chisel"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 44,
@@ -746,7 +746,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Santa%20Cruz%20Chameleon"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 45,
@@ -763,7 +763,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Salsa%20Timberjack"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 46,
@@ -780,7 +780,7 @@
       "wheel_size": "29\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Yeti%20ARC"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 47,
@@ -797,7 +797,7 @@
       "wheel_size": "27.5\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Surly%20Karate%20Monkey"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 48,
@@ -814,7 +814,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Wilier%20Cento1"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 49,
@@ -831,7 +831,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Basso%20Venta"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 50,
@@ -848,7 +848,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Ridley%20Fenix"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 51,
@@ -865,7 +865,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Focus%20Izalco"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 52,
@@ -882,7 +882,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Canyon%20Endurace"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 53,
@@ -899,7 +899,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Bianchi%20Infinito"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 54,
@@ -916,7 +916,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Linus%20Roadster"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 55,
@@ -933,7 +933,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Public%20C7"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 56,
@@ -950,7 +950,7 @@
       "wheel_size": "28\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Papillionaire%20Classic"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 57,
@@ -967,7 +967,7 @@
       "wheel_size": "28\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Pashley%20Britannia"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 58,
@@ -984,7 +984,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Dutch%20ID%20Amsterdam"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 59,
@@ -1001,7 +1001,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Viva%20Juliett"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 60,
@@ -1018,7 +1018,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Montague%20Paratrooper"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 61,
@@ -1035,7 +1035,7 @@
       "wheel_size": "20\"",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Origami%20Crane%208"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 62,
@@ -1052,7 +1052,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Citizen%20Miami"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 63,
@@ -1069,7 +1069,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Vello%20Bike%2B"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 64,
@@ -1086,7 +1086,7 @@
       "wheel_size": "20\"",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Airnimal%20Joey"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     },
     {
       "id": 65,
@@ -1103,7 +1103,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Cannondale%20Quick%20CX"],
-      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A" }
+      "owner": { "name": "Alfonso", "photo": "https://placehold.co/150x150.png?text=A", "phone": "+53 53004004" }
     },
     {
       "id": 66,
@@ -1120,7 +1120,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Scott%20Sub%20Cross"],
-      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G" }
+      "owner": { "name": "Gustavo", "photo": "https://placehold.co/150x150.png?text=G", "phone": "+53 53005005" }
     },
     {
       "id": 67,
@@ -1137,7 +1137,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Orbea%20Vector"],
-      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L" }
+      "owner": { "name": "Laura", "photo": "https://placehold.co/150x150.png?text=L", "phone": "+53 53001001" }
     },
     {
       "id": 68,
@@ -1154,7 +1154,7 @@
       "wheel_size": "700c",
       "is_electric": false,
       "images": ["https://placehold.co/600x400.png?text=Merida%20Crossway"],
-      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J" }
+      "owner": { "name": "John", "photo": "https://placehold.co/150x150.png?text=J", "phone": "+53 53002002" }
     },
     {
       "id": 69,
@@ -1171,7 +1171,7 @@
       "wheel_size": "700c",
       "is_electric": true,
       "images": ["https://placehold.co/600x400.png?text=Giant%20Cypress"],
-      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M" }
+      "owner": { "name": "Maria", "photo": "https://placehold.co/150x150.png?text=M", "phone": "+53 53003003" }
     }
   ],
   "meta": { "page": 1, "per_page": 100, "total": 69, "has_more": false }

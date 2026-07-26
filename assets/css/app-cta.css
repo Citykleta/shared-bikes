@@ -1,0 +1,138 @@
+/*
+ * App-download wall ([citykleta_app_download]). Uses the same palette as the
+ * bike cards and single-bike page (yellow accent #FED94C, dark ink #151B1D,
+ * beige surfaces) so it reads as part of the front-end.
+ */
+.citykleta-app-cta {
+	max-width: 420px;
+	margin: 24px auto;
+	font-family: inherit;
+	color: #151b1d;
+}
+
+/* Primary "Descargar la app" button. */
+.citykleta-app-cta__open,
+.citykleta-app-cta__submit {
+	display: inline-block;
+	width: 100%;
+	padding: 14px 20px;
+	border: none;
+	border-radius: 999px;
+	background: #fed94c;
+	color: #151b1d;
+	font-size: 16px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: filter 0.15s ease;
+}
+
+.citykleta-app-cta__open:hover,
+.citykleta-app-cta__submit:hover {
+	filter: brightness(0.95);
+}
+
+.citykleta-app-cta__submit:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* Sign-up form. */
+.citykleta-app-cta__form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 22px;
+	border: 1px solid #e5e0d3;
+	border-radius: 16px;
+	background: #fffbee;
+}
+
+.citykleta-app-cta__lead {
+	margin: 0;
+	font-size: 15px;
+	color: #5a5250;
+}
+
+.citykleta-app-cta__field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.citykleta-app-cta__field input {
+	padding: 10px 12px;
+	border: 1px solid #e5e0d3;
+	border-radius: 10px;
+	background: #fff;
+	font-size: 15px;
+	color: #151b1d;
+}
+
+.citykleta-app-cta__field input:focus {
+	outline: 2px solid #fed94c;
+	outline-offset: 1px;
+	border-color: #fed94c;
+}
+
+/* Honeypot: kept in the DOM for bots but out of sight for real users. */
+.citykleta-app-cta__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+.citykleta-app-cta__consent {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	font-size: 13px;
+	line-height: 1.4;
+	color: #5a5250;
+}
+
+.citykleta-app-cta__consent input {
+	margin-top: 2px;
+	flex: none;
+}
+
+.citykleta-app-cta__error {
+	margin: 0;
+	font-size: 14px;
+	color: #b3261e;
+}
+
+/* Store links, shown after a successful sign-up. */
+.citykleta-app-cta__stores {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 22px;
+	border: 1px solid #e5e0d3;
+	border-radius: 16px;
+	background: #fffbee;
+	text-align: center;
+}
+
+.citykleta-app-cta__stores-lead {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.citykleta-app-cta__store {
+	display: inline-block;
+	padding: 12px 20px;
+	border-radius: 999px;
+	background: #151b1d;
+	color: #fffbee;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.citykleta-app-cta__store:hover {
+	background: #282120;
+}

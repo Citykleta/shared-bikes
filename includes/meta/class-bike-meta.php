@@ -74,6 +74,10 @@ class Citykleta_Bike_Meta {
 			'label' => 'Owner photo (URL)',
 			'type'  => 'string',
 		),
+		'owner_phone'    => array(
+			'label' => 'Owner phone (WhatsApp)',
+			'type'  => 'string',
+		),
 	);
 
 	/**

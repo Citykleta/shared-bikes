@@ -40,6 +40,11 @@ require_once CITYKLETA_PATH . 'includes/map/class-citykleta-bike-map-data.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-admin-map.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-templates.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-bike-router.php';
+require_once CITYKLETA_PATH . 'includes/stats/class-citykleta-view-stats.php';
+require_once CITYKLETA_PATH . 'includes/stats/class-citykleta-search-stats.php';
+require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber.php';
+require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber-rest.php';
+require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-app-cta.php';
 require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-elementor.php';
 
 if ( CITYKLETA_USE_MOCK_API ) {
@@ -84,6 +89,24 @@ function citykleta_init() {
 
 	// Permalinks individuales /bikes/{external_id}/{slug}/.
 	( new Citykleta_Bike_Router() )->register();
+
+	// Conteo de vistas por bici (endpoint REST + agregación por día).
+	( new Citykleta_View_Stats() )->register();
+
+	// Estadísticas de búsqueda: qué ubicaciones se buscan y cuáles no dan
+	// resultados (huecos de oferta). Página "Searches" bajo Shared Bikes.
+	( new Citykleta_Search_Stats() )->register();
+
+	// Lista de Subscribers (leads del muro de descarga): CPT privado en
+	// wp-admin, staging para sincronizar a HubSpot más adelante. WP no crea
+	// cuentas ni verifica correo — solo guarda el lead con su consentimiento.
+	( new Citykleta_Subscriber() )->register();
+
+	// Endpoints REST del muro: capturar el sign-up y marcar la descarga.
+	( new Citykleta_Subscriber_Rest() )->register();
+
+	// Muro de descarga de la app (shortcode [citykleta_app_download]).
+	( new Citykleta_App_Cta() )->register();
 
 	// Widget de Elementor (no hace nada si Elementor no está activo).
 	( new Citykleta_Elementor() )->register();

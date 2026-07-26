@@ -26,6 +26,8 @@ class Citykleta_Bike_Map_Data {
 	 *     @type int    $count          Max results. -1 for unlimited. Default 100.
 	 *     @type bool   $only_available Only bikes with available = '1'. Default false.
 	 *     @type string $location       Partial match against the location meta. Default ''.
+	 *     @type array  $extra_meta     Extra meta_query conditions, AND-ed in. Default [].
+	 *     @type array  $tax_query      A tax_query to apply. Default [].
 	 * }
 	 * @return array
 	 */
@@ -36,6 +38,8 @@ class Citykleta_Bike_Map_Data {
 				'count'          => 100,
 				'only_available' => false,
 				'location'       => '',
+				'extra_meta'     => array(),
+				'tax_query'      => array(),
 			)
 		);
 
@@ -65,14 +69,24 @@ class Citykleta_Bike_Map_Data {
 			);
 		}
 
-		$query = new WP_Query(
-			array(
-				'post_type'      => Citykleta_Bike_Post_Type::POST_TYPE,
-				'post_status'    => 'publish',
-				'posts_per_page' => (int) $args['count'],
-				'meta_query'     => $meta_query, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-			)
+		// Condiciones de meta extra que traiga quien llama (ej. los filtros del
+		// archivo: eléctricas), en AND con las de arriba.
+		if ( ! empty( $args['extra_meta'] ) ) {
+			$meta_query = array_merge( $meta_query, $args['extra_meta'] );
+		}
+
+		$query_args = array(
+			'post_type'      => Citykleta_Bike_Post_Type::POST_TYPE,
+			'post_status'    => 'publish',
+			'posts_per_page' => (int) $args['count'],
+			'meta_query'     => $meta_query, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 		);
+
+		if ( ! empty( $args['tax_query'] ) ) {
+			$query_args['tax_query'] = $args['tax_query']; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+		}
+
+		$query = new WP_Query( $query_args );
 
 		$bikes = array();
 
@@ -99,6 +113,7 @@ class Citykleta_Bike_Map_Data {
 				'title'     => get_the_title(),
 				'location'  => $location,
 				'price'     => $price ? $price . ' CUP/hora' : '',
+				'price_tag' => $price ? $price . ' CUP' : '',
 				'available' => '1' === (string) $available,
 				'url'       => get_permalink(),
 				'image'     => has_post_thumbnail() ? get_the_post_thumbnail_url( get_the_ID(), 'medium' ) : '',

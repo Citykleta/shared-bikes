@@ -215,7 +215,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '29"',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Trek Marlin 7' ) ),
-				'owner'          => array( 'name' => 'Laura', 'photo' => $this->owner_avatar( 'L' ) ),
+				'owner'          => array( 'name' => 'Laura', 'photo' => $this->owner_avatar( 'L' ), 'phone' => '+53 53001001' ),
 			),
 			array(
 				'id'             => 2,
@@ -232,7 +232,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '700c',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Giant Escape 3' ) ),
-				'owner'          => array( 'name' => 'John', 'photo' => $this->owner_avatar( 'J' ) ),
+				'owner'          => array( 'name' => 'John', 'photo' => $this->owner_avatar( 'J' ), 'phone' => '+53 53002002' ),
 			),
 			array(
 				'id'             => 3,
@@ -249,7 +249,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '20"',
 				'is_electric'    => true,
 				'images'         => array( $this->placeholder_image( 'Xiaomi Himo C20' ) ),
-				'owner'          => array( 'name' => 'Maria', 'photo' => $this->owner_avatar( 'M' ) ),
+				'owner'          => array( 'name' => 'Maria', 'photo' => $this->owner_avatar( 'M' ), 'phone' => '+53 53003003' ),
 			),
 			array(
 				'id'             => 4,
@@ -266,7 +266,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '27.5"',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Specialized Rockhopper' ) ),
-				'owner'          => array( 'name' => 'Alfonso', 'photo' => $this->owner_avatar( 'A' ) ),
+				'owner'          => array( 'name' => 'Alfonso', 'photo' => $this->owner_avatar( 'A' ), 'phone' => '+53 53004004' ),
 			),
 			array(
 				'id'             => 5,
@@ -283,7 +283,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '700c',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Bianchi Aria' ) ),
-				'owner'          => array( 'name' => 'Gustavo', 'photo' => $this->owner_avatar( 'G' ) ),
+				'owner'          => array( 'name' => 'Gustavo', 'photo' => $this->owner_avatar( 'G' ), 'phone' => '+53 53005005' ),
 			),
 			array(
 				'id'             => 6,
@@ -300,7 +300,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '28"',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Flying Pigeon PA-02' ) ),
-				'owner'          => array( 'name' => 'Laura', 'photo' => $this->owner_avatar( 'L' ) ),
+				'owner'          => array( 'name' => 'Laura', 'photo' => $this->owner_avatar( 'L' ), 'phone' => '+53 53001001' ),
 			),
 			array(
 				'id'             => 7,
@@ -317,7 +317,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '29"',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Cannondale Trail 5' ) ),
-				'owner'          => array( 'name' => 'John', 'photo' => $this->owner_avatar( 'J' ) ),
+				'owner'          => array( 'name' => 'John', 'photo' => $this->owner_avatar( 'J' ), 'phone' => '+53 53002002' ),
 			),
 			array(
 				'id'             => 8,
@@ -334,7 +334,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '700c',
 				'is_electric'    => true,
 				'images'         => array( $this->placeholder_image( 'Merida Speeder' ) ),
-				'owner'          => array( 'name' => 'Maria', 'photo' => $this->owner_avatar( 'M' ) ),
+				'owner'          => array( 'name' => 'Maria', 'photo' => $this->owner_avatar( 'M' ), 'phone' => '+53 53003003' ),
 			),
 			array(
 				'id'             => 9,
@@ -351,7 +351,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '27.5"',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Scott Aspect 950' ) ),
-				'owner'          => array( 'name' => 'Alfonso', 'photo' => $this->owner_avatar( 'A' ) ),
+				'owner'          => array( 'name' => 'Alfonso', 'photo' => $this->owner_avatar( 'A' ), 'phone' => '+53 53004004' ),
 			),
 			array(
 				'id'             => 10,
@@ -368,7 +368,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '700c',
 				'is_electric'    => true,
 				'images'         => array( $this->placeholder_image( 'Orbea Gain' ) ),
-				'owner'          => array( 'name' => 'Gustavo', 'photo' => $this->owner_avatar( 'G' ) ),
+				'owner'          => array( 'name' => 'Gustavo', 'photo' => $this->owner_avatar( 'G' ), 'phone' => '+53 53005005' ),
 			),
 			array(
 				'id'             => 11,
@@ -385,7 +385,7 @@ class Citykleta_Mock_Api {
 				'wheel_size'     => '20"',
 				'is_electric'    => false,
 				'images'         => array( $this->placeholder_image( 'Forever Urban Folding' ) ),
-				'owner'          => array( 'name' => 'Laura', 'photo' => $this->owner_avatar( 'L' ) ),
+				'owner'          => array( 'name' => 'Laura', 'photo' => $this->owner_avatar( 'L' ), 'phone' => '+53 53001001' ),
 			),
 		);
 	}
