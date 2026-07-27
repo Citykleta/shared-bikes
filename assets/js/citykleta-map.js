@@ -265,8 +265,28 @@
 
 	// Elementor's editor redraws widgets by AJAX when a setting changes;
 	// re-scan when that happens so the map picks up the new data/options.
+	// Kept as a fast path, but NOT relied on alone — some Elementor editor
+	// builds (confirmed on 4.2.0 with the AI "Angie" panel) never fire this
+	// hook for this widget, so the map would stay stuck as a blank div with
+	// the right data-bikes/data-options but no Leaflet instance on it.
 	if ( window.elementorFrontend && window.elementorFrontend.hooks ) {
 		window.elementorFrontend.hooks.addAction( 'frontend/element_ready/citykleta_map.default', initAll );
+	}
+
+	// Real fallback: watch the DOM directly for map containers showing up,
+	// regardless of which Elementor internals put them there. initAll()'s
+	// own signature check keeps this cheap — a mutation that doesn't touch
+	// any .citykleta-map payload is a no-op.
+	if ( 'undefined' !== typeof MutationObserver ) {
+		var pendingScan = null;
+		var domObserver = new MutationObserver( function () {
+			if ( pendingScan ) {
+				window.clearTimeout( pendingScan );
+			}
+			pendingScan = window.setTimeout( initAll, 150 );
+		} );
+
+		domObserver.observe( document.body, { childList: true, subtree: true } );
 	}
 
 	window.CityKletaMap = { init: init, initAll: initAll };
