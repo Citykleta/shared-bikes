@@ -165,8 +165,45 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'default'    => array(
 					'size' => 400,
 				),
+				'condition'  => array(
+					'cover_mode!' => 'yes',
+				),
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-map' => 'height: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'cover_mode',
+			array(
+				'label'       => 'Cover Mode',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Yes',
+				'label_off'   => 'No',
+				'default'     => '',
+				'separator'   => 'before',
+				'description' => 'Fills the parent Container as a background layer (position: absolute, covering the full container) instead of taking up its own space. Drop this widget into an Elementor Container first, set that Container\'s own Advanced → Position to "Relative" so this has something to size against, then add other widgets on top of it in the same Container. The map stays interactive (draggable/zoomable) anywhere the widgets on top don\'t cover it — the on-screen +/- zoom control is hidden too, since it doesn\'t make sense floating over a background.',
+				'selectors'   => array(
+					'{{WRAPPER}}'                        => 'position: absolute; inset: 0; width: 100%; height: 100%;',
+					'{{WRAPPER}} .citykleta-map'          => 'width: 100%; height: 100%;',
+					'{{WRAPPER}} .leaflet-control-zoom'   => 'display: none;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'cover_z_index',
+			array(
+				'label'       => 'Z-Index',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'default'     => -1,
+				'condition'   => array(
+					'cover_mode' => 'yes',
+				),
+				'description' => 'Keeps the map behind the widgets stacked on top of it in the same Container (lower number = further back).',
+				'selectors'   => array(
+					'{{WRAPPER}}' => 'z-index: {{VALUE}};',
 				),
 			)
 		);
@@ -240,11 +277,11 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
-		if ( ! $bikes ) {
-			echo '<p>No hay bicicletas para mostrar.</p>';
-			return;
-		}
-
+		// Unlike Citykleta_Bike_Widget's grid, the map container always
+		// prints even with zero matching bikes — this widget is meant to
+		// stay on screen as a persistent layer (see Cover Mode), so an empty
+		// result should show an empty map, not make the whole widget
+		// disappear.
 		$options = array_merge(
 			array( 'centerOnUser' => 'yes' === $settings['center_on_user'] ),
 			Citykleta_Settings::tile_layer(),

@@ -187,7 +187,16 @@ app, borrar `includes/mock/` y apuntar el sync a esa URL.
 ## Settings page (pestañas Sync / Maps)
 
 `Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con tres pestañas
-(`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
+propias (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
+
+**Pestañas extensibles desde otros plugins:** la lista de pestañas se lee por `Citykleta_Settings::tabs()`,
+que aplica el filtro `citykleta_settings_tabs` (slug => label) — un plugin aparte puede agregar la suya
+sin tocar este código. El cuerpo de una pestaña externa lo dibuja la action
+`citykleta_settings_render_tab_{slug}` (el plugin externo imprime ahí su propio `<form>`, con su propio
+`OPTION_GROUP` y `settings_fields()`, siguiendo la misma regla de "un option group por formulario"). Lo
+usa el conector de HubSpot para colgar su pestaña "HubSpot" acá manteniendo su código separado. Las tres
+pestañas internas siguen renderizándose con su rama propia en `render_page()`; el `else` final delega en
+esa action para cualquier slug externo.
 Cada pestaña registra sus secciones/campos bajo su propio "page" interno (`self::PAGE_SLUG . '-sync'` /
 `'-maps'` / `'-comm'`), así que `do_settings_sections()` únicamente muestra los campos de la pestaña
 activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso las tres pestañas usan

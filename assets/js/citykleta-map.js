@@ -179,6 +179,23 @@
 			addUserMarker( map, options );
 		}
 
+		// Elementor's editor redraws widgets inside its own iframe via AJAX,
+		// often while the container is still mid-transition (drop animation,
+		// panel not yet laid out). Leaflet sizes itself from the container's
+		// dimensions *at this exact moment* and never rechecks on its own —
+		// if the container was 0×0 (or wrong) right now, the map stays blank
+		// forever even once it settles into its real size. A ResizeObserver
+		// tells Leaflet to recalculate every time the container's size
+		// actually changes, which also covers it appearing later inside a
+		// closed accordion/tab.
+		if ( 'undefined' !== typeof ResizeObserver ) {
+			var observer = new ResizeObserver( function () {
+				map.invalidateSize();
+			} );
+			observer.observe( container );
+			map._citykletaResizeObserver = observer;
+		}
+
 		return map;
 	}
 
@@ -190,6 +207,9 @@
 		}
 
 		if ( el._citykletaMap ) {
+			if ( el._citykletaMap._citykletaResizeObserver ) {
+				el._citykletaMap._citykletaResizeObserver.disconnect();
+			}
 			el._citykletaMap.remove();
 			delete el._citykletaMap;
 		}
