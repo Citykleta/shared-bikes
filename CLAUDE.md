@@ -57,12 +57,14 @@ includes/
     class-citykleta-search-stats.php  → Registra qué ubicaciones se buscan en el archivo /bikes/ y cuáles
                                         no dan resultados (huecos de oferta). Agrega en una sola opción
                                         (citykleta_search_stats) término => {count, zero, label, last}, sin
-                                        una fila por búsqueda. Dueña de la página "Stats" bajo Shared Bikes:
-                                        arriba el embudo del muro de descarga (Vistas → Inscripciones →
-                                        Descargas, con desglose por día), debajo las dos tablas de búsquedas
-                                        (más buscadas / sin resultados). El embudo lee las vistas de
-                                        Citykleta_View_Stats::site_total() y los agregados de sign-up/descarga
-                                        de Citykleta_Subscriber; esta clase solo los maqueta.
+                                        una fila por búsqueda. Dueña del widget "Citykleta Stats" en el
+                                        dashboard de wp-admin (wp_add_dashboard_widget, ya no una página
+                                        propia bajo Shared Bikes): arriba el embudo del muro de descarga
+                                        (Vistas → Inscripciones → Descargas, con desglose por día), debajo
+                                        las dos tablas de búsquedas (más buscadas / sin resultados). El
+                                        embudo lee las vistas de Citykleta_View_Stats::site_total() y los
+                                        agregados de sign-up/descarga de Citykleta_Subscriber; esta clase
+                                        solo los maqueta.
   subscribers/
     class-citykleta-subscriber.php    → CPT privado "citykleta_subscriber": la lista de leads del muro de
                                         descarga (email, nombre, consentimiento + timestamp, source, estado

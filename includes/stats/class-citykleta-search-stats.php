@@ -17,11 +17,11 @@
  * single search. A stray bot hitting the URL with ?location= is counted too;
  * if that noise ever matters, move to a browser beacon like the view counter.
  *
- * This class also owns the "Stats" admin page under Shared Bikes. Besides the
- * search tables it renders the app-download funnel on top (Views -> Sign-ups ->
- * Downloads), reading site views from Citykleta_View_Stats::site_total() and the
- * sign-up/download aggregates from Citykleta_Subscriber — this class only lays
- * them out, each module still owns its own data.
+ * This class also owns the "Citykleta Stats" wp-admin dashboard widget. Besides
+ * the search tables it renders the app-download funnel on top (Views -> Sign-ups
+ * -> Downloads), reading site views from Citykleta_View_Stats::site_total() and
+ * the sign-up/download aggregates from Citykleta_Subscriber — this class only
+ * lays them out, each module still owns its own data.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -46,16 +46,11 @@ class Citykleta_Search_Stats {
 	const MAX_TERMS = 500;
 
 	/**
-	 * Admin page slug.
-	 */
-	const PAGE_SLUG = 'citykleta-searches';
-
-	/**
 	 * Connects the class to WordPress hooks.
 	 */
 	public function register() {
 		add_action( 'wp', array( $this, 'record' ) );
-		add_action( 'admin_menu', array( $this, 'add_page' ) );
+		add_action( 'wp_dashboard_setup', array( $this, 'add_dashboard_widget' ) );
 	}
 
 	/**
@@ -175,35 +170,32 @@ class Citykleta_Search_Stats {
 	}
 
 	/**
-	 * Adds the "Stats" page under the Shared Bikes menu. It currently holds the
-	 * search tables and is the intended home for the rest of the funnel stats.
+	 * Adds the "Citykleta Stats" widget to the wp-admin dashboard. Same
+	 * capability the old "Stats" page required, since this is still the same
+	 * data (search terms, sign-up/download funnel).
 	 */
-	public function add_page() {
-		add_submenu_page(
-			'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE,
-			'Stats',
-			'Stats',
-			'edit_posts',
-			self::PAGE_SLUG,
-			array( $this, 'render_page' )
+	public function add_dashboard_widget() {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return;
+		}
+
+		wp_add_dashboard_widget(
+			'citykleta_search_stats',
+			'Citykleta Stats',
+			array( $this, 'render_widget' )
 		);
 	}
 
 	/**
-	 * Renders the whole Stats page: the app-download funnel on top (the site's
+	 * Renders the whole widget: the app-download funnel on top (the site's
 	 * conversion), then the search tables below.
 	 */
-	public function render_page() {
-		echo '<div class="wrap">';
-		echo '<h1>Stats</h1>';
-
+	public function render_widget() {
 		$this->render_download_wall();
 
-		echo '<hr style="margin:2.5em 0;border:0;border-top:1px solid #dcdcde;" />';
+		echo '<hr style="margin:1.5em 0;border:0;border-top:1px solid #dcdcde;" />';
 
 		$this->render_searches();
-
-		echo '</div>';
 	}
 
 	/**
@@ -222,14 +214,12 @@ class Citykleta_Search_Stats {
 		$view_to_signup = $views > 0 ? (int) round( $signups / $views * 100 ) : 0;
 		$signup_to_dl   = $signups > 0 ? (int) round( $downloads / $signups * 100 ) : 0;
 
-		echo '<h2>App download wall</h2>';
+		echo '<h3 style="margin-top:0;">App download wall</h3>';
 
-		echo '<div style="display:flex;align-items:stretch;gap:8px;max-width:640px;margin:12px 0 20px;">';
-		echo self::funnel_step( 'Vistas del sitio', $views, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		echo self::funnel_arrow( $view_to_signup ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::funnel_step( 'Inscripciones', $signups, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::funnel_arrow( $signup_to_dl ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::funnel_step( 'Descargas', $downloads, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<div style="display:flex;flex-wrap:wrap;gap:8px;max-width:640px;margin:12px 0 20px;">';
+		echo self::funnel_step( 'Vistas del sitio', $views, false, $view_to_signup ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo self::funnel_step( 'Inscripciones', $signups, false, $signup_to_dl ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::funnel_step( 'Descargas', $downloads, true, null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '</div>';
 
 		echo '<div style="display:flex;gap:12px;max-width:640px;margin-bottom:24px;">';
@@ -242,34 +232,30 @@ class Citykleta_Search_Stats {
 	}
 
 	/**
-	 * One funnel box.
+	 * One funnel box. When $next_pct is given, the conversion rate to the
+	 * following step is shown inside this same box instead of a separate
+	 * arrow column — narrow layouts (like the dashboard widget) don't have
+	 * room for a third flex item per step just for an arrow.
 	 *
-	 * @param string $label  Box label.
-	 * @param int    $value  Number to show.
-	 * @param bool   $accent Whether this is the highlighted (final) step.
+	 * @param string   $label    Box label.
+	 * @param int      $value    Number to show.
+	 * @param bool     $accent   Whether this is the highlighted (final) step.
+	 * @param int|null $next_pct Conversion percentage to the next step, or null for the last step.
 	 * @return string HTML.
 	 */
-	private static function funnel_step( $label, $value, $accent ) {
-		$bg    = $accent ? '#f0f6fc' : '#fff';
-		$num   = $accent ? '#0a4b78' : '#1d2327';
-		$lbl   = $accent ? '#0a4b78' : '#646970';
+	private static function funnel_step( $label, $value, $accent, $next_pct ) {
+		$bg  = $accent ? '#f0f6fc' : '#fff';
+		$num = $accent ? '#0a4b78' : '#1d2327';
+		$lbl = $accent ? '#0a4b78' : '#646970';
 
-		return '<div style="flex:1;background:' . $bg . ';border:1px solid #dcdcde;border-radius:12px;padding:16px;text-align:center;">'
+		$conversion = null !== $next_pct
+			? '<div style="font-size:12px;color:#8c8f94;margin-top:4px;">&rarr; ' . esc_html( $next_pct . '%' ) . '</div>'
+			: '';
+
+		return '<div style="flex:1;min-width:110px;background:' . $bg . ';border:1px solid #dcdcde;border-radius:12px;padding:16px;text-align:center;">'
 			. '<div style="font-size:13px;color:' . $lbl . ';">' . esc_html( $label ) . '</div>'
 			. '<div style="font-size:24px;font-weight:600;color:' . $num . ';">' . esc_html( number_format_i18n( $value ) ) . '</div>'
-			. '</div>';
-	}
-
-	/**
-	 * The arrow between two funnel boxes, with the conversion rate under it.
-	 *
-	 * @param int $pct Conversion percentage (0 when there's no base yet).
-	 * @return string HTML.
-	 */
-	private static function funnel_arrow( $pct ) {
-		return '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:52px;color:#646970;">'
-			. '<span style="font-size:18px;line-height:1;">&rarr;</span>'
-			. '<span style="font-size:12px;margin-top:2px;">' . esc_html( $pct . '%' ) . '</span>'
+			. $conversion // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
 			. '</div>';
 	}
 
@@ -304,7 +290,7 @@ class Citykleta_Search_Stats {
 			return;
 		}
 
-		echo '<h3 style="margin:0 0 8px;">Últimos días</h3>';
+		echo '<h4 style="margin:0 0 8px;">Últimos días</h4>';
 		echo '<table class="widefat striped" style="max-width:480px;">';
 		echo '<thead><tr><th>Día</th><th>Inscripciones</th><th>Descargas</th></tr></thead><tbody>';
 
@@ -329,7 +315,7 @@ class Citykleta_Search_Stats {
 			$stats = array();
 		}
 
-		echo '<h2>Searches</h2>';
+		echo '<h3>Searches</h3>';
 
 		if ( empty( $stats ) ) {
 			echo '<p>No searches recorded yet. Once visitors search the bike archive by location, they show up here.</p>';
@@ -359,10 +345,10 @@ class Citykleta_Search_Stats {
 			}
 		);
 
-		echo '<h3>Most searched locations</h3>';
+		echo '<h4>Most searched locations</h4>';
 		self::render_table( array_slice( $by_count, 0, 50, true ), false );
 
-		echo '<h3 style="margin-top:2em;">Searched but not found (supply gaps)</h3>';
+		echo '<h4 style="margin-top:2em;">Searched but not found (supply gaps)</h4>';
 		if ( empty( $gaps ) ) {
 			echo '<p>No zero-result searches yet — every search matched at least one bike.</p>';
 		} else {
