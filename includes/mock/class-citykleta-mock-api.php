@@ -59,6 +59,16 @@ class Citykleta_Mock_Api {
 			)
 		);
 
+		register_rest_route(
+			'citykleta-mock/v1',
+			'/map-settings',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'get_map_settings' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+
 		// TEMPORARY diagnostic route to check the last sync status without
 		// entering wp-admin. Delete along with the rest of includes/mock/.
 		register_rest_route(
@@ -189,6 +199,36 @@ class Citykleta_Mock_Api {
 	public function get_bike_types() {
 		return new WP_REST_Response(
 			array( 'data' => $this->get_bike_types_data() ),
+			200
+		);
+	}
+
+	/**
+	 * Returns fake map display settings as a bare object (no { data: … }
+	 * envelope — unlike /bikes and /bike-types, this matches how the real
+	 * citykleta-sharing-api actually serves GET /map-settings, confirmed
+	 * while building the Back Office side of this. See the map-config
+	 * hand-off note in CLAUDE.md and HANDOFF-map-config-backoffice.md.
+	 * Defaults to the 'osm' style so this works out of the box without a
+	 * Mapbox access token on hand; swap 'tile_style' to 'mapbox' + fill
+	 * 'tile_api_key' to test that path.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function get_map_settings() {
+		return new WP_REST_Response(
+			array(
+				'tile_style'           => 'osm',
+				'tile_api_key'         => '',
+				'marker_icon_size'     => 28,
+				'cluster_radius'       => 40,
+				'cluster_disable_zoom' => 16,
+				'cluster_colors'       => array(
+					'small'  => '#fed94c',
+					'medium' => '#fac114',
+					'large'  => '#e0960a',
+				),
+			),
 			200
 		);
 	}

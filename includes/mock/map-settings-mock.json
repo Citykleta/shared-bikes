@@ -1,0 +1,12 @@
+{
+  "tile_style": "osm",
+  "tile_api_key": "",
+  "marker_icon_size": 28,
+  "cluster_radius": 40,
+  "cluster_disable_zoom": 16,
+  "cluster_colors": {
+    "small": "#fed94c",
+    "medium": "#fac114",
+    "large": "#e0960a"
+  }
+}

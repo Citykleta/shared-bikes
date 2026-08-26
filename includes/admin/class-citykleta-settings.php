@@ -1,10 +1,12 @@
 <?php
 /**
  * Settings page: "Sync" tab (bike API URL, sync frequency, URL slug),
- * "Maps" tab (marker/cluster colors used by the bikes map everywhere it
- * appears — Elementor widget and the wp-admin overview page), and
- * "Communication" tab (the WhatsApp message template pre-filled on each
- * bike's contact box).
+ * "Maps" tab (read-only display of the base map style/token, marker size,
+ * and cluster behavior/colors used by the bikes map everywhere it appears —
+ * Elementor widget and the wp-admin overview page; administered from Back
+ * Office and pulled in by Citykleta_Map_Settings_Sync, see the map-config
+ * hand-off note in CLAUDE.md), and "Communication" tab (the WhatsApp message
+ * template pre-filled on each bike's contact box).
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -19,17 +21,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Citykleta_Settings {
 
 	/**
-	 * Option groups used by the Settings API — one per tab, not shared.
+	 * Option groups used by the Settings API — one per tab with a savable
+	 * form, not shared. The "Maps" tab isn't in this list: it's read-only
+	 * (see Citykleta_Map_Settings_Sync), so it has nothing to register with
+	 * the Settings API.
 	 *
 	 * wp-admin/options.php processes every option registered under the
 	 * submitted group, not just the ones present in that request's form: any
 	 * option in the group that the form didn't include gets blanked out. A
-	 * single group shared across tabs would mean saving "Sync" wipes "Maps"
-	 * and vice versa, since each tab's <form> only contains its own fields.
-	 * Separate groups keep each tab's save from touching the other's data.
+	 * single group shared across tabs would mean saving "Sync" wipes
+	 * "Communication" and vice versa, since each tab's <form> only contains
+	 * its own fields. Separate groups keep each tab's save from touching the
+	 * other's data.
 	 */
 	const OPTION_GROUP_SYNC = 'citykleta_settings_sync';
-	const OPTION_GROUP_MAPS = 'citykleta_settings_maps';
 	const OPTION_GROUP_COMM = 'citykleta_settings_comm';
 
 	/**
@@ -74,13 +79,17 @@ class Citykleta_Settings {
 	 * is needed, the base URL + path fields are generated from this list.
 	 */
 	const ENDPOINTS = array(
-		'bikes'      => array(
+		'bikes'        => array(
 			'label'        => 'Bikes',
 			'default_path' => '/bikes',
 		),
-		'bike_types' => array(
+		'bike_types'   => array(
 			'label'        => 'Bike types',
 			'default_path' => '/bike-types',
+		),
+		'map_settings' => array(
+			'label'        => 'Map settings',
+			'default_path' => '/map-settings',
 		),
 	);
 
@@ -93,84 +102,40 @@ class Citykleta_Settings {
 	const SECTION_CLUSTER_COLORS   = 'citykleta_cluster_colors_section';
 
 	/**
-	 * Base map tile providers offered by the "Base Map" field (Maps tab).
+	 * Base map tile providers the "Base Map" field can resolve
+	 * (citykleta_map_tile_style option, now set by Citykleta_Map_Settings_Sync
+	 * instead of picked by hand — see the Maps tab note in CLAUDE.md).
 	 * assets/js/citykleta-map.js already accepts a tileUrl/attribution pair
 	 * per map instance (falls back to the 'osm' entry below if none is
-	 * passed) — this just lets that be picked in wp-admin instead of edited
-	 * in code, same "one place controls every map" reasoning as
+	 * passed) — self::tile_layer() resolves the synced style key against
+	 * this list, same "one place controls every map" reasoning as
 	 * self::MAP_COLORS.
 	 *
-	 * The first six are each provider's free/keyless tile endpoint — fine
-	 * for this LocalWP prototype, but not really meant for a live commercial
-	 * app: OpenStreetMap's usage policy only allows light interactive
-	 * traffic (operations.osmfoundation.org/policies/tiles/), CARTO's terms
-	 * require an Enterprise license for commercial use
-	 * (docs.carto.com/faqs/carto-basemaps), and Esri's World_Imagery/
-	 * World_Topo don't publish a hard free-tier limit either. MapTiler,
-	 * Stadia Maps, and Mapbox are the ones with a documented free tier that
-	 * explicitly covers small commercial/production use — hence
-	 * 'key_param': all three need an API key (see self::tile_layer(),
-	 * citykleta_map_tile_api_key option). MapTiler's and Mapbox's requests
-	 * fail without one; Stadia's tiles work keyless for light/dev use but a
-	 * key is what makes production traffic count against a registered
-	 * free-tier quota instead of being rate-limited as anonymous use.
+	 * Reduced (2026-08) to just the two providers actually used: OpenStreetMap
+	 * as a free/keyless fallback, and Mapbox as the real base map — Citykleta
+	 * already has a Mapbox style set up for its own access token. This list
+	 * stays plugin-side code even though Back Office now owns *which* key +
+	 * the access token value: Back Office only ever sends a style key from
+	 * this same enum, never a raw tile_url, so both sides only have to agree
+	 * on the key names, not on tile URL templates. See the map-config
+	 * hand-off note in CLAUDE.md for the full reasoning.
 	 */
 	const TILE_STYLES = array(
-		'osm'                   => array(
+		'osm'    => array(
 			'label'       => 'OpenStreetMap (default)',
 			'tile_url'    => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 		),
-		'positron'              => array(
-			'label'       => 'CARTO Positron (light, minimal)',
-			'tile_url'    => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-		),
-		'voyager'               => array(
-			'label'       => 'CARTO Voyager (light, more color)',
-			'tile_url'    => 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-		),
-		'dark_matter'           => array(
-			'label'       => 'CARTO Dark Matter (dark)',
-			'tile_url'    => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-			'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-		),
-		'esri_imagery'          => array(
-			'label'       => 'Esri World Imagery (satellite)',
-			'tile_url'    => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-			'attribution' => 'Tiles &copy; Esri',
-		),
-		'esri_topo'             => array(
-			'label'       => 'Esri World Topo (topographic)',
-			'tile_url'    => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-			'attribution' => 'Tiles &copy; Esri',
-		),
-		'maptiler_streets'      => array(
-			'label'       => 'MapTiler Streets (needs API Key)',
-			'tile_url'    => 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png',
-			'attribution' => '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-			'key_param'   => 'key',
-		),
-		'stadia_alidade_smooth' => array(
-			'label'       => 'Stadia Maps — Alidade Smooth, light (API Key recommended)',
-			'tile_url'    => 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
-			'attribution' => '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-			'key_param'   => 'api_key',
-		),
-		'stadia_alidade_dark'   => array(
-			'label'       => 'Stadia Maps — Alidade Smooth Dark (API Key recommended)',
-			'tile_url'    => 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-			'attribution' => '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-			'key_param'   => 'api_key',
-		),
 		// Mapbox's ToS technically also requires their logo to stay visible
-		// on the map, not just this text credit — fine for a prototype,
-		// worth double-checking their attribution guidelines again before a
-		// real commercial launch.
-		'mapbox'                => array(
-			'label'       => 'Mapbox Streets (needs API Key)',
-			'tile_url'    => 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}{r}',
+		// on the map, not just this text credit — worth double-checking
+		// their attribution guidelines before a real commercial launch.
+		// tile_url points at Citykleta's own Mapbox Studio style
+		// (mapbox://styles/citykleta-dev/cmh7t96hm00o401r50epi7e7s), not the
+		// generic 'mapbox/streets-v12' — swap the "citykleta-dev/…" segment
+		// if that style is ever replaced.
+		'mapbox' => array(
+			'label'       => 'Mapbox (Citykleta style, needs Access Token)',
+			'tile_url'    => 'https://api.mapbox.com/styles/v1/citykleta-dev/cmh7t96hm00o401r50epi7e7s/tiles/{z}/{x}/{y}{r}',
 			'attribution' => '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 			'key_param'   => 'access_token',
 		),
@@ -421,9 +386,10 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Loads the color picker, only on this page and only when the Maps tab
-	 * can actually be reached (it's always registered, so always enqueue
-	 * on this screen — the JS only touches elements that exist).
+	 * Loads the Maps tab's live preview map assets, only on this page. The
+	 * Maps tab is read-only (see the map-config hand-off note in CLAUDE.md),
+	 * so this no longer needs the color picker or the tile-style-dependent
+	 * API key row toggle it used to load.
 	 *
 	 * @param string $hook_suffix Current admin page's hook suffix.
 	 */
@@ -432,46 +398,10 @@ class Citykleta_Settings {
 			return;
 		}
 
-		wp_enqueue_style( 'wp-color-picker' );
-		wp_enqueue_script( 'wp-color-picker' );
-
-		wp_add_inline_script(
-			'wp-color-picker',
-			'jQuery( function ( $ ) { $( ".citykleta-color-field" ).wpColorPicker(); } );'
-		);
-
-		// "API Key" field only makes sense for a self::TILE_STYLES entry
-		// that declares a 'key_param' (MapTiler, Stadia Maps) — hides its
-		// whole settings row for the other styles instead of leaving a
-		// field there that self::tile_layer() would just ignore.
-		$tile_styles_needing_key = array();
-
-		foreach ( self::TILE_STYLES as $key => $config ) {
-			if ( ! empty( $config['key_param'] ) ) {
-				$tile_styles_needing_key[] = $key;
-			}
-		}
-
-		wp_add_inline_script(
-			'wp-color-picker',
-			'jQuery( function ( $ ) {
-				var citykletaTileKeysNeeded = ' . wp_json_encode( $tile_styles_needing_key ) . ';
-
-				function citykletaToggleApiKeyRow() {
-					var selected = $( "#citykleta_map_tile_style" ).val();
-					$( "#citykleta_map_tile_api_key" ).closest( "tr" ).toggle( -1 !== $.inArray( selected, citykletaTileKeysNeeded ) );
-				}
-
-				citykletaToggleApiKeyRow();
-				$( "#citykleta_map_tile_style" ).on( "change", citykletaToggleApiKeyRow );
-			} );'
-		);
-
 		// Live preview map (right column of the Maps tab) — same assets as
 		// the front-end map, loaded the same optional/graceful-degradation
 		// way (file_exists() guard) as Citykleta_Admin_Map does. It renders
-		// with whatever is currently *saved*, so it updates on each page
-		// load after "Save changes" — not as you type/pick a color.
+		// with whatever Citykleta_Map_Settings_Sync last synced.
 		if ( file_exists( CITYKLETA_PATH . 'assets/css/leaflet.css' ) ) {
 			wp_enqueue_style( 'leaflet', CITYKLETA_URL . 'assets/css/leaflet.css', array(), CITYKLETA_VERSION );
 			wp_enqueue_style( 'leaflet-markercluster', CITYKLETA_URL . 'assets/css/MarkerCluster.css', array( 'leaflet' ), CITYKLETA_VERSION );
@@ -481,7 +411,7 @@ class Citykleta_Settings {
 			wp_add_inline_style(
 				'citykleta-map',
 				'.citykleta-settings-maps-layout { display: flex; gap: 40px; align-items: flex-start; }
-				.citykleta-settings-maps-form { flex: 1 1 50%; max-width: 600px; }
+				.citykleta-settings-maps-summary { flex: 1 1 50%; max-width: 600px; }
 				.citykleta-settings-maps-preview { flex: 1 1 50%; position: sticky; top: 40px; }
 				.citykleta-settings-maps-preview .citykleta-map { width: 100%; height: auto; aspect-ratio: 1 / 1; }
 				@media ( max-width: 900px ) { .citykleta-settings-maps-layout { flex-direction: column; } }'
@@ -674,16 +604,14 @@ class Citykleta_Settings {
 			'citykleta_sync_section'
 		);
 
-		register_setting(
-			self::OPTION_GROUP_MAPS,
-			'citykleta_map_tile_style',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( $this, 'sanitize_tile_style' ),
-				'default'           => 'osm',
-			)
-		);
-
+		// The "Maps" tab's fields below are read-only — no register_setting()
+		// calls for them, since Citykleta_Map_Settings_Sync writes these
+		// options directly (update_option()) from Back Office instead of a
+		// wp-admin form posting to options.php. add_settings_section()/
+		// add_settings_field() are still used, just to keep the same
+		// grouped-table layout do_settings_sections() renders; the field
+		// callbacks below print plain text instead of <input>s. See the
+		// map-config hand-off note in CLAUDE.md.
 		add_settings_section(
 			self::SECTION_TILE_STYLE,
 			'Base Map',
@@ -701,54 +629,13 @@ class Citykleta_Settings {
 			self::SECTION_TILE_STYLE
 		);
 
-		register_setting(
-			self::OPTION_GROUP_MAPS,
-			'citykleta_map_tile_api_key',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => '',
-			)
-		);
-
 		add_settings_field(
 			'citykleta_map_tile_api_key',
-			'API Key',
+			'Access Token',
 			array( $this, 'render_tile_api_key_field' ),
 			self::PAGE_SLUG . '-maps',
 			self::SECTION_TILE_STYLE
 		);
-
-		register_setting(
-			self::OPTION_GROUP_MAPS,
-			'citykleta_map_marker_icon_size',
-			array(
-				'type'              => 'integer',
-				'sanitize_callback' => array( $this, 'sanitize_icon_size' ),
-				'default'           => 30,
-			)
-		);
-
-		foreach ( self::MAP_COLORS as $config ) {
-			register_setting(
-				self::OPTION_GROUP_MAPS,
-				$config['option'],
-				array(
-					'type'              => 'string',
-					// sanitize_hex_color() alone returns '' for a blank/invalid
-					// submission, and that '' gets saved — after that,
-					// get_option( $option, $default ) stops falling back to
-					// $default, because the row now exists (just empty). Falling
-					// back to the field's own default here keeps the option from
-					// ever being saved blank in the first place.
-					'sanitize_callback' => function ( $value ) use ( $config ) {
-						$color = sanitize_hex_color( $value );
-						return $color ? $color : $config['default'];
-					},
-					'default'           => $config['default'],
-				)
-			);
-		}
 
 		add_settings_section(
 			self::SECTION_MARKER_DESIGN,
@@ -765,26 +652,6 @@ class Citykleta_Settings {
 			array( $this, 'render_icon_size_field' ),
 			self::PAGE_SLUG . '-maps',
 			self::SECTION_MARKER_DESIGN
-		);
-
-		register_setting(
-			self::OPTION_GROUP_MAPS,
-			'citykleta_map_cluster_radius',
-			array(
-				'type'              => 'integer',
-				'sanitize_callback' => array( $this, 'sanitize_cluster_radius' ),
-				'default'           => 80,
-			)
-		);
-
-		register_setting(
-			self::OPTION_GROUP_MAPS,
-			'citykleta_map_cluster_disable_zoom',
-			array(
-				'type'              => 'integer',
-				'sanitize_callback' => array( $this, 'sanitize_cluster_disable_zoom' ),
-				'default'           => 0,
-			)
 		);
 
 		add_settings_section(
@@ -873,46 +740,68 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Clamps the marker icon's size to a sane range.
+	 * Clamps the marker icon's size to a sane range. static (not just
+	 * public) because Citykleta_Map_Settings_Sync also calls this to clamp
+	 * whatever Back Office sends, the same way this used to clamp form input.
 	 *
-	 * @param mixed $value Value submitted by the form.
+	 * @param mixed $value Value submitted by the form, or synced from Back Office.
 	 * @return int
 	 */
-	public function sanitize_icon_size( $value ) {
+	public static function sanitize_icon_size( $value ) {
 		$value = is_numeric( $value ) ? (int) $value : 30;
 		return max( 12, min( 80, $value ) );
 	}
 
 	/**
-	 * Validates that the saved tile style is one of self::TILE_STYLES.
+	 * Validates that the saved tile style is one of self::TILE_STYLES. static
+	 * for the same reason as self::sanitize_icon_size().
 	 *
-	 * @param string $value Value submitted by the form.
+	 * @param string $value Value submitted by the form, or synced from Back Office.
 	 * @return string
 	 */
-	public function sanitize_tile_style( $value ) {
+	public static function sanitize_tile_style( $value ) {
 		return isset( self::TILE_STYLES[ $value ] ) ? $value : 'osm';
 	}
 
 	/**
-	 * Clamps the cluster grouping radius to a sane pixel range.
+	 * Clamps the cluster grouping radius to a sane pixel range. static for
+	 * the same reason as self::sanitize_icon_size().
 	 *
-	 * @param mixed $value Value submitted by the form.
+	 * @param mixed $value Value submitted by the form, or synced from Back Office.
 	 * @return int
 	 */
-	public function sanitize_cluster_radius( $value ) {
+	public static function sanitize_cluster_radius( $value ) {
 		$value = is_numeric( $value ) ? (int) $value : 80;
 		return max( 10, min( 200, $value ) );
 	}
 
 	/**
 	 * Clamps the "Unfold At Zoom" level. 0 means never disable clustering.
+	 * static for the same reason as self::sanitize_icon_size().
 	 *
-	 * @param mixed $value Value submitted by the form.
+	 * @param mixed $value Value submitted by the form, or synced from Back Office.
 	 * @return int
 	 */
-	public function sanitize_cluster_disable_zoom( $value ) {
+	public static function sanitize_cluster_disable_zoom( $value ) {
 		$value = is_numeric( $value ) ? (int) $value : 0;
 		return max( 0, min( 19, $value ) );
+	}
+
+	/**
+	 * Validates one map color, falling back to that color's own default
+	 * instead of ever saving blank. Used by Citykleta_Map_Settings_Sync for
+	 * every self::MAP_COLORS entry — sanitize_hex_color() alone returns ''
+	 * for a blank/invalid value, and that '' would get saved: after that,
+	 * get_option( $option, $default ) stops falling back to $default,
+	 * because the row now exists (just empty).
+	 *
+	 * @param mixed  $value   Value synced from Back Office.
+	 * @param string $default That color's self::MAP_COLORS default.
+	 * @return string
+	 */
+	public static function sanitize_map_color( $value, $default ) {
+		$color = sanitize_hex_color( $value );
+		return $color ? $color : $default;
 	}
 
 	/**
@@ -994,55 +883,77 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Renders the "Base Map" tile style field: a dropdown over self::TILE_STYLES.
+	 * Renders the "Base Map" tile style value — read-only, synced from Back
+	 * Office (Citykleta_Map_Settings_Sync) rather than picked from a
+	 * dropdown. See the map-config hand-off note in CLAUDE.md.
 	 */
 	public function render_tile_style_field() {
-		$value = get_option( 'citykleta_map_tile_style', 'osm' );
-		echo '<select name="citykleta_map_tile_style" id="citykleta_map_tile_style">';
-		foreach ( self::TILE_STYLES as $key => $config ) {
-			echo '<option value="' . esc_attr( $key ) . '" ' . selected( $value, $key, false ) . '>' . esc_html( $config['label'] ) . '</option>';
-		}
-		echo '</select>';
-		echo '<p class="description">Free/keyless tiles from each provider — fine for development, but check usage terms before relying on this for real production traffic (see CLAUDE.md). MapTiler, Stadia Maps, and Mapbox below are the ones with a free tier meant for actual production use.</p>';
+		$style  = get_option( 'citykleta_map_tile_style', 'osm' );
+		$config = isset( self::TILE_STYLES[ $style ] ) ? self::TILE_STYLES[ $style ] : self::TILE_STYLES['osm'];
+		echo '<p>' . esc_html( $config['label'] ) . '</p>';
 	}
 
 	/**
-	 * Renders the API Key field used by any self::TILE_STYLES entry that
-	 * declares a 'key_param' (currently MapTiler and Stadia Maps). Left
-	 * empty when the selected style doesn't need one.
+	 * Renders the tile provider's access token/API key — read-only, masked
+	 * (never prints the full secret into the page source), and only shown
+	 * when the current style actually uses one (self::TILE_STYLES'
+	 * 'key_param'). Synced from Back Office, see self::render_tile_style_field().
 	 */
 	public function render_tile_api_key_field() {
+		$style  = get_option( 'citykleta_map_tile_style', 'osm' );
+		$config = isset( self::TILE_STYLES[ $style ] ) ? self::TILE_STYLES[ $style ] : self::TILE_STYLES['osm'];
+
+		if ( empty( $config['key_param'] ) ) {
+			echo '<p class="description">Not used by the current base map style.</p>';
+			return;
+		}
+
 		$value = get_option( 'citykleta_map_tile_api_key', '' );
-		echo '<input type="text" name="citykleta_map_tile_api_key" id="citykleta_map_tile_api_key" value="' . esc_attr( $value ) . '" class="regular-text" placeholder="Only needed for MapTiler / Stadia Maps / Mapbox styles" />';
-		echo '<p class="description">Free account: <a href="https://www.maptiler.com/" target="_blank" rel="noopener noreferrer">maptiler.com</a> or <a href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer">mapbox.com</a> (both required — those tiles won\'t load without a key) or <a href="https://stadiamaps.com/" target="_blank" rel="noopener noreferrer">stadiamaps.com</a> (optional for light use, needed once you register a production domain). Ignored by the other styles above.</p>';
+
+		if ( '' === $value ) {
+			echo '<p><em>Not set.</em></p>';
+			return;
+		}
+
+		$masked = strlen( $value ) > 8
+			? substr( $value, 0, 4 ) . str_repeat( '•', 8 ) . substr( $value, -4 )
+			: str_repeat( '•', strlen( $value ) );
+
+		echo '<p><code>' . esc_html( $masked ) . '</code></p>';
 	}
 
 	/**
-	 * Renders the cluster grouping radius field.
+	 * Renders the cluster grouping radius value — read-only, see
+	 * self::render_tile_style_field().
 	 */
 	public function render_cluster_radius_field() {
-		$value = get_option( 'citykleta_map_cluster_radius', 80 );
-		echo '<input type="number" min="10" max="200" name="citykleta_map_cluster_radius" value="' . esc_attr( $value ) . '" class="small-text" /> px';
+		$value = (int) get_option( 'citykleta_map_cluster_radius', 80 );
+		echo '<p>' . esc_html( $value ) . ' px</p>';
 		echo '<p class="description">How close bikes need to be, in screen pixels, to group into one cluster. Smaller means bikes need to be closer together to cluster, so more of them show individually. Leaflet.markercluster\'s own default is 80.</p>';
 	}
 
 	/**
-	 * Renders the "Unfold At Zoom" field.
+	 * Renders the "Unfold At Zoom" value — read-only, see
+	 * self::render_tile_style_field().
 	 */
 	public function render_cluster_disable_zoom_field() {
-		$value = get_option( 'citykleta_map_cluster_disable_zoom', 0 );
-		echo '<input type="number" min="0" max="19" name="citykleta_map_cluster_disable_zoom" value="' . esc_attr( $value ) . '" class="small-text" />';
-		echo '<p class="description">Zoom level from which bikes always show individually, never clustered, no matter how close together they are. 0 = never — always cluster nearby bikes regardless of zoom.</p>';
+		$value = (int) get_option( 'citykleta_map_cluster_disable_zoom', 0 );
+		echo '<p>' . ( $value > 0 ? esc_html( $value ) : 'Never (0)' ) . '</p>';
+		echo '<p class="description">Zoom level from which bikes always show individually, never clustered, no matter how close together they are.</p>';
 	}
 
 	/**
-	 * Renders one map color field. Shared by every entry in self::MAP_COLORS.
+	 * Renders one map color as a swatch + hex code — read-only, see
+	 * self::render_tile_style_field(). Shared by every entry in self::MAP_COLORS.
 	 *
 	 * @param array $args One of self::MAP_COLORS' entries: { 'option' => string, 'label' => string, 'default' => string }.
 	 */
 	public function render_color_field( $args ) {
 		$value = get_option( $args['option'], $args['default'] );
-		echo '<input type="text" class="citykleta-color-field" name="' . esc_attr( $args['option'] ) . '" value="' . esc_attr( $value ) . '" data-default-color="' . esc_attr( $args['default'] ) . '" />';
+		printf(
+			'<p><span style="display:inline-block;width:20px;height:20px;vertical-align:middle;border:1px solid #ccc;border-radius:3px;background:%1$s;margin-right:8px;"></span><code>%1$s</code></p>',
+			esc_attr( $value )
+		);
 	}
 
 	/**
@@ -1061,11 +972,11 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Renders the marker icon's size field.
+	 * Renders the marker icon's size value — read-only, see
+	 * self::render_tile_style_field().
 	 */
 	public function render_icon_size_field() {
-		$value = get_option( 'citykleta_map_marker_icon_size', 30 );
-		echo '<input type="number" min="12" max="80" name="citykleta_map_marker_icon_size" value="' . esc_attr( $value ) . '" class="small-text" /> px';
+		echo '<p>' . (int) get_option( 'citykleta_map_marker_icon_size', 30 ) . ' px</p>';
 	}
 
 	/**
@@ -1140,15 +1051,22 @@ class Citykleta_Settings {
 			</h2>
 
 			<?php if ( 'maps' === $active_tab ) : ?>
+				<?php $map_settings_last_sync = get_option( 'citykleta_map_settings_last_sync' ); ?>
+				<div class="notice notice-info inline">
+					<p>
+						This tab is read-only: map settings are administered from Back Office and synced
+						automatically on each "Sync now" / scheduled sync (see the "Map settings" path on the
+						<a href="<?php echo esc_url( $base_url . '&tab=sync' ); ?>">Sync</a> tab).
+						<?php if ( $map_settings_last_sync ) : ?>
+							Last synced: <?php echo esc_html( $map_settings_last_sync ); ?>.
+						<?php else : ?>
+							Not synced yet.
+						<?php endif; ?>
+					</p>
+				</div>
 				<div class="citykleta-settings-maps-layout">
-					<div class="citykleta-settings-maps-form">
-						<form method="post" action="options.php">
-							<?php
-							settings_fields( self::OPTION_GROUP_MAPS );
-							do_settings_sections( self::PAGE_SLUG . '-maps' );
-							submit_button( 'Save changes' );
-							?>
-						</form>
+					<div class="citykleta-settings-maps-summary">
+						<?php do_settings_sections( self::PAGE_SLUG . '-maps' ); ?>
 					</div>
 					<div class="citykleta-settings-maps-preview">
 						<h2>Preview</h2>

@@ -127,6 +127,13 @@ class Citykleta_Bike_Sync {
 		// slug needs a matching term before upsert_bike() looks it up.
 		( new Citykleta_Bike_Type_Sync() )->run();
 
+		// Independent of bikes/bike types — just refreshes the read-only Maps
+		// tab options from Back Office (see the map-config hand-off note in
+		// CLAUDE.md). Bundled into the same sync run/frequency instead of a
+		// separate schedule, since it's cheap and there's no reason for it to
+		// lag behind.
+		( new Citykleta_Map_Settings_Sync() )->run();
+
 		$url = Citykleta_Settings::get_endpoint_url( 'bikes' );
 
 		if ( empty( $url ) ) {

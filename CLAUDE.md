@@ -24,6 +24,15 @@ includes/
   meta/
     class-bike-meta.php              → Campos personalizados + caja de edición + guardado + REST API.
   sync/
+    class-citykleta-bike-type-sync.php → Trae /bike-types y crea/actualiza los términos de la
+                                        taxonomía bike_type. Corre primero, dentro de
+                                        Citykleta_Bike_Sync::run().
+    class-citykleta-map-settings-sync.php → Trae /map-settings de Back Office (estilo de mapa base +
+                                        token, tamaño de marcador, comportamiento y colores de
+                                        cluster) y sobrescribe las mismas opciones que antes editaba
+                                        a mano la pestaña Maps de Settings, ahora de solo lectura. Ver
+                                        la sección "Settings page" más abajo. Corre también dentro de
+                                        Citykleta_Bike_Sync::run().
     class-citykleta-bike-sync.php    → Trae bicis de la API configurada y crea/actualiza posts "bike".
                                         Corre por WP-Cron (frecuencia configurable) o manualmente.
   admin/
@@ -91,10 +100,14 @@ includes/
                                          las dibuja en un mapa Leaflet agrupadas en clusters.
   mock/
     class-citykleta-mock-api.php     → API falsa TEMPORAL (rutas /wp-json/citykleta-mock/v1/bikes*,
-                                        /bikes/{id}, /sync-status, /trigger-sync y /flush-rewrite)
-                                        mientras no exista la API real de la app. Borrar cuando exista.
+                                        /bikes/{id}, /bike-types, /map-settings, /sync-status,
+                                        /trigger-sync y /flush-rewrite) mientras no exista la API real
+                                        de la app (ni el /map-settings de Back Office). Borrar cuando exista.
     bikes-mock.json                  → Copia del JSON de prueba para pegar en Mockoon (mismo dato que
                                         devuelve la API falsa de arriba).
+    bike-types-mock.json             → Igual que bikes-mock.json pero para /bike-types.
+    map-settings-mock.json           → Igual que bikes-mock.json pero para /map-settings — ver la
+                                        sección "Settings page" para el contrato completo del payload.
 templates/
   archive-bike.php                   → Grid de tarjetas de vista previa en /bikes/ (imagen, título,
                                         ubicación, precio, disponibilidad). Enlaza a la página individual.
@@ -190,6 +203,8 @@ app, borrar `includes/mock/` y apuntar el sync a esa URL.
 
 `Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con tres pestañas
 propias (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
+De esas tres, solo **Sync** y **Communication** tienen formulario guardable — **Maps** es de solo
+lectura desde que su configuración se mudó a Back Office (ver más abajo).
 
 **Pestañas extensibles desde otros plugins:** la lista de pestañas se lee por `Citykleta_Settings::tabs()`,
 que aplica el filtro `citykleta_settings_tabs` (slug => label) — un plugin aparte puede agregar la suya
@@ -201,59 +216,56 @@ pestañas internas siguen renderizándose con su rama propia en `render_page()`;
 esa action para cualquier slug externo.
 Cada pestaña registra sus secciones/campos bajo su propio "page" interno (`self::PAGE_SLUG . '-sync'` /
 `'-maps'` / `'-comm'`), así que `do_settings_sections()` únicamente muestra los campos de la pestaña
-activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso las tres pestañas usan
-`OPTION_GROUP` **distintos** (`OPTION_GROUP_SYNC` / `OPTION_GROUP_MAPS` / `OPTION_GROUP_COMM`), cada uno
-con su propio `settings_fields()` en el `<form>` correspondiente.
+activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso Sync y Communication (las
+dos con formulario) usan `OPTION_GROUP` **distintos** (`OPTION_GROUP_SYNC` / `OPTION_GROUP_COMM`), cada
+uno con su propio `settings_fields()` en el `<form>` correspondiente. Maps sigue usando
+`add_settings_section()`/`add_settings_field()` para el mismo layout en tabla, pero sin
+`register_setting()` ni `<form>` — no tiene nada que guardar, ver más abajo.
 
 **Gotcha ya resuelto, por si se repite en una página nueva con pestañas:** `wp-admin/options.php`
 recorre *todas* las opciones registradas bajo el grupo que llega en el formulario (`option_page`), no
-solo las que están presentes en ese `$_POST` — a las que falten las pone en blanco. Si Sync y Maps
-compartieran un solo `OPTION_GROUP`, guardar el formulario de una pestaña (que solo trae sus propios
+solo las que están presentes en ese `$_POST` — a las que falten las pone en blanco. Si dos pestañas
+guardables compartieran un solo `OPTION_GROUP`, guardar el formulario de una (que solo trae sus propios
 campos en el POST) borraría los valores de la otra, porque WordPress los trataría como "enviados en
 blanco" en vez de "no tocados". La regla es: un `OPTION_GROUP` por cada `<form>` que se pueda guardar
 por separado, nunca uno compartido entre formularios distintos.
 
 - **Sync** (antes toda la página se llamaba así) — igual que antes: URL de la API, un campo de path
   por recurso (`citykleta_path_bikes` → `/bikes`, `citykleta_path_bike_types` → `/bike-types`,
-  definidos en `Citykleta_Settings::ENDPOINTS`), frecuencia, slug de la URL, estado de la última
-  sincronización y el botón "Sync now". `Citykleta_Settings::get_endpoint_url( $key )` arma la URL
-  final (base + path) — agregar un recurso nuevo (ej. `/owners`) solo necesita una entrada nueva en
-  `ENDPOINTS`, no un campo a mano.
-- **Maps** — cuatro secciones (`Citykleta_Settings::SECTION_TILE_STYLE` / `SECTION_MARKER_DESIGN` /
-  `SECTION_CLUSTER_BEHAVIOR` / `SECTION_CLUSTER_COLORS`):
-  - **Base Map** — el estilo de tiles usado como mapa base (`citykleta_map_tile_style`, dropdown
-    sobre `Citykleta_Settings::TILE_STYLES`: OpenStreetMap, tres estilos de CARTO, dos de Esri,
-    MapTiler, dos de Stadia Maps, y Mapbox) más un campo "API Key" (`citykleta_map_tile_api_key`)
-    que solo se muestra si el estilo elegido lo necesita — JS inline en `enqueue_assets()` oculta la
-    fila entera según cuáles entradas de `TILE_STYLES` declaran `'key_param'`.
-    `Citykleta_Settings::tile_layer()` arma la URL final agregando `?{key_param}={key}` solo si hay
-    una key guardada y el estilo la usa — OpenStreetMap/CARTO/Esri no necesitan key, MapTiler y
-    Mapbox fallan sin una desde la primera petición, Stadia Maps funciona sin key para uso liviano.
-    Varios de estos proveedores no son aptos para tráfico de producción real sin cuenta paga — ver
-    el docblock de `TILE_STYLES` para el detalle de cada uno.
+  `citykleta_path_map_settings` → `/map-settings`, definidos en `Citykleta_Settings::ENDPOINTS`),
+  frecuencia, slug de la URL, estado de la última sincronización y el botón "Sync now".
+  `Citykleta_Settings::get_endpoint_url( $key )` arma la URL final (base + path) — agregar un recurso
+  nuevo (ej. `/owners`) solo necesita una entrada nueva en `ENDPOINTS`, no un campo a mano.
+- **Maps** — **de solo lectura desde 2026-08**: esta configuración ahora la administra Back Office
+  (ver la nota "Configuración de mapas: mudada a Back Office" más abajo) y llega por sync, no por un
+  formulario de wp-admin. La pestaña conserva las mismas cuatro secciones
+  (`Citykleta_Settings::SECTION_TILE_STYLE` / `SECTION_MARKER_DESIGN` / `SECTION_CLUSTER_BEHAVIOR` /
+  `SECTION_CLUSTER_COLORS`) solo para mostrar los valores vigentes, con un aviso arriba y la fecha de
+  la última sincronización:
+  - **Base Map** — estilo de tiles vigente (`citykleta_map_tile_style`, resuelto contra
+    `Citykleta_Settings::TILE_STYLES` — reducido a solo `osm` y `mapbox`, ver esa constante) y, si el
+    estilo elegido lo necesita, el access token vigente (`citykleta_map_tile_api_key`) enmascarado
+    (nunca se imprime completo en el HTML de wp-admin).
+    `Citykleta_Settings::tile_layer()` sigue armando la URL final agregando `?{key_param}={key}` igual
+    que antes — no cambió, solo cambió quién decide el valor guardado.
   - **Marker design** — solo tamaño (`citykleta_map_marker_icon_size`, "Icon Size"). El ícono en sí,
     sus colores por disponibilidad, y la sombra que tenía antes ya no son configurables — ver la
     sección "Mapa de bicis" más abajo.
-  - **Cluster Behavior** — cuándo se agrupan las bicis cercanas en vez de mostrarse desplegadas:
-    "Cluster Radius" (`citykleta_map_cluster_radius`, px — qué tan cerca en pantalla tienen que estar
-    para agruparse; default 80, el mismo que trae Leaflet.markercluster de fábrica) y "Unfold At Zoom"
-    (`citykleta_map_cluster_disable_zoom` — nivel de zoom a partir del cual se desactiva el
-    agrupamiento del todo, sin importar qué tan cerca estén; 0 = nunca). No es un umbral por
-    *cantidad* de bicis — Leaflet.markercluster agrupa por proximidad en píxeles y zoom, no por
-    cuántos marcadores hay.
+  - **Cluster Behavior** — "Cluster Radius" (`citykleta_map_cluster_radius`, px) y "Unfold At Zoom"
+    (`citykleta_map_cluster_disable_zoom`; 0 = nunca). No es un umbral por *cantidad* de bicis —
+    Leaflet.markercluster agrupa por proximidad en píxeles y zoom, no por cuántos marcadores hay.
   - **Cluster Colors** — un color por cada nivel de tamaño que ya usa Leaflet.markercluster (Small/
-    Medium/Large), en vez de un solo color para los tres.
+    Medium/Large), mostrado como swatch + código hex.
 
-  Esos colores de cluster viven en `Citykleta_Settings::MAP_COLORS`, con el color picker
-  nativo de WordPress (`wp-color-picker`, encolado solo en esta página vía el mismo patrón de hook
-  suffix que `Citykleta_Admin_Map`). `Citykleta_Settings::map_colors()` / `map_color_style_attr()`
-  son genéricos sobre `MAP_COLORS` (cada entrada declara su `'section'`) — arman el `style=""` con
-  una variable CSS `--citykleta-map-{key}-color` por cada entrada (agregar un color nuevo a la
-  constante no necesita tocar estos dos métodos). Tanto `Citykleta_Map_Widget` (Elementor) como
-  `Citykleta_Admin_Map` (wp-admin) llaman a los mismos helpers (`map_color_style_attr()`,
-  `tile_layer()`, `marker_icon_size()`), así que **un solo lugar** controla el look de todos los
-  mapas del sitio. El aro translúcido de cada cluster usa `color-mix()` en CSS para diluir ese mismo
-  color sólido en vez de necesitar un segundo valor rgba() por nivel.
+  Esos colores de cluster viven en `Citykleta_Settings::MAP_COLORS`. `Citykleta_Settings::map_colors()`
+  / `map_color_style_attr()` son genéricos sobre `MAP_COLORS` (cada entrada declara su `'section'`) —
+  arman el `style=""` con una variable CSS `--citykleta-map-{key}-color` por cada entrada (agregar un
+  color nuevo a la constante no necesita tocar estos dos métodos). Tanto `Citykleta_Map_Widget`
+  (Elementor) como `Citykleta_Admin_Map` (wp-admin) llaman a los mismos helpers
+  (`map_color_style_attr()`, `tile_layer()`, `marker_icon_size()`), así que **un solo lugar** controla
+  el look de todos los mapas del sitio — eso no cambió, sigue siendo la razón de ser de estos helpers.
+  El aro translúcido de cada cluster usa `color-mix()` en CSS para diluir ese mismo color sólido en vez
+  de necesitar un segundo valor rgba() por nivel.
 - **Communication** — una sola opción (`citykleta_whatsapp_message`): la plantilla del mensaje que se
   pre-rellena cuando un visitante toca "Contactar por WhatsApp" en la página individual de una bici.
   Soporta placeholders (`Citykleta_Settings::MESSAGE_PLACEHOLDERS`: `{owner}`, `{bike}`, `{price}`,
@@ -268,6 +280,63 @@ canónica de tipos de bici de la app) y crea/actualiza los términos de la taxon
 `slug` — nunca los borra, si un tipo desaparece de la API el término se marca inactivo
 (`_citykleta_type_active` en term meta, columna "Active" visible en wp-admin) para no romper bicis
 o asignaciones de Uso que ya lo referencien.
+
+`Citykleta_Map_Settings_Sync` corre justo después, también dentro de `Citykleta_Bike_Sync::run()`:
+trae `/map-settings` y sobrescribe con `update_option()` las mismas opciones que antes editaba a mano
+la pestaña Maps (`citykleta_map_tile_style`, `citykleta_map_cluster_radius`, etc. — ver
+"Configuración de mapas: mudada a Back Office" más abajo). Es independiente de bicis/tipos de bici,
+simplemente va agarrado a la misma corrida/frecuencia por simplicidad, no porque dependa de ellos.
+
+### Configuración de mapas: mudada a Back Office
+
+Desde 2026-08, la configuración del mapa (Settings → Maps) dejó de editarse a mano en wp-admin — la
+administra **Back Office** (repo aparte) y este plugin solo guarda una **copia de solo lectura**,
+igual que ya hacía con bicis y tipos de bici. El patrón es exactamente el mismo que
+`Citykleta_Bike_Type_Sync`: un endpoint más en `Citykleta_Settings::ENDPOINTS`
+(`map_settings` → `/map-settings`, con su propio campo de path en la pestaña Sync) y una clase de sync
+(`Citykleta_Map_Settings_Sync`) que lo trae y hace `update_option()` sobre las mismas keys que ya
+existían — por eso ningún consumidor (`Citykleta_Settings::tile_layer()` / `map_colors()` /
+`cluster_options()` / `marker_icon_size()`, y todo lo que está construido sobre ellos —
+`Citykleta_Map_Widget`, `Citykleta_Admin_Map`) tuvo que cambiar: solo cambió *quién escribe* esas
+opciones, no cómo se leen.
+
+Contrato del endpoint `/map-settings`: **objeto plano, sin el envelope `{ "data": [...] }`** que sí usan
+`/bikes` y `/bike-types` — a diferencia de esos dos, `citykleta-sharing-api` ya lo sirve así de verdad
+(confirmado en su propio código al implementar el lado de Back Office, no es una suposición). Ver
+`includes/mock/class-citykleta-mock-api.php::get_map_settings()` y
+`includes/mock/map-settings-mock.json` para un ejemplo funcionando:
+
+```json
+{
+  "tile_style": "osm",
+  "tile_api_key": "",
+  "marker_icon_size": 28,
+  "cluster_radius": 40,
+  "cluster_disable_zoom": 16,
+  "cluster_colors": { "small": "#fed94c", "medium": "#fac114", "large": "#e0960a" }
+}
+```
+
+`tile_style` debe ser una de las keys de `Citykleta_Settings::TILE_STYLES` (`'osm'` o `'mapbox'`) — un
+valor desconocido cae a `'osm'` (`Citykleta_Settings::sanitize_tile_style()`). El catálogo de
+proveedores (`TILE_STYLES`, con su `tile_url`/`attribution` completos) **se queda en el código del
+plugin a propósito**: Back Office solo elige y sincroniza la *key* del proveedor, nunca manda un
+`tile_url` — así ambos lados solo necesitan ponerse de acuerdo en los nombres de las keys, no en
+plantillas de URL de tiles. Se redujo el catálogo a solo `osm` (fallback gratis sin key) y `mapbox`
+(el proveedor real, Citykleta ya tiene un mapa propio en Mapbox con su access token) — los otros
+seis que había antes (CARTO, Esri, MapTiler, Stadia Maps) se borraron por no usarse.
+
+La pestaña **Maps** de Settings (`Citykleta_Settings::render_page()`) sigue existiendo pero ahora es
+de solo lectura: sin `register_setting()` ni `<form>`, solo `do_settings_sections()` mostrando el
+valor vigente de cada campo (texto plano / swatch de color en vez de `<input>`), un aviso de "esto se
+administra desde Back Office" y la fecha de la última sincronización
+(`citykleta_map_settings_last_sync`). El preview en vivo de la derecha se mantiene igual que antes.
+
+**Ver `HANDOFF-map-config-backoffice.md`** (raíz del plugin) para el detalle completo del contrato y
+las decisiones tomadas (catálogo de tiles fijo en el plugin, pestaña Maps de solo lectura). El lado de
+Back Office **ya está implementado** — `GET /map-settings` en `citykleta-sharing-api` (público, sin
+sesión, mismo criterio que `/bikesPublic/sync`) más `GET/POST /general_settings/map` (solo staff, solo
+admin puede guardar) para la sección "Mapas" dentro de Ajustes en `citykleta-backoffice`.
 
 `Citykleta_Bike_Sync` pide la lista de bicis a `Citykleta_Settings::get_endpoint_url( 'bikes' )` y
 crea/actualiza un post `bike` por cada una, usando el meta `external_id` para no duplicar en
@@ -622,12 +691,13 @@ descargas — agregar rate-limit por IP si algún día importa.
 3. Rellenar título, descripción, foto destacada y los campos de "Datos de la bicicleta".
 4. Comprobar la API en: `http://<tu-sitio-local>/wp-json/wp/v2/bike`
 5. Comprobar la API falsa (mock) en: `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/bikes`
+   (también hay `/bike-types` y `/map-settings`, mismo patrón).
 6. Ir a "Bicicletas" → "Settings" (pestaña "Sync") en wp-admin, revisar/guardar la URL de la API y
-   la frecuencia, y probar el botón "Sync now". Debe crear/actualizar posts `bike`. En la pestaña
-   "Maps" de esa misma página se configura el mapa base y sus colores, agrupados en "Base Map"
-   (estilo de tiles + API Key si el proveedor la necesita), "Marker design" (solo tamaño — el
-   círculo, sus colores por disponibilidad, y la sombra que tenía antes ya no son configurables) y
-   "Cluster Colors" (pequeño/mediano/grande).
+   la frecuencia, y probar el botón "Sync now". Debe crear/actualizar posts `bike` y, de paso, refrescar
+   la pestaña "Maps" (ahora de solo lectura — ver "Configuración de mapas: mudada a Back Office" más
+   arriba): "Base Map" (estilo de tiles vigente + access token si el proveedor lo necesita), "Marker
+   design" (tamaño), "Cluster Behavior" y "Cluster Colors" (pequeño/mediano/grande), todo sincronizado
+   desde `/map-settings`, no editable a mano.
 7. Ver el estado de la última sincronización sin entrar a wp-admin en:
    `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/sync-status`
 8. Forzar una sincronización inmediata sin esperar al cron (útil en desarrollo), con un

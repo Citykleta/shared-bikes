@@ -33,6 +33,7 @@ require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-tax
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-usage-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-bike-meta.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-type-sync.php';
+require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-map-settings-sync.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-sync.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-settings.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-list-columns.php';
