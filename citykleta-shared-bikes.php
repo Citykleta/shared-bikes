@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Citykleta Shared Bikes
  * Description: Integración de bicicletas compartidas de Citykleta.
- * Version: 0.1.1
+ * Version: 0.1.2
  * Author: Yasser
  * License: GPL-2.0-or-later
  * Text Domain: citykleta-shared-bikes
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Constantes del plugin.
-define( 'CITYKLETA_VERSION', '0.1.1' );
+define( 'CITYKLETA_VERSION', '0.1.2' );
 define( 'CITYKLETA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
 
@@ -29,9 +29,9 @@ define( 'CITYKLETA_USE_MOCK_API', true );
  * Carga los archivos que componen el plugin.
  */
 require_once CITYKLETA_PATH . 'includes/post-types/class-bike-post-type.php';
+require_once CITYKLETA_PATH . 'includes/post-types/class-citykleta-destination-post-type.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-usage-taxonomy.php';
-require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-destination-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-bike-meta.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-type-sync.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-map-settings-sync.php';
@@ -61,17 +61,18 @@ function citykleta_init() {
 	// Registra el tipo de contenido "Bicicleta".
 	( new Citykleta_Bike_Post_Type() )->register();
 
+	// Tipo de contenido "Destination" (Vedado, Playa...), creado a mano en
+	// wp-admin. La asignación bici → destino la calcula
+	// Citykleta_Destination_Matcher por geocerca, no se elige a mano (ver
+	// Citykleta_Bike_Sync::run()).
+	( new Citykleta_Destination_Post_Type() )->register();
+
 	// Taxonomía de tipo de bicicleta (Road, MTB XC, Cargo bicycle, etc.).
 	( new Citykleta_Bike_Type_Taxonomy() )->register();
 
 	// Taxonomía de tipo de uso (Urbano, Carretera...), administrable desde
 	// wp-admin, con su relación a tipos de bicicleta.
 	( new Citykleta_Bike_Usage_Taxonomy() )->register();
-
-	// Taxonomía de Destinos (Vedado, Playa...), creada a mano en wp-admin.
-	// La asignación bici → destino la calcula Citykleta_Destination_Matcher
-	// por geocerca, no se elige a mano (ver Citykleta_Bike_Sync::run()).
-	( new Citykleta_Destination_Taxonomy() )->register();
 
 	// Registra los campos personalizados (modelo, ubicación, precio, etc.).
 	( new Citykleta_Bike_Meta() )->register();

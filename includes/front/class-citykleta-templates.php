@@ -177,24 +177,27 @@ class Citykleta_Templates {
 
 	/**
 	 * Replaces a destination term's archive page (/destination/{slug}/),
-	 * unless the active theme already has its own taxonomy-destination.php —
+	 * unless the active theme already has its own single-destination.php —
 	 * same pattern as self::load_archive_template()/load_single_template().
+	 * Destinations are a post type, not a taxonomy (see
+	 * Citykleta_Destination_Post_Type's docblock for why), so this hooks
+	 * is_singular(), not is_tax().
 	 *
 	 * @param string $template Path to the template WordPress was going to use.
 	 * @return string
 	 */
 	public function load_destination_template( $template ) {
-		if ( ! is_tax( Citykleta_Destination_Taxonomy::TAXONOMY ) ) {
+		if ( ! is_singular( Citykleta_Destination_Post_Type::POST_TYPE ) ) {
 			return $template;
 		}
 
-		$theme_template = locate_template( 'taxonomy-destination.php' );
+		$theme_template = locate_template( 'single-destination.php' );
 
 		if ( $theme_template ) {
 			return $theme_template;
 		}
 
-		return CITYKLETA_PATH . 'templates/taxonomy-destination.php';
+		return CITYKLETA_PATH . 'templates/single-destination.php';
 	}
 
 	/**
@@ -246,9 +249,9 @@ class Citykleta_Templates {
 			);
 		}
 
-		if ( is_tax( Citykleta_Destination_Taxonomy::TAXONOMY ) ) {
+		if ( is_singular( Citykleta_Destination_Post_Type::POST_TYPE ) ) {
 			// Reuses the archive's card styles for the bike grid — same
-			// .citykleta-bike-card markup, see templates/taxonomy-destination.php.
+			// .citykleta-bike-card markup, see templates/single-destination.php.
 			wp_enqueue_style(
 				'citykleta-bike-cards',
 				CITYKLETA_URL . 'assets/css/bike-cards.css',

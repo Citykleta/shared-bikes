@@ -368,13 +368,13 @@ class Citykleta_Settings {
 	/**
 	 * The default FAQ (Destinations tab), parsed into
 	 * { 'question' => string, 'answer' => string }[]. Read by
-	 * Citykleta_Destination_Taxonomy::faq_for() for any destination that
+	 * Citykleta_Destination_Post_Type::faq_for() for any destination that
 	 * hasn't switched on its own override.
 	 *
 	 * @return array
 	 */
 	public static function destination_faq_default() {
-		return Citykleta_Destination_Taxonomy::parse_faq_text( get_option( 'citykleta_destination_faq_default', '' ) );
+		return Citykleta_Destination_Post_Type::parse_faq_text( get_option( 'citykleta_destination_faq_default', '' ) );
 	}
 
 	/**
@@ -1040,9 +1040,9 @@ class Citykleta_Settings {
 	/**
 	 * Renders the default destination FAQ field: a plain textarea, one
 	 * "Question :: Answer" pair per line — same format (and same reasoning:
-	 * a JS repeater is overkill here) as Citykleta_Destination_Taxonomy's
+	 * a JS repeater is overkill here) as Citykleta_Destination_Post_Type's
 	 * per-destination override field, which parses this with the exact same
-	 * Citykleta_Destination_Taxonomy::parse_faq_text().
+	 * Citykleta_Destination_Post_Type::parse_faq_text().
 	 */
 	public function render_destination_faq_field() {
 		$value = get_option( 'citykleta_destination_faq_default', '' );
@@ -1161,7 +1161,7 @@ class Citykleta_Settings {
 					?>
 				</form>
 			<?php elseif ( 'dest' === $active_tab ) : ?>
-				<p>Destination pages are managed as terms under Bicicletas → Destinations — this tab only
+				<p>Destination pages are managed under Bicicletas → Destinations — this tab only
 				holds the FAQ every destination falls back to.</p>
 				<form method="post" action="options.php">
 					<?php

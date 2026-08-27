@@ -150,6 +150,18 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_control(
+			'show_zoom_lock',
+			array(
+				'label'       => 'Zoom Lock Button',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Show',
+				'label_off'   => 'Hide',
+				'default'     => 'yes',
+				'description' => 'Adds a lock button on the map that toggles all zoom interaction on/off together — the +/- control, mouse wheel, double-click, and touch pinch — so a visitor scrolling or swiping past the map on a long page doesn\'t get stuck zooming it by accident. Starts unlocked; panning stays enabled either way.',
+			)
+		);
+
 		$this->add_responsive_control(
 			'map_height',
 			array(
@@ -296,7 +308,8 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 			$options['fallbackCenter'] = array( (float) $settings['default_lat'], (float) $settings['default_lng'] );
 		}
 
-		$options['iconSize'] = Citykleta_Settings::marker_icon_size();
+		$options['iconSize']       = Citykleta_Settings::marker_icon_size();
+		$options['zoomLockButton'] = 'yes' === $settings['show_zoom_lock'];
 
 		printf(
 			'<div id="citykleta-map-%1$s" class="citykleta-map" style="%4$s" data-bikes="%2$s" data-options="%3$s"></div>',

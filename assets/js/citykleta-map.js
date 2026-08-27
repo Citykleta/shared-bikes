@@ -129,6 +129,88 @@
 		);
 	}
 
+	// Toggle button (top-right, next to Leaflet's own +/- control which sits
+	// top-left) that locks/unlocks every way of zooming the map at once — the
+	// +/- control, mouse wheel, double-click, and touch pinch — so a visitor
+	// scrolling or swiping past the map on a long page doesn't get stuck
+	// zooming it by accident. Panning is left alone either way, this is only
+	// about zoom. Starts unlocked, respecting whatever each handler's own
+	// starting state already was (e.g. scrollWheelZoom, off by default here)
+	// instead of force-enabling everything on unlock.
+	function addZoomLockControl( map ) {
+		var wasEnabled = {
+			scrollWheelZoom: map.scrollWheelZoom.enabled(),
+			doubleClickZoom: map.doubleClickZoom.enabled(),
+			touchZoom: map.touchZoom.enabled(),
+			boxZoom: map.boxZoom.enabled(),
+		};
+		var locked = false;
+
+		var ZoomLockControl = L.Control.extend( {
+			options: { position: 'topright' },
+			onAdd: function () {
+				var container = L.DomUtil.create( 'div', 'leaflet-bar citykleta-map__lock-control' );
+				var link = L.DomUtil.create( 'a', '', container );
+
+				link.href = '#';
+				link.setAttribute( 'role', 'button' );
+
+				L.DomEvent.disableClickPropagation( container );
+				L.DomEvent.disableScrollPropagation( container );
+
+				// Leaflet already added map.zoomControl to the map when it was
+				// built (zoomControl defaults to true) — only touch it on an
+				// actual toggle, never on this initial render, or .addTo()
+				// would insert a second +/- control next to the first one.
+				function toggle() {
+					locked = ! locked;
+
+					var method = locked ? 'disable' : 'enable';
+
+					if ( wasEnabled.scrollWheelZoom ) {
+						map.scrollWheelZoom[ method ]();
+					}
+					if ( wasEnabled.doubleClickZoom ) {
+						map.doubleClickZoom[ method ]();
+					}
+					if ( wasEnabled.touchZoom ) {
+						map.touchZoom[ method ]();
+					}
+					if ( wasEnabled.boxZoom ) {
+						map.boxZoom[ method ]();
+					}
+
+					if ( map.zoomControl ) {
+						if ( locked ) {
+							map.zoomControl.remove();
+						} else {
+							map.zoomControl.addTo( map );
+						}
+					}
+
+					updateLabel();
+				}
+
+				function updateLabel() {
+					link.innerHTML = locked ? '&#128274;' : '&#128275;';
+					link.title = locked ? 'Desbloquear zoom' : 'Bloquear zoom';
+					link.setAttribute( 'aria-label', link.title );
+				}
+
+				L.DomEvent.on( link, 'click', function ( e ) {
+					L.DomEvent.stop( e );
+					toggle();
+				} );
+
+				updateLabel();
+
+				return container;
+			},
+		} );
+
+		new ZoomLockControl().addTo( map );
+	}
+
 	function buildMap( container, bikes, options ) {
 		var map = L.map( container, {
 			// Off by default so scrolling the page past an inline map
@@ -140,6 +222,10 @@
 			attribution: options.attribution || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 			maxZoom: 19,
 		} ).addTo( map );
+
+		if ( options.zoomLockButton ) {
+			addZoomLockControl( map );
+		}
 
 		// Settings → Maps → Cluster Behavior: maxClusterRadius (px, how close
 		// bikes need to be to group) and disableClusteringAtZoom (zoom level

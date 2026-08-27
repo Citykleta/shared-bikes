@@ -21,15 +21,16 @@ citykleta-shared-bikes.php          → Archivo principal: constantes, carga de 
 includes/
   post-types/
     class-bike-post-type.php         → Registra el custom post type "bike".
+    class-citykleta-destination-post-type.php → Registra el CPT "destination" ("Vedado", "Playa"...):
+                                        creado a mano en wp-admin (submenú de "Bicicletas"), pero la
+                                        asignación por bici la calcula Citykleta_Destination_Matcher por
+                                        geocerca, no un campo que se elige a mano. Incluye su propia caja
+                                        de campos (geocerca + FAQ). Ver sección "Destinos" más abajo.
   taxonomies/
     class-citykleta-bike-type-taxonomy.php → Taxonomía bike_type, sincronizada (ver
                                         class-citykleta-bike-type-sync.php).
     class-citykleta-bike-usage-taxonomy.php → Taxonomía bike_usage, administrada a mano, sin
                                         asignación directa por bici (se deriva de bike_type).
-    class-citykleta-destination-taxonomy.php → Taxonomía destination ("Vedado", "Playa"...): términos
-                                        creados a mano, pero la asignación por bici la calcula
-                                        Citykleta_Destination_Matcher por geocerca. Ver sección
-                                        "Destinos" más abajo.
   meta/
     class-bike-meta.php              → Campos personalizados + caja de edición + guardado + REST API.
   sync/
@@ -125,7 +126,7 @@ templates/
                                         ubicación, precio, disponibilidad). Enlaza a la página individual.
                                         Muestra un aviso "Mostrando resultados para: X" cuando llega
                                         ?location= en la URL (desde el widget de búsqueda).
-  taxonomy-destination.php           → Página de un Destino (/destination/{slug}/): bicis asignadas por
+  single-destination.php             → Página de un Destino (/destination/{slug}/): bicis asignadas por
                                         geocerca, precio promedio, artículos relacionados, FAQ. Ver
                                         sección "Destinos" más abajo.
 assets/css/
@@ -697,49 +698,58 @@ descargas — agregar rate-limit por IP si algún día importa.
 ## Destinos
 
 Páginas por lugar (ej. "Vedado", "Playa") creadas a mano en wp-admin, cada una mostrando las bicis
-disponibles ahí. A diferencia de `bike_type` (sincronizada) y de `bike_usage` (administrada a mano pero
-sin asignación directa por bici), `destination` es una mezcla de las dos: los **términos** se crean a
-mano (`Citykleta_Destination_Taxonomy`, taxonomía pública con rewrite `/destination/{slug}/`), pero la
-**asignación** bici → destino no la elige nadie: la calcula `Citykleta_Destination_Matcher` por geocerca
-en cada sync (igual de "read-only en efecto" que `bike_type` — la caja de checkboxes del editor de bici
-sigue visible, pero un click ahí se pisa en el siguiente sync).
+disponibles ahí. `destination` es un **custom post type**, no una taxonomía — se probó como taxonomía
+primero y se descartó: un destino necesita un editor de verdad (descripción con bloques, no la
+descripción de una línea de un término), imagen destacada, y varios campos propios (geocerca, FAQ), que
+es justo lo que un CPT + meta box da gratis y una pantalla de término no. Nace bajo el mismo menú
+"Bicicletas" que las bicis (`show_in_menu` apunta al CPT `bike`), no como entrada propia de nivel
+superior.
 
-- **Geocerca por destino** — cada término tiene term meta con centro (`citykleta_destination_lat`/`_lng`)
-  y radio en km (`citykleta_destination_radius_km`), editables en la propia pantalla de término
-  (`Citykleta_Destination_Taxonomy::render_add_fields()`/`render_edit_fields()`). Un radio en `0` (el
-  default de un término nuevo) hace que ese destino se ignore — todavía no tiene geocerca usable.
+Los **destinos** se crean a mano en wp-admin (Bicicletas → Destinations → Add New), como cualquier post
+normal (título = nombre, contenido = descripción, imagen destacada opcional). La **asignación** bici →
+destino no la elige nadie: la calcula `Citykleta_Destination_Matcher` por geocerca en cada sync — la
+relación vive como post meta repetible en la bici (`_citykleta_destination_id`, una fila por destino
+asignado — no un array serializado, así una `WP_Query` con `meta_query` normal encuentra las bicis de
+un destino sin trucos), no como término de taxonomía.
+
+- **Geocerca por destino** — cada destino tiene post meta con centro (`citykleta_destination_lat`/`_lng`)
+  y radio en km (`citykleta_destination_radius_km`), editables en su propia caja de campos
+  (`Citykleta_Destination_Post_Type::render_meta_box()`). Un radio en `0` (el default de un destino
+  nuevo) hace que ese destino se ignore — todavía no tiene geocerca usable.
 - **`Citykleta_Destination_Matcher`** corre dentro de `Citykleta_Bike_Sync::run()`, pero **después** del
   loop de `upsert_bike()` (a diferencia de `Citykleta_Bike_Type_Sync`/`Citykleta_Map_Settings_Sync`, que
   corren antes) — necesita el `lat`/`lng` que la bici recién guardó. Para cada bici con coordenadas
   (reusa `Citykleta_Bike_Map_Data::query()`), calcula distancia haversine contra cada destino con
-  geocerca y llama `wp_set_object_terms()` con la lista completa de destinos donde cae — **siempre**,
-  incluso vacía, así una bici que se movió fuera de todas las geocercas pierde los destinos viejos en
-  vez de quedarse con una asignación vencida. Una bici puede pertenecer a más de un destino si las
-  geocercas se solapan.
+  geocerca y **siempre** reescribe la meta `_citykleta_destination_id` de la bici (`delete_post_meta()`
+  + `add_post_meta()` una vez por destino donde cae) — incluso a "ninguno", así una bici que se movió
+  fuera de todas las geocercas pierde los destinos viejos en vez de quedarse con una asignación vencida.
+  Una bici puede pertenecer a más de un destino si las geocercas se solapan.
+  `Citykleta_Destination_Matcher::destinations_for_bike( $bike_id )` es el lookup inverso (qué destinos
+  tiene esta bici), por ahora sin usar en ninguna pantalla.
 - **Rating agregado — todavía NO implementado a propósito.** El mecanismo de captura (¿estrellas de
   visitantes? ¿nota interna del admin?) sigue sin decidirse; la plantilla no tiene esa sección hasta
   que se resuelva. Ver la memoria de sesión `project_destinos_feature` para el detalle de la decisión
   pendiente.
 - **Artículos relacionados** — cualquier post de blog con una **tag** cuyo slug coincide con el del
-  destino aparece listado en su página (`get_posts( array( 'tag' => $term->slug ) )`). Convención nueva,
-  no una taxonomía propia — reusa el sistema nativo de tags de WordPress.
+  destino aparece listado en su página (`get_posts( array( 'tag' => $destination_slug ) )`). Convención
+  nueva, no una taxonomía propia — reusa el sistema nativo de tags de WordPress.
 - **Precio promedio** — calculado en PHP sobre los resultados de la misma query de bicis del destino
   (`array_sum/count` de `price_per_hour`), no con un `AVG()` en SQL aparte: la lista de bicis de un
   destino es chica (geocerca local), no vale la pena una segunda consulta.
 - **FAQ genérico + override por destino** — `Citykleta_Settings` tiene una pestaña nueva **Destinations**
-  con un textarea de solo lectura de formato ("una pregunta por línea: `Pregunta :: Respuesta`", el mismo
-  truco de "textarea plano en vez de repeater JS" que ya usa la plantilla de WhatsApp) que guarda el FAQ
-  por defecto (`citykleta_destination_faq_default`, parseado por
-  `Citykleta_Destination_Taxonomy::parse_faq_text()`). Cada término de destino tiene un switch ("Custom
-  FAQ") + su propio textarea en el mismo formato — apagado por defecto (usa el genérico), encendido
-  reemplaza la lista **entera** (nunca se mezclan las dos). `Citykleta_Destination_Taxonomy::faq_for( $term_id )`
+  con un textarea de formato libre ("una pregunta por línea: `Pregunta :: Respuesta`", el mismo truco de
+  "textarea plano en vez de repeater JS" que ya usa la plantilla de WhatsApp) que guarda el FAQ por
+  defecto (`citykleta_destination_faq_default`, parseado por
+  `Citykleta_Destination_Post_Type::parse_faq_text()`). Cada destino tiene un switch ("Custom FAQ") + su
+  propio textarea en el mismo formato — apagado por defecto (usa el genérico), encendido reemplaza la
+  lista **entera** (nunca se mezclan las dos). `Citykleta_Destination_Post_Type::faq_for( $post_id )`
   resuelve cuál mostrar.
-- **Plantilla** `templates/taxonomy-destination.php`, cargada vía `template_include` igual que
+- **Plantilla** `templates/single-destination.php`, cargada vía `template_include` igual que
   `archive-bike.php`/`single-bike.php` (el tema activo puede sobreescribirla con su propio
-  `taxonomy-destination.php`). A diferencia del archivo general, con footer normal (mismo patrón de
-  `single-bike.php`, no el "sin footer" de `archive-bike.php`) — es más una página de contenido que un
-  showroom. Reusa `.citykleta-bike-card` de `bike-cards.css` para el grid; estilos propios del
-  encabezado/artículos/FAQ en `assets/css/destination.css`.
+  `single-destination.php`) — hookea `is_singular( 'destination' )`, no `is_tax()`. Con footer normal
+  (mismo patrón de `single-bike.php`, no el "sin footer" de `archive-bike.php`) — es más una página de
+  contenido que un showroom. Reusa `.citykleta-bike-card` de `bike-cards.css` para el grid; estilos
+  propios del encabezado/artículos/FAQ en `assets/css/destination.css`.
 
 ## Ideas / próximos pasos posibles
 

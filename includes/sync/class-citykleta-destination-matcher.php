@@ -1,9 +1,16 @@
 <?php
 /**
- * Assigns each bike to the `destination` term(s) whose geofence it falls
+ * Assigns each bike to the destination post(s) whose geofence it falls
  * inside — the "bici → destino" half of the Destinos feature (see
- * Citykleta_Destination_Taxonomy for the "destino" half: term meta holding
+ * Citykleta_Destination_Post_Type for the "destino" half: post meta holding
  * each geofence's center + radius).
+ *
+ * Destinations are a post type, not a taxonomy (see Citykleta_Destination_Post_Type's
+ * docblock for why), so there's no wp_set_object_terms() to lean on: the
+ * relationship is a repeatable post meta row on the bike instead —
+ * self::META_KEY, added once per matched destination (not a single
+ * serialized array), so a plain meta_query on the destination page's
+ * WP_Query can match it directly.
  *
  * Runs on every bike sync, AFTER bikes are upserted (needs their current
  * lat/lng already saved) — see Citykleta_Bike_Sync::run(). Fully
@@ -29,8 +36,16 @@ class Citykleta_Destination_Matcher {
 	const EARTH_RADIUS_KM = 6371;
 
 	/**
+	 * Bike post meta key holding one destination post ID per row (repeatable,
+	 * not a single serialized array) — read with
+	 * get_post_meta( $bike_id, self::META_KEY, false ), matched in a
+	 * WP_Query with a plain meta_query on this key.
+	 */
+	const META_KEY = '_citykleta_destination_id';
+
+	/**
 	 * Matches every bike with coordinates against every destination's
-	 * geofence and saves the result via wp_set_object_terms(). No-ops
+	 * geofence and saves the result as repeatable bike post meta. No-ops
 	 * quietly if there are no destinations with a usable geofence yet
 	 * (radius > 0) — same "nothing to do" pattern as the other sync classes.
 	 */
@@ -51,53 +66,71 @@ class Citykleta_Destination_Matcher {
 
 			foreach ( $geofences as $geofence ) {
 				if ( self::distance_km( $bike['lat'], $bike['lng'], $geofence['lat'], $geofence['lng'] ) <= $geofence['radius_km'] ) {
-					$matched[] = $geofence['term_id'];
+					$matched[] = $geofence['post_id'];
 				}
 			}
 
-			// Always sets, even to an empty array: a bike that drifted out of
-			// every geofence since the last sync needs its old destinations
-			// cleared, not left stale.
-			wp_set_object_terms( $bike['id'], $matched, Citykleta_Destination_Taxonomy::TAXONOMY );
+			// Always clears first: a bike that drifted out of every geofence
+			// since the last sync needs its old destinations removed, not
+			// left stale. delete_post_meta() with no value removes every row
+			// for this key before the fresh ones (if any) get added.
+			delete_post_meta( $bike['id'], self::META_KEY );
+
+			foreach ( $matched as $post_id ) {
+				add_post_meta( $bike['id'], self::META_KEY, $post_id );
+			}
 		}
 	}
 
 	/**
-	 * Every destination term whose geofence is actually usable (radius > 0
-	 * — the default for a brand-new term with nothing filled in yet).
+	 * Every published destination whose geofence is actually usable
+	 * (radius > 0 — the default for a brand-new destination with nothing
+	 * filled in yet).
 	 *
-	 * @return array { 'term_id' => int, 'lat' => float, 'lng' => float, 'radius_km' => float }[].
+	 * @return array { 'post_id' => int, 'lat' => float, 'lng' => float, 'radius_km' => float }[].
 	 */
 	private function geofences() {
-		$terms = get_terms(
+		$posts = get_posts(
 			array(
-				'taxonomy'   => Citykleta_Destination_Taxonomy::TAXONOMY,
-				'hide_empty' => false,
+				'post_type'      => Citykleta_Destination_Post_Type::POST_TYPE,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
 			)
 		);
 
-		if ( is_wp_error( $terms ) || ! $terms ) {
-			return array();
-		}
-
 		$geofences = array();
 
-		foreach ( $terms as $term ) {
-			$radius = (float) get_term_meta( $term->term_id, Citykleta_Destination_Taxonomy::META_RADIUS_KM, true );
+		foreach ( $posts as $post_id ) {
+			$radius = (float) get_post_meta( $post_id, Citykleta_Destination_Post_Type::META_RADIUS_KM, true );
 
 			if ( $radius <= 0 ) {
 				continue;
 			}
 
 			$geofences[] = array(
-				'term_id'   => $term->term_id,
-				'lat'       => (float) get_term_meta( $term->term_id, Citykleta_Destination_Taxonomy::META_LAT, true ),
-				'lng'       => (float) get_term_meta( $term->term_id, Citykleta_Destination_Taxonomy::META_LNG, true ),
+				'post_id'   => $post_id,
+				'lat'       => (float) get_post_meta( $post_id, Citykleta_Destination_Post_Type::META_LAT, true ),
+				'lng'       => (float) get_post_meta( $post_id, Citykleta_Destination_Post_Type::META_LNG, true ),
 				'radius_km' => $radius,
 			);
 		}
 
 		return $geofences;
+	}
+
+	/**
+	 * Every destination a bike currently belongs to. Used by the bike editor
+	 * (nice-to-have visibility, not required) and anywhere else that needs
+	 * the reverse lookup instead of querying bikes by destination.
+	 *
+	 * @param int $bike_id Bike post ID.
+	 * @return int[] Destination post IDs.
+	 */
+	public static function destinations_for_bike( $bike_id ) {
+		$ids = get_post_meta( $bike_id, self::META_KEY, false );
+
+		return array_map( 'intval', $ids );
 	}
 
 	/**
