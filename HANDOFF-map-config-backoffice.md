@@ -28,11 +28,12 @@ desde **Back Office** y llega a WordPress (y a la app móvil) por un endpoint p�
   `citykleta_map_marker_icon_size`, `citykleta_map_cluster_radius`, `citykleta_map_cluster_disable_zoom`,
   y los tres colores de cluster). Corre automáticamente dentro de `Citykleta_Bike_Sync::run()` — misma
   frecuencia/botón "Sync now" que ya sincroniza bicis y tipos de bici, no hay un cron aparte.
-- **Nuevo recurso en `Citykleta_Settings::ENDPOINTS`**: `map_settings` → path por defecto `/map-settings`.
-  La pestaña **Sync** de Settings ya tiene, automáticamente, un campo de path para este recurso
-  (`citykleta_path_map_settings`), igual que ya tiene uno para `/bikes` y `/bike-types`. La URL final es
-  `{citykleta_api_base_url}` + ese path — la misma base URL que ya usa Back Office para servir bicis y
-  tipos de bici.
+- **Path fijo en código, no editable**: `Citykleta_Settings::MAP_SETTINGS_PATH` = `/map-settings`. A
+  diferencia de `bikes`/`bike-types` (que sí siguen teniendo un campo de path editable en la pestaña
+  Sync — sus rutas por defecto todavía no coinciden con las reales de sharing-api, ver más abajo), el
+  contrato de `/map-settings` ya está confirmado, así que no tiene sentido dejarlo editable en wp-admin
+  donde un typo podría romper el sync en silencio. La URL final es `{citykleta_api_base_url}` +
+  `/map-settings` — la misma base URL que ya usa Back Office para servir bicis y tipos de bici.
 - **Catálogo de estilos de mapa reducido a dos**: `osm` (OpenStreetMap, gratis, sin key) y `mapbox`
   (necesita access token). Antes había 8 más (CARTO, Esri, MapTiler, Stadia Maps) — se borraron por no
   usarse. Esta lista sigue viviendo en el código del plugin (`Citykleta_Settings::TILE_STYLES`) — ver

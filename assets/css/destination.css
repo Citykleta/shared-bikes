@@ -1,0 +1,87 @@
+/*
+ * Estilos de la página de Destino (templates/taxonomy-destination.php).
+ * Mismo palette que bike-cards.css: fondo crema #FFFBEE, texto #151B1D,
+ * acento amarillo #FED94C. El grid de bicis reutiliza .citykleta-bike-card
+ * de bike-cards.css sin cambios — esta hoja solo cubre lo que ese archivo
+ * no tiene: encabezado del destino, artículos relacionados y FAQ.
+ */
+
+.citykleta-destination {
+	max-width: 1000px;
+	margin: 0 auto;
+	padding: 2rem 1rem 4rem;
+}
+
+.citykleta-destination__header {
+	margin-bottom: 2rem;
+}
+
+.citykleta-destination__title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	color: #151b1d;
+	margin-bottom: 0.5rem;
+}
+
+.citykleta-destination__description {
+	color: #5a5250;
+	max-width: 640px;
+}
+
+.citykleta-destination__avg-price {
+	margin-top: 0.75rem;
+	font-size: 0.95rem;
+	color: #282120;
+}
+
+.citykleta-destination__bikes {
+	margin-bottom: 3rem;
+}
+
+.citykleta-destination__articles,
+.citykleta-destination__faq {
+	margin-top: 3rem;
+	padding-top: 2rem;
+	border-top: 1px solid #e5e0d3;
+}
+
+.citykleta-destination__articles h2,
+.citykleta-destination__faq h2 {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	color: #151b1d;
+	margin-bottom: 1rem;
+}
+
+.citykleta-destination__article-list {
+	list-style: disc;
+	margin-left: 1.25rem;
+}
+
+.citykleta-destination__article-list li {
+	margin-bottom: 0.5rem;
+}
+
+.citykleta-destination__article-list a {
+	color: #282120;
+	text-decoration: underline;
+}
+
+.citykleta-destination__faq-item {
+	border: 1px solid #e5e0d3;
+	border-radius: 8px;
+	padding: 0.75rem 1rem;
+	margin-bottom: 0.75rem;
+	background: #fffbee;
+}
+
+.citykleta-destination__faq-item summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: #151b1d;
+}
+
+.citykleta-destination__faq-item p {
+	margin-top: 0.5rem;
+	color: #5a5250;
+}

@@ -31,9 +31,11 @@ define( 'CITYKLETA_USE_MOCK_API', true );
 require_once CITYKLETA_PATH . 'includes/post-types/class-bike-post-type.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-usage-taxonomy.php';
+require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-destination-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-bike-meta.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-type-sync.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-map-settings-sync.php';
+require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-destination-matcher.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-sync.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-settings.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-list-columns.php';
@@ -65,6 +67,11 @@ function citykleta_init() {
 	// Taxonomía de tipo de uso (Urbano, Carretera...), administrable desde
 	// wp-admin, con su relación a tipos de bicicleta.
 	( new Citykleta_Bike_Usage_Taxonomy() )->register();
+
+	// Taxonomía de Destinos (Vedado, Playa...), creada a mano en wp-admin.
+	// La asignación bici → destino la calcula Citykleta_Destination_Matcher
+	// por geocerca, no se elige a mano (ver Citykleta_Bike_Sync::run()).
+	( new Citykleta_Destination_Taxonomy() )->register();
 
 	// Registra los campos personalizados (modelo, ubicación, precio, etc.).
 	( new Citykleta_Bike_Meta() )->register();

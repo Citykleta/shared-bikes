@@ -174,6 +174,12 @@ class Citykleta_Bike_Sync {
 			++$count;
 		}
 
+		// Must run AFTER the upsert loop above, not before like
+		// Citykleta_Bike_Type_Sync/Citykleta_Map_Settings_Sync: it matches
+		// each bike's geofence against its lat/lng, which only exists once
+		// upsert_bike() has saved it.
+		( new Citykleta_Destination_Matcher() )->run();
+
 		delete_option( 'citykleta_last_sync_error' );
 		update_option( 'citykleta_last_sync', current_time( 'mysql' ) );
 		update_option( 'citykleta_last_sync_count', $count );

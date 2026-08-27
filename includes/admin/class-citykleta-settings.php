@@ -36,6 +36,7 @@ class Citykleta_Settings {
 	 */
 	const OPTION_GROUP_SYNC = 'citykleta_settings_sync';
 	const OPTION_GROUP_COMM = 'citykleta_settings_comm';
+	const OPTION_GROUP_DEST = 'citykleta_settings_dest';
 
 	/**
 	 * Settings page slug.
@@ -49,6 +50,7 @@ class Citykleta_Settings {
 		'sync' => 'Sync',
 		'maps' => 'Maps',
 		'comm' => 'Communication',
+		'dest' => 'Destinations',
 	);
 
 	/**
@@ -72,26 +74,43 @@ class Citykleta_Settings {
 	const DEFAULT_MESSAGE = 'Hola {owner}, vi tu bicicleta "{bike}" en Citykleta y me interesa alquilarla. ¿Está disponible? {url}';
 
 	/**
-	 * API resources this plugin syncs, keyed by the slug used in option
-	 * names (citykleta_path_{key}). To add a new synced resource later,
-	 * add an entry here and read it with self::get_endpoint_url( $key )
-	 * from the new sync class — no other change to this settings page
-	 * is needed, the base URL + path fields are generated from this list.
+	 * API resources whose PATH is still user-configurable, keyed by the slug
+	 * used in option names (citykleta_path_{key}). To add a new synced
+	 * resource whose path may need to change by hand, add an entry here and
+	 * read it with self::get_endpoint_url( $key ) from the new sync class —
+	 * no other change to this settings page is needed, the path field is
+	 * generated from this list.
+	 *
+	 * A resource whose real path on citykleta-sharing-api is already
+	 * confirmed and stable does NOT belong here — see self::MAP_SETTINGS_PATH
+	 * for why 'map_settings' was pulled out. bikes/bike-types stay here
+	 * because their defaults below don't actually match sharing-api's real
+	 * routes yet (bikes is really GET /bikesPublic/sync; bike-types has no
+	 * public route at all today, only the staff-only GET /bike-types) — see
+	 * HANDOFF-map-config-backoffice.md. Once those are reconciled, they
+	 * should probably move to a fixed path too, the same way map_settings did.
 	 */
 	const ENDPOINTS = array(
-		'bikes'        => array(
+		'bikes'      => array(
 			'label'        => 'Bikes',
 			'default_path' => '/bikes',
 		),
-		'bike_types'   => array(
+		'bike_types' => array(
 			'label'        => 'Bike types',
 			'default_path' => '/bike-types',
 		),
-		'map_settings' => array(
-			'label'        => 'Map settings',
-			'default_path' => '/map-settings',
-		),
 	);
+
+	/**
+	 * Fixed path for the map settings resource — confirmed against
+	 * citykleta-sharing-api's actual GET /map-settings while implementing the
+	 * Back Office side of the map-config hand-off (see CLAUDE.md and
+	 * HANDOFF-map-config-backoffice.md). Not in self::ENDPOINTS: unlike
+	 * bikes/bike-types, this one real contract is settled, so there's no
+	 * reason to leave it editable in wp-admin where a typo could silently
+	 * break map sync.
+	 */
+	const MAP_SETTINGS_PATH = '/map-settings';
 
 	/**
 	 * Settings section IDs the "Maps" tab groups its fields into.
@@ -195,19 +214,27 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Builds the full URL for one of the resources listed in self::ENDPOINTS
-	 * — the configured base URL plus that resource's path. Used by sync
-	 * classes instead of reading a full URL option directly.
+	 * Builds the full URL for a synced resource — the configured base URL
+	 * plus that resource's path. Used by sync classes instead of reading a
+	 * full URL option directly. 'map_settings' resolves against the fixed
+	 * self::MAP_SETTINGS_PATH; every other key resolves against
+	 * self::ENDPOINTS' user-configurable path option.
 	 *
-	 * @param string $key Endpoint key, e.g. 'bikes' or 'bike_types'.
+	 * @param string $key Endpoint key, e.g. 'bikes', 'bike_types', or 'map_settings'.
 	 * @return string Empty string if $key isn't a known endpoint.
 	 */
 	public static function get_endpoint_url( $key ) {
+		$base = get_option( 'citykleta_api_base_url', home_url( '/wp-json/citykleta-mock/v1' ) );
+
+		// Fixed path, not read from an option — see self::MAP_SETTINGS_PATH.
+		if ( 'map_settings' === $key ) {
+			return rtrim( $base, '/' ) . '/' . ltrim( self::MAP_SETTINGS_PATH, '/' );
+		}
+
 		if ( ! isset( self::ENDPOINTS[ $key ] ) ) {
 			return '';
 		}
 
-		$base = get_option( 'citykleta_api_base_url', home_url( '/wp-json/citykleta-mock/v1' ) );
 		$path = get_option( 'citykleta_path_' . $key, self::ENDPOINTS[ $key ]['default_path'] );
 
 		return rtrim( $base, '/' ) . '/' . ltrim( $path, '/' );
@@ -336,6 +363,18 @@ class Citykleta_Settings {
 	public static function whatsapp_message_template() {
 		$template = get_option( 'citykleta_whatsapp_message', self::DEFAULT_MESSAGE );
 		return '' !== trim( $template ) ? $template : self::DEFAULT_MESSAGE;
+	}
+
+	/**
+	 * The default FAQ (Destinations tab), parsed into
+	 * { 'question' => string, 'answer' => string }[]. Read by
+	 * Citykleta_Destination_Taxonomy::faq_for() for any destination that
+	 * hasn't switched on its own override.
+	 *
+	 * @return array
+	 */
+	public static function destination_faq_default() {
+		return Citykleta_Destination_Taxonomy::parse_faq_text( get_option( 'citykleta_destination_faq_default', '' ) );
 	}
 
 	/**
@@ -725,6 +764,33 @@ class Citykleta_Settings {
 			self::PAGE_SLUG . '-comm',
 			'citykleta_comm_section'
 		);
+
+		register_setting(
+			self::OPTION_GROUP_DEST,
+			'citykleta_destination_faq_default',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_textarea_field',
+				'default'           => '',
+			)
+		);
+
+		add_settings_section(
+			'citykleta_dest_section',
+			'Default FAQ',
+			function () {
+				echo '<p>Shown on every destination page (Destinations → a term, e.g. "Vedado"), unless that destination has its own FAQ switched on — see the "Custom FAQ" field on the term\'s edit screen.</p>';
+			},
+			self::PAGE_SLUG . '-dest'
+		);
+
+		add_settings_field(
+			'citykleta_destination_faq_default',
+			'FAQ items',
+			array( $this, 'render_destination_faq_field' ),
+			self::PAGE_SLUG . '-dest',
+			'citykleta_dest_section'
+		);
 	}
 
 	/**
@@ -972,6 +1038,19 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * Renders the default destination FAQ field: a plain textarea, one
+	 * "Question :: Answer" pair per line — same format (and same reasoning:
+	 * a JS repeater is overkill here) as Citykleta_Destination_Taxonomy's
+	 * per-destination override field, which parses this with the exact same
+	 * Citykleta_Destination_Taxonomy::parse_faq_text().
+	 */
+	public function render_destination_faq_field() {
+		$value = get_option( 'citykleta_destination_faq_default', '' );
+		echo '<textarea name="citykleta_destination_faq_default" rows="6" class="large-text">' . esc_textarea( $value ) . '</textarea>';
+		echo '<p class="description">One question per line: "Question :: Answer".</p>';
+	}
+
+	/**
 	 * Renders the marker icon's size value — read-only, see
 	 * self::render_tile_style_field().
 	 */
@@ -1078,6 +1157,16 @@ class Citykleta_Settings {
 					<?php
 					settings_fields( self::OPTION_GROUP_COMM );
 					do_settings_sections( self::PAGE_SLUG . '-comm' );
+					submit_button( 'Save changes' );
+					?>
+				</form>
+			<?php elseif ( 'dest' === $active_tab ) : ?>
+				<p>Destination pages are managed as terms under Bicicletas → Destinations — this tab only
+				holds the FAQ every destination falls back to.</p>
+				<form method="post" action="options.php">
+					<?php
+					settings_fields( self::OPTION_GROUP_DEST );
+					do_settings_sections( self::PAGE_SLUG . '-dest' );
 					submit_button( 'Save changes' );
 					?>
 				</form>

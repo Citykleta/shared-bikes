@@ -21,6 +21,15 @@ citykleta-shared-bikes.php          → Archivo principal: constantes, carga de 
 includes/
   post-types/
     class-bike-post-type.php         → Registra el custom post type "bike".
+  taxonomies/
+    class-citykleta-bike-type-taxonomy.php → Taxonomía bike_type, sincronizada (ver
+                                        class-citykleta-bike-type-sync.php).
+    class-citykleta-bike-usage-taxonomy.php → Taxonomía bike_usage, administrada a mano, sin
+                                        asignación directa por bici (se deriva de bike_type).
+    class-citykleta-destination-taxonomy.php → Taxonomía destination ("Vedado", "Playa"...): términos
+                                        creados a mano, pero la asignación por bici la calcula
+                                        Citykleta_Destination_Matcher por geocerca. Ver sección
+                                        "Destinos" más abajo.
   meta/
     class-bike-meta.php              → Campos personalizados + caja de edición + guardado + REST API.
   sync/
@@ -33,6 +42,9 @@ includes/
                                         a mano la pestaña Maps de Settings, ahora de solo lectura. Ver
                                         la sección "Settings page" más abajo. Corre también dentro de
                                         Citykleta_Bike_Sync::run().
+    class-citykleta-destination-matcher.php → Asigna cada bici a los destinos cuya geocerca la
+                                        contiene. Corre DESPUÉS del loop de sync de bicis (no antes,
+                                        como los dos de arriba) — ver sección "Destinos" más abajo.
     class-citykleta-bike-sync.php    → Trae bicis de la API configurada y crea/actualiza posts "bike".
                                         Corre por WP-Cron (frecuencia configurable) o manualmente.
   admin/
@@ -113,8 +125,13 @@ templates/
                                         ubicación, precio, disponibilidad). Enlaza a la página individual.
                                         Muestra un aviso "Mostrando resultados para: X" cuando llega
                                         ?location= en la URL (desde el widget de búsqueda).
+  taxonomy-destination.php           → Página de un Destino (/destination/{slug}/): bicis asignadas por
+                                        geocerca, precio promedio, artículos relacionados, FAQ. Ver
+                                        sección "Destinos" más abajo.
 assets/css/
   bike-cards.css                     → Estilos del grid de tarjetas (archivo + widget de bicis).
+  destination.css                    → Encabezado/artículos/FAQ de la página de Destino (el grid de
+                                        bicis reusa bike-cards.css tal cual).
   search-bar.css                     → Estilos base de la barra de búsqueda (la mayoría sobreescribible
                                         desde la pestaña Style del widget).
   search-bar-datepicker.css          → Repinta el calendario de Flatpickr con los colores de marca.
@@ -201,10 +218,12 @@ app, borrar `includes/mock/` y apuntar el sync a esa URL.
 
 ## Settings page (pestañas Sync / Maps)
 
-`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con tres pestañas
+`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con cuatro pestañas
 propias (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
-De esas tres, solo **Sync** y **Communication** tienen formulario guardable — **Maps** es de solo
-lectura desde que su configuración se mudó a Back Office (ver más abajo).
+De esas cuatro, **Sync**, **Communication** y **Destinations** tienen formulario guardable — **Maps** es
+de solo lectura desde que su configuración se mudó a Back Office (ver más abajo). **Destinations** solo
+guarda el FAQ por defecto (`citykleta_destination_faq_default`) — los destinos en sí (geocerca, FAQ
+propio) se administran como términos de la taxonomía `destination`, ver la sección "Destinos" más abajo.
 
 **Pestañas extensibles desde otros plugins:** la lista de pestañas se lee por `Citykleta_Settings::tabs()`,
 que aplica el filtro `citykleta_settings_tabs` (slug => label) — un plugin aparte puede agregar la suya
@@ -230,12 +249,22 @@ campos en el POST) borraría los valores de la otra, porque WordPress los tratar
 blanco" en vez de "no tocados". La regla es: un `OPTION_GROUP` por cada `<form>` que se pueda guardar
 por separado, nunca uno compartido entre formularios distintos.
 
-- **Sync** (antes toda la página se llamaba así) — igual que antes: URL de la API, un campo de path
-  por recurso (`citykleta_path_bikes` → `/bikes`, `citykleta_path_bike_types` → `/bike-types`,
-  `citykleta_path_map_settings` → `/map-settings`, definidos en `Citykleta_Settings::ENDPOINTS`),
-  frecuencia, slug de la URL, estado de la última sincronización y el botón "Sync now".
-  `Citykleta_Settings::get_endpoint_url( $key )` arma la URL final (base + path) — agregar un recurso
-  nuevo (ej. `/owners`) solo necesita una entrada nueva en `ENDPOINTS`, no un campo a mano.
+- **Sync** (antes toda la página se llamaba así) — URL base de la API, frecuencia, slug de la URL,
+  estado de la última sincronización y el botón "Sync now". Ya no es "una URL base + un campo de path
+  editable por cada recurso": desde 2026-08 el *path* de cada recurso vive en código, no en wp-admin —
+  ver `Citykleta_Settings::get_endpoint_url( $key )`. Dos categorías, según qué tan asentado esté el
+  contrato real con `citykleta-sharing-api`:
+  - **Ruta fija** (`Citykleta_Settings::MAP_SETTINGS_PATH`) — para un recurso cuyo contrato real ya está
+    confirmado (hoy solo `map_settings` → `/map-settings`). Nada que editar en wp-admin: un typo en un
+    campo de texto no puede romper el sync silenciosamente.
+  - **Ruta editable** (`Citykleta_Settings::ENDPOINTS`, con su campo `citykleta_path_{key}` en esta
+    pestaña) — para un recurso cuyo path por defecto todavía no coincide con la ruta real de
+    `citykleta-sharing-api` (hoy `bikes` → `/bikes` y `bike_types` → `/bike-types`; la real de bikes es
+    `GET /bikesPublic/sync`, y bike-types ni siquiera tiene ruta pública todavía, solo el
+    `GET /bike-types` de staff — ver `HANDOFF-map-config-backoffice.md`). Se deja editable a propósito
+    mientras eso se reconcilia, para no bloquear el sync con un valor fijo que hoy sabemos que está mal.
+  Reconciliar un recurso de `ENDPOINTS` (confirmar su ruta real y no volver a tocarla) es quitarlo de ahí
+  y agregarlo como una constante de ruta fija más, igual que se hizo con `map_settings`.
 - **Maps** — **de solo lectura desde 2026-08**: esta configuración ahora la administra Back Office
   (ver la nota "Configuración de mapas: mudada a Back Office" más abajo) y llega por sync, no por un
   formulario de wp-admin. La pestaña conserva las mismas cuatro secciones
@@ -292,8 +321,8 @@ simplemente va agarrado a la misma corrida/frecuencia por simplicidad, no porque
 Desde 2026-08, la configuración del mapa (Settings → Maps) dejó de editarse a mano en wp-admin — la
 administra **Back Office** (repo aparte) y este plugin solo guarda una **copia de solo lectura**,
 igual que ya hacía con bicis y tipos de bici. El patrón es exactamente el mismo que
-`Citykleta_Bike_Type_Sync`: un endpoint más en `Citykleta_Settings::ENDPOINTS`
-(`map_settings` → `/map-settings`, con su propio campo de path en la pestaña Sync) y una clase de sync
+`Citykleta_Bike_Type_Sync`: una ruta fija más en `Citykleta_Settings::MAP_SETTINGS_PATH`
+(`/map-settings` — sin campo editable en wp-admin, ver la sección "Settings page" más arriba) y una clase de sync
 (`Citykleta_Map_Settings_Sync`) que lo trae y hace `update_option()` sobre las mismas keys que ya
 existían — por eso ningún consumidor (`Citykleta_Settings::tile_layer()` / `map_colors()` /
 `cluster_options()` / `marker_icon_size()`, y todo lo que está construido sobre ellos —
@@ -664,6 +693,53 @@ un visitante anónimo no puede firmar un nonce, así que se valida el payload):
 descarta el honeypot) y `POST /wp-json/citykleta/v1/subscribers/{id}/download` (marca
 `downloaded_at` una sola vez). El abuso máximo es inflar un lead basura o el conteo de
 descargas — agregar rate-limit por IP si algún día importa.
+
+## Destinos
+
+Páginas por lugar (ej. "Vedado", "Playa") creadas a mano en wp-admin, cada una mostrando las bicis
+disponibles ahí. A diferencia de `bike_type` (sincronizada) y de `bike_usage` (administrada a mano pero
+sin asignación directa por bici), `destination` es una mezcla de las dos: los **términos** se crean a
+mano (`Citykleta_Destination_Taxonomy`, taxonomía pública con rewrite `/destination/{slug}/`), pero la
+**asignación** bici → destino no la elige nadie: la calcula `Citykleta_Destination_Matcher` por geocerca
+en cada sync (igual de "read-only en efecto" que `bike_type` — la caja de checkboxes del editor de bici
+sigue visible, pero un click ahí se pisa en el siguiente sync).
+
+- **Geocerca por destino** — cada término tiene term meta con centro (`citykleta_destination_lat`/`_lng`)
+  y radio en km (`citykleta_destination_radius_km`), editables en la propia pantalla de término
+  (`Citykleta_Destination_Taxonomy::render_add_fields()`/`render_edit_fields()`). Un radio en `0` (el
+  default de un término nuevo) hace que ese destino se ignore — todavía no tiene geocerca usable.
+- **`Citykleta_Destination_Matcher`** corre dentro de `Citykleta_Bike_Sync::run()`, pero **después** del
+  loop de `upsert_bike()` (a diferencia de `Citykleta_Bike_Type_Sync`/`Citykleta_Map_Settings_Sync`, que
+  corren antes) — necesita el `lat`/`lng` que la bici recién guardó. Para cada bici con coordenadas
+  (reusa `Citykleta_Bike_Map_Data::query()`), calcula distancia haversine contra cada destino con
+  geocerca y llama `wp_set_object_terms()` con la lista completa de destinos donde cae — **siempre**,
+  incluso vacía, así una bici que se movió fuera de todas las geocercas pierde los destinos viejos en
+  vez de quedarse con una asignación vencida. Una bici puede pertenecer a más de un destino si las
+  geocercas se solapan.
+- **Rating agregado — todavía NO implementado a propósito.** El mecanismo de captura (¿estrellas de
+  visitantes? ¿nota interna del admin?) sigue sin decidirse; la plantilla no tiene esa sección hasta
+  que se resuelva. Ver la memoria de sesión `project_destinos_feature` para el detalle de la decisión
+  pendiente.
+- **Artículos relacionados** — cualquier post de blog con una **tag** cuyo slug coincide con el del
+  destino aparece listado en su página (`get_posts( array( 'tag' => $term->slug ) )`). Convención nueva,
+  no una taxonomía propia — reusa el sistema nativo de tags de WordPress.
+- **Precio promedio** — calculado en PHP sobre los resultados de la misma query de bicis del destino
+  (`array_sum/count` de `price_per_hour`), no con un `AVG()` en SQL aparte: la lista de bicis de un
+  destino es chica (geocerca local), no vale la pena una segunda consulta.
+- **FAQ genérico + override por destino** — `Citykleta_Settings` tiene una pestaña nueva **Destinations**
+  con un textarea de solo lectura de formato ("una pregunta por línea: `Pregunta :: Respuesta`", el mismo
+  truco de "textarea plano en vez de repeater JS" que ya usa la plantilla de WhatsApp) que guarda el FAQ
+  por defecto (`citykleta_destination_faq_default`, parseado por
+  `Citykleta_Destination_Taxonomy::parse_faq_text()`). Cada término de destino tiene un switch ("Custom
+  FAQ") + su propio textarea en el mismo formato — apagado por defecto (usa el genérico), encendido
+  reemplaza la lista **entera** (nunca se mezclan las dos). `Citykleta_Destination_Taxonomy::faq_for( $term_id )`
+  resuelve cuál mostrar.
+- **Plantilla** `templates/taxonomy-destination.php`, cargada vía `template_include` igual que
+  `archive-bike.php`/`single-bike.php` (el tema activo puede sobreescribirla con su propio
+  `taxonomy-destination.php`). A diferencia del archivo general, con footer normal (mismo patrón de
+  `single-bike.php`, no el "sin footer" de `archive-bike.php`) — es más una página de contenido que un
+  showroom. Reusa `.citykleta-bike-card` de `bike-cards.css` para el grid; estilos propios del
+  encabezado/artículos/FAQ en `assets/css/destination.css`.
 
 ## Ideas / próximos pasos posibles
 

@@ -24,6 +24,7 @@ class Citykleta_Templates {
 	public function register() {
 		add_filter( 'template_include', array( $this, 'load_archive_template' ) );
 		add_filter( 'template_include', array( $this, 'load_single_template' ) );
+		add_filter( 'template_include', array( $this, 'load_destination_template' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'pre_get_posts', array( $this, 'apply_search_filters' ) );
 	}
@@ -175,6 +176,28 @@ class Citykleta_Templates {
 	}
 
 	/**
+	 * Replaces a destination term's archive page (/destination/{slug}/),
+	 * unless the active theme already has its own taxonomy-destination.php —
+	 * same pattern as self::load_archive_template()/load_single_template().
+	 *
+	 * @param string $template Path to the template WordPress was going to use.
+	 * @return string
+	 */
+	public function load_destination_template( $template ) {
+		if ( ! is_tax( Citykleta_Destination_Taxonomy::TAXONOMY ) ) {
+			return $template;
+		}
+
+		$theme_template = locate_template( 'taxonomy-destination.php' );
+
+		if ( $theme_template ) {
+			return $theme_template;
+		}
+
+		return CITYKLETA_PATH . 'templates/taxonomy-destination.php';
+	}
+
+	/**
 	 * Loads each front-end view's CSS: the card grid on the archive, the
 	 * detail layout on a single bike. Designing the single view with
 	 * Elementor would need the Theme Builder (Pro only), so it ships with
@@ -220,6 +243,24 @@ class Citykleta_Templates {
 				CITYKLETA_URL . 'assets/css/single-bike.css',
 				array(),
 				$this->asset_version( 'assets/css/single-bike.css' )
+			);
+		}
+
+		if ( is_tax( Citykleta_Destination_Taxonomy::TAXONOMY ) ) {
+			// Reuses the archive's card styles for the bike grid — same
+			// .citykleta-bike-card markup, see templates/taxonomy-destination.php.
+			wp_enqueue_style(
+				'citykleta-bike-cards',
+				CITYKLETA_URL . 'assets/css/bike-cards.css',
+				array(),
+				$this->asset_version( 'assets/css/bike-cards.css' )
+			);
+
+			wp_enqueue_style(
+				'citykleta-destination',
+				CITYKLETA_URL . 'assets/css/destination.css',
+				array( 'citykleta-bike-cards' ),
+				$this->asset_version( 'assets/css/destination.css' )
 			);
 		}
 	}
