@@ -222,9 +222,10 @@ app, borrar `includes/mock/` y apuntar el sync a esa URL.
 `Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con cuatro pestañas
 propias (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
 De esas cuatro, **Sync**, **Communication** y **Destinations** tienen formulario guardable — **Maps** es
-de solo lectura desde que su configuración se mudó a Back Office (ver más abajo). **Destinations** solo
-guarda el FAQ por defecto (`citykleta_destination_faq_default`) — los destinos en sí (geocerca, FAQ
-propio) se administran como términos de la taxonomía `destination`, ver la sección "Destinos" más abajo.
+de solo lectura desde que su configuración se mudó a Back Office (ver más abajo). **Destinations** guarda
+el slug de URL (`citykleta_destination_slug`) y el FAQ por defecto (`citykleta_destination_faq_default`)
+— los destinos en sí (geocerca, FAQ propio) se administran como posts del CPT `destination`, ver la
+sección "Destinos" más abajo.
 
 **Pestañas extensibles desde otros plugins:** la lista de pestañas se lee por `Citykleta_Settings::tabs()`,
 que aplica el filtro `citykleta_settings_tabs` (slug => label) — un plugin aparte puede agregar la suya
@@ -712,6 +713,18 @@ relación vive como post meta repetible en la bici (`_citykleta_destination_id`,
 asignado — no un array serializado, así una `WP_Query` con `meta_query` normal encuentra las bicis de
 un destino sin trucos), no como término de taxonomía.
 
+- **URL slug editable** — `citykleta_destination_slug` (Settings → Destinations → URL, default
+  `destination`), igual que `citykleta_bike_slug` para bicis: al guardarlo se marca
+  `citykleta_destination_flush_rewrite_flag`, revisado al **final** de `citykleta_init()` (a
+  diferencia del de bicis, revisado dentro de `Citykleta_Bike_Post_Type::register()`, que corre
+  ANTES de que el CPT de Destinations y las taxonomías se registren en esa misma carga — un flush ahí
+  dejaría esas reglas afuera). **No puede quedar en blanco**: se intentó permitir vaciarlo para que
+  los destinos vivan en la raíz del sitio sin prefijo (`/vedado/` en vez de `/destination/vedado/`),
+  y se revirtió — `register_post_type()` con `'rewrite' => array( 'slug' => '' )` (o `'/'`) no genera
+  ninguna regla de rewrite utilizable para el CPT, verificado en la base de datos (0 reglas para
+  `destination`, la página da 404). Lograr URLs de verdad sin prefijo necesitaría una regla de
+  rewrite escrita a mano con prioridad alta más manejo de colisión contra Páginas/Posts con el mismo
+  slug — no es este campo. Ver `Citykleta_Settings::sanitize_destination_slug()`.
 - **Geocerca por destino** — cada destino tiene post meta con centro (`citykleta_destination_lat`/`_lng`)
   y radio en km (`citykleta_destination_radius_km`), editables en su propia caja de campos
   (`Citykleta_Destination_Post_Type::render_meta_box()`). Un radio en `0` (el default de un destino

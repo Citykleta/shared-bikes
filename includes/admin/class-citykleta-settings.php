@@ -211,6 +211,8 @@ class Citykleta_Settings {
 		add_action( 'update_option_citykleta_sync_frequency', array( $this, 'on_frequency_updated' ), 10, 2 );
 		add_action( 'add_option_citykleta_bike_slug', array( $this, 'on_slug_changed' ) );
 		add_action( 'update_option_citykleta_bike_slug', array( $this, 'on_slug_changed' ) );
+		add_action( 'add_option_citykleta_destination_slug', array( $this, 'on_destination_slug_changed' ) );
+		add_action( 'update_option_citykleta_destination_slug', array( $this, 'on_destination_slug_changed' ) );
 	}
 
 	/**
@@ -767,6 +769,33 @@ class Citykleta_Settings {
 
 		register_setting(
 			self::OPTION_GROUP_DEST,
+			'citykleta_destination_slug',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_destination_slug' ),
+				'default'           => 'destination',
+			)
+		);
+
+		add_settings_section(
+			'citykleta_dest_url_section',
+			'URL',
+			function () {
+				echo '<p>Where destination pages live.</p>';
+			},
+			self::PAGE_SLUG . '-dest'
+		);
+
+		add_settings_field(
+			'citykleta_destination_slug',
+			'URL slug',
+			array( $this, 'render_destination_slug_field' ),
+			self::PAGE_SLUG . '-dest',
+			'citykleta_dest_url_section'
+		);
+
+		register_setting(
+			self::OPTION_GROUP_DEST,
 			'citykleta_destination_faq_default',
 			array(
 				'type'              => 'string',
@@ -779,7 +808,7 @@ class Citykleta_Settings {
 			'citykleta_dest_section',
 			'Default FAQ',
 			function () {
-				echo '<p>Shown on every destination page (Destinations → a term, e.g. "Vedado"), unless that destination has its own FAQ switched on — see the "Custom FAQ" field on the term\'s edit screen.</p>';
+				echo '<p>Shown on every destination page (Bicicletas → Destinations → a destination, e.g. "Vedado"), unless that destination has its own FAQ switched on — see the "Custom FAQ" field on its edit screen.</p>';
 			},
 			self::PAGE_SLUG . '-dest'
 		);
@@ -893,6 +922,27 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * Same as self::sanitize_slug(), just a different fallback name.
+	 *
+	 * A blank value ("remove the prefix entirely") was tried and reverted:
+	 * WordPress's own 'rewrite' => array('slug' => '') / '/' don't produce a
+	 * working flat %postname%/ rule for a plain register_post_type() call —
+	 * every destination page 404s the moment the prefix is cleared, verified
+	 * empirically (0 rewrite rules generated for the CPT). Getting a real
+	 * flat URL would need a hand-written top-priority rewrite rule plus
+	 * collision handling against Pages/Posts with the same slug — a bigger
+	 * change than this field, so for now the slug always falls back to
+	 * 'destination' instead of ever being blank, same safety net as bikes.
+	 *
+	 * @param string $value Value submitted by the form.
+	 * @return string
+	 */
+	public function sanitize_destination_slug( $value ) {
+		$slug = sanitize_title( $value );
+		return $slug ? $slug : 'destination';
+	}
+
+	/**
 	 * Normalizes an endpoint path so it always starts with a single slash.
 	 *
 	 * @param string $value Value submitted by the form.
@@ -946,6 +996,17 @@ class Citykleta_Settings {
 		echo '<input type="text" name="citykleta_bike_slug" value="' . esc_attr( $value ) . '" class="regular-text" style="width:220px" placeholder="bikes" />';
 		echo '<p class="description">→ <code>' . esc_html( home_url( '/' . $value . '/' ) ) . '</code></p>';
 		echo '<p class="description">Changing this moves every bike\'s URL. Letters, numbers, and hyphens only.</p>';
+	}
+
+	/**
+	 * Renders the destination URL slug field. Same shape as self::render_slug_field()
+	 * for bikes — see self::sanitize_destination_slug() for why it can't be blank.
+	 */
+	public function render_destination_slug_field() {
+		$value = get_option( 'citykleta_destination_slug', 'destination' );
+		echo '<input type="text" name="citykleta_destination_slug" value="' . esc_attr( $value ) . '" class="regular-text" style="width:220px" placeholder="destination" />';
+		echo '<p class="description">→ <code>' . esc_html( home_url( '/' . $value . '/vedado/' ) ) . '</code></p>';
+		echo '<p class="description">Changing this moves every destination\'s URL. Letters, numbers, and hyphens only.</p>';
 	}
 
 	/**
@@ -1088,6 +1149,20 @@ class Citykleta_Settings {
 	 */
 	public function on_slug_changed() {
 		update_option( 'citykleta_flush_rewrite_flag', '1' );
+	}
+
+	/**
+	 * Same idea as self::on_slug_changed(), separate flag: by the time
+	 * Citykleta_Bike_Post_Type::register() checks its own flag, the
+	 * Destinations CPT (registered right after it in citykleta_init()) and
+	 * the taxonomies (registered after that) haven't run yet on this
+	 * request, so a flush there wouldn't pick up this slug's fresh rewrite
+	 * rules. This flag is checked at the very end of citykleta_init()
+	 * instead — see citykleta-shared-bikes.php — once everything has
+	 * registered.
+	 */
+	public function on_destination_slug_changed() {
+		update_option( 'citykleta_destination_flush_rewrite_flag', '1' );
 	}
 
 	/**

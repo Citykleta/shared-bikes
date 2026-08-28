@@ -124,6 +124,18 @@ function citykleta_init() {
 	if ( CITYKLETA_USE_MOCK_API ) {
 		( new Citykleta_Mock_Api() )->register();
 	}
+
+	// El slug de Destinations puede haber cambiado en Settings (ver
+	// Citykleta_Settings::on_destination_slug_changed()). A diferencia del
+	// flush de citykleta_bike_slug (que corre dentro de
+	// Citykleta_Bike_Post_Type::register(), antes de que el resto de lo de
+	// arriba se registre), este va al final de citykleta_init() a propósito:
+	// para esta altura ya se registraron el CPT de Destinations y las
+	// taxonomías, así que el flush de acá sí cubre todas sus reglas de una vez.
+	if ( get_option( 'citykleta_destination_flush_rewrite_flag' ) ) {
+		flush_rewrite_rules();
+		delete_option( 'citykleta_destination_flush_rewrite_flag' );
+	}
 }
 add_action( 'init', 'citykleta_init' );
 

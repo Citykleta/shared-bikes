@@ -78,6 +78,12 @@ class Citykleta_Destination_Post_Type {
 			'all_items'     => 'All Destinations',
 		);
 
+		// Editable from Settings → Destinations → URL slug (Citykleta_Settings).
+		// Dropping the prefix entirely was tried and reverted — see
+		// Citykleta_Settings::sanitize_destination_slug() for why the option
+		// can never actually be blank.
+		$slug = get_option( 'citykleta_destination_slug', 'destination' );
+
 		register_post_type(
 			self::POST_TYPE,
 			array(
@@ -87,7 +93,7 @@ class Citykleta_Destination_Post_Type {
 				'show_in_menu' => 'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE,
 				'supports'     => array( 'title', 'editor', 'thumbnail', 'custom-fields' ),
 				'show_in_rest' => true,
-				'rewrite'      => array( 'slug' => 'destination' ),
+				'rewrite'      => array( 'slug' => $slug ),
 			)
 		);
 	}
