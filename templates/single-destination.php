@@ -65,10 +65,10 @@ while ( have_posts() ) :
 
 	while ( $bikes_query->have_posts() ) {
 		$bikes_query->the_post();
-		$price = get_post_meta( get_the_ID(), 'price_per_hour', true );
+		$price = Citykleta_Bike_Meta::price_amount( get_the_ID() );
 
-		if ( '' !== $price ) {
-			$prices[] = (float) $price;
+		if ( null !== $price ) {
+			$prices[] = $price;
 		}
 	}
 
@@ -112,7 +112,7 @@ while ( have_posts() ) :
 
 			<?php if ( null !== $avg_price ) : ?>
 				<p class="citykleta-destination__avg-price">
-					Precio promedio: <strong><?php echo esc_html( number_format_i18n( $avg_price, 0 ) ); ?> CUP/hora</strong>
+					Precio promedio: <strong><?php echo esc_html( Citykleta_Bike_Meta::format_price( $avg_price ) ); ?></strong>
 					(<?php echo esc_html( count( $prices ) ); ?> bicis)
 				</p>
 			<?php endif; ?>
@@ -126,7 +126,7 @@ while ( have_posts() ) :
 						$bikes_query->the_post();
 
 						$bike_id     = get_the_ID();
-						$price       = get_post_meta( $bike_id, 'price_per_hour', true );
+						$price       = Citykleta_Bike_Meta::price_html( $bike_id );
 						$location    = get_post_meta( $bike_id, 'location', true );
 						$available   = get_post_meta( $bike_id, 'available', true );
 						$owner_name  = get_post_meta( $bike_id, 'owner_name', true );
@@ -159,7 +159,7 @@ while ( have_posts() ) :
 								<?php endif; ?>
 
 								<?php if ( $price ) : ?>
-									<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?> CUP/hora</p>
+									<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?></p>
 								<?php endif; ?>
 							</div>
 						</a>

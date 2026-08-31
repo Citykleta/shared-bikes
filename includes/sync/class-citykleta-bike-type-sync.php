@@ -1,11 +1,12 @@
 <?php
 /**
- * Syncs the canonical bike type list from the Sharing App API (or the mock
- * while it doesn't exist yet) into the `bike_type` taxonomy terms.
+ * Keeps the `bike_type` taxonomy terms in step with the types the Sharing App
+ * reports, so every `bike_type` slug a bike references already exists as a term
+ * by the time the bikes themselves are saved.
  *
- * Runs before Citykleta_Bike_Sync so every `bike_type` slug a bike may
- * reference already exists as a term. Never deletes terms that disappear
- * from the API — see _citykleta_type_active below.
+ * The types are read off the bike payload rather than fetched (the API's
+ * /bike-types is staff-only) — see run(). Never deletes terms that disappear;
+ * they're flagged inactive instead, see _citykleta_type_active below.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -25,42 +26,39 @@ class Citykleta_Bike_Type_Sync {
 	const ACTIVE_META_KEY = '_citykleta_type_active';
 
 	/**
-	 * Fetches the bike types API and creates/updates matching terms.
+	 * Creates/updates the taxonomy terms for the bike types seen in a sync.
+	 *
+	 * Takes the types instead of fetching them: the API's GET /bike-types is
+	 * mounted after citykleta-sharing-api's global verifyAuth and answers 401
+	 * to anyone without a staff session, so this plugin cannot read it. It
+	 * doesn't need to — every row of GET /bikesPublic/sync carries the type's
+	 * slug and display name, so Citykleta_Bike_Sync collects them off the bike
+	 * payload it already fetched and hands them over. That also means this runs
+	 * after the bike list is in hand, but still before the upsert loop that
+	 * resolves each bike's type by slug.
 	 *
 	 * Terms are never deleted: a bike (or a usage mapping) may already
-	 * reference one. Terms missing from the current response are instead
-	 * flagged inactive via term meta, so admin screens can show them as
-	 * no longer available without breaking existing references.
+	 * reference one. Types absent from this run are instead flagged inactive
+	 * via term meta, so admin screens can show them as no longer available
+	 * without breaking existing references.
+	 *
+	 * @param array $types Display name keyed by type slug, as collected by
+	 *                     Citykleta_Bike_Sync::collect_bike_types().
 	 */
-	public function run() {
-		$url = Citykleta_Settings::get_endpoint_url( 'bike_types' );
-
-		if ( empty( $url ) ) {
-			return;
-		}
-
-		$response = wp_remote_get( $url, array( 'timeout' => 15 ) );
-
-		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			return;
-		}
-
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( ! is_array( $body ) || ! isset( $body['data'] ) || ! is_array( $body['data'] ) ) {
+	public function run( array $types ) {
+		// An empty map means the run brought no usable types at all (an empty
+		// catalogue, or a payload with no bike_type on any row). Flagging
+		// everything inactive off that would be wrong, so leave the terms be.
+		if ( ! $types ) {
 			return;
 		}
 
 		$seen_slugs = array();
 
-		foreach ( $body['data'] as $type ) {
-			if ( empty( $type['slug'] ) || empty( $type['name'] ) ) {
-				continue;
-			}
-
-			$slug    = sanitize_title( $type['slug'] );
-			$name    = sanitize_text_field( $type['name'] );
-			$term_id = $this->upsert_term( $slug, $name );
+		foreach ( $types as $slug => $name ) {
+			$slug    = sanitize_title( $slug );
+			$name    = sanitize_text_field( $name );
+			$term_id = $slug && $name ? $this->upsert_term( $slug, $name ) : 0;
 
 			if ( $term_id ) {
 				update_term_meta( $term_id, self::ACTIVE_META_KEY, '1' );

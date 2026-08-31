@@ -42,8 +42,12 @@ class Citykleta_Bike_Meta {
 			'label' => 'Longitude',
 			'type'  => 'number',
 		),
-		'price_per_hour' => array(
-			'label' => 'Price per hour (CUP)',
+		// The only price there is: the app charges per day (daily_rate) and has
+		// no hourly rate. The former price_per_hour field is gone — it only
+		// ever existed in the mock, and the values it left behind are cleaned
+		// up by Citykleta_Bike_Sync::upsert_bike().
+		'price_per_day'  => array(
+			'label' => 'Price per day (USD)',
 			'type'  => 'number',
 		),
 		'available'      => array(
@@ -212,5 +216,55 @@ class Citykleta_Bike_Meta {
 
 			update_post_meta( $post_id, $key, $value );
 		}
+	}
+
+	/**
+	 * Meta key holding a bike's rental price.
+	 *
+	 * The app charges per day and has no hourly rate at all, so this is the
+	 * only real price. The old price_per_hour meta is a leftover from the mock
+	 * era and is deliberately not read anywhere — see CLAUDE.md.
+	 */
+	const PRICE_META = 'price_per_day';
+
+	/**
+	 * Reads a bike's rental price.
+	 *
+	 * @param int $post_id Bike post ID.
+	 * @return float|null Price, or null when the bike hasn't got one.
+	 */
+	public static function price_amount( $post_id ) {
+		$value = get_post_meta( $post_id, self::PRICE_META, true );
+
+		return ( '' === $value || null === $value ) ? null : (float) $value;
+	}
+
+	/**
+	 * Formats a price the way it's shown everywhere on the site: "$900 USD /día".
+	 *
+	 * Single place on purpose — the same string used to be assembled by hand in
+	 * seven different templates, which is how they all ended up showing a stale
+	 * hourly price. Prices are quoted in USD, the currency the app charges in;
+	 * localising the currency itself is a separate job for later.
+	 *
+	 * @param float|null $amount Price.
+	 * @return string Formatted price, or '' when there is nothing to show.
+	 */
+	public static function format_price( $amount ) {
+		if ( null === $amount || '' === $amount ) {
+			return '';
+		}
+
+		return '$' . number_format_i18n( (float) $amount, 0 ) . ' USD /día';
+	}
+
+	/**
+	 * A bike's price, formatted and ready to print.
+	 *
+	 * @param int $post_id Bike post ID.
+	 * @return string
+	 */
+	public static function price_html( $post_id ) {
+		return self::format_price( self::price_amount( $post_id ) );
 	}
 }

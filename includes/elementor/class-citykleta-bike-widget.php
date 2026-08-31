@@ -861,7 +861,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 
 		if ( 'price' === $settings['orderby'] ) {
 			$args['orderby']  = 'meta_value_num';
-			$args['meta_key'] = 'price_per_hour';
+			$args['meta_key'] = Citykleta_Bike_Meta::PRICE_META;
 		} elseif ( 'title' === $settings['orderby'] ) {
 			$args['orderby'] = 'title';
 		} else {
@@ -903,7 +903,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		while ( $query->have_posts() ) {
 			$query->the_post();
 
-			$price       = get_post_meta( get_the_ID(), 'price_per_hour', true );
+			$price       = Citykleta_Bike_Meta::price_html( get_the_ID() );
 			$location    = get_post_meta( get_the_ID(), 'location', true );
 			$available   = get_post_meta( get_the_ID(), 'available', true );
 			$owner_name  = get_post_meta( get_the_ID(), 'owner_name', true );
@@ -939,7 +939,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 					<?php endif; ?>
 
 					<?php if ( $price && 'yes' === $settings['show_price'] ) : ?>
-						<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?> CUP/hora</p>
+						<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?></p>
 					<?php endif; ?>
 				</div>
 			</a>

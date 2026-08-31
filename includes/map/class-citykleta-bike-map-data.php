@@ -102,7 +102,7 @@ class Citykleta_Bike_Map_Data {
 				continue;
 			}
 
-			$price     = get_post_meta( get_the_ID(), 'price_per_hour', true );
+			$price     = Citykleta_Bike_Meta::price_html( get_the_ID() );
 			$location  = get_post_meta( get_the_ID(), 'location', true );
 			$available = get_post_meta( get_the_ID(), 'available', true );
 
@@ -112,8 +112,8 @@ class Citykleta_Bike_Map_Data {
 				'lng'       => (float) $lng,
 				'title'     => get_the_title(),
 				'location'  => $location,
-				'price'     => $price ? $price . ' CUP/hora' : '',
-				'price_tag' => $price ? $price . ' CUP' : '',
+				'price'     => $price,
+				'price_tag' => $price,
 				'available' => '1' === (string) $available,
 				'url'       => get_permalink(),
 				'image'     => has_post_thumbnail() ? get_the_post_thumbnail_url( get_the_ID(), 'medium' ) : '',

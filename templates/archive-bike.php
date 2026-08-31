@@ -93,7 +93,7 @@ endif;
 						the_post();
 
 						$bike_id     = get_the_ID();
-						$price       = get_post_meta( $bike_id, 'price_per_hour', true );
+						$price       = Citykleta_Bike_Meta::price_html( $bike_id );
 						$location    = get_post_meta( $bike_id, 'location', true );
 						$available   = get_post_meta( $bike_id, 'available', true );
 						$owner_name  = get_post_meta( $bike_id, 'owner_name', true );
@@ -126,7 +126,7 @@ endif;
 								<?php endif; ?>
 
 								<?php if ( $price ) : ?>
-									<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?> CUP/hora</p>
+									<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?></p>
 								<?php endif; ?>
 							</div>
 						</a>

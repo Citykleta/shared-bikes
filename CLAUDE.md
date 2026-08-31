@@ -55,9 +55,11 @@ includes/
                                         Citykleta_Admin_Map).
     class-citykleta-list-columns.php → Columnas de imagen, marca y ubicación en la lista de bicis de
                                         wp-admin (marca y ubicación son ordenables con un click).
-    class-citykleta-admin-map.php    → Página "Bikes Map" (submenú de "Bicicletas"): mapa con TODAS las bicis
-                                        que tengan lat/lng, para ver de un vistazo dónde están sin salir
-                                        de wp-admin. Reusa Citykleta_Bike_Map_Data y citykleta-map.js.
+    class-citykleta-admin-map.php    → Mapa con TODAS las bicis que tengan lat/lng, mostrado arriba de la
+                                        lista "All Bikes" (fusionado ahí, ya no es su propia página aparte),
+                                        para ver de un vistazo dónde están sin salir de wp-admin. Se puede
+                                        ocultar por usuario desde el panel "Screen Options" de esa lista.
+                                        Reusa Citykleta_Bike_Map_Data y citykleta-map.js.
   map/
     class-citykleta-bike-map-data.php → Helper compartido: consulta bicis con lat/lng y arma el array que
                                          espera citykleta-map.js. Lo usan tanto el widget de Elementor como
@@ -111,16 +113,6 @@ includes/
     class-citykleta-map-widget.php    → Widget "Bikes Map": consulta bicis con WP_Query (mismo patrón que
                                          el widget de grid) y se las pasa como JSON a citykleta-map.js, que
                                          las dibuja en un mapa Leaflet agrupadas en clusters.
-  mock/
-    class-citykleta-mock-api.php     → API falsa TEMPORAL (rutas /wp-json/citykleta-mock/v1/bikes*,
-                                        /bikes/{id}, /bike-types, /map-settings, /sync-status,
-                                        /trigger-sync y /flush-rewrite) mientras no exista la API real
-                                        de la app (ni el /map-settings de Back Office). Borrar cuando exista.
-    bikes-mock.json                  → Copia del JSON de prueba para pegar en Mockoon (mismo dato que
-                                        devuelve la API falsa de arriba).
-    bike-types-mock.json             → Igual que bikes-mock.json pero para /bike-types.
-    map-settings-mock.json           → Igual que bikes-mock.json pero para /map-settings — ver la
-                                        sección "Settings page" para el contrato completo del payload.
 templates/
   archive-bike.php                   → Grid de tarjetas de vista previa en /bikes/ (imagen, título,
                                         ubicación, precio, disponibilidad). Enlaza a la página individual.
@@ -165,7 +157,7 @@ languages/                           → Traducciones (vacío por ahora).
 - **Todo el código en inglés**: identificadores (claves de post meta, nombres de clases/archivos, rutas
   REST, nombres de funciones/métodos), comentarios/docblocks, y también las etiquetas visibles en wp-admin
   (labels del post type, labels de los campos del meta box, mensajes de error). Ej: post type `bike`, meta
-  `price_per_hour`, ruta `/bikes`, label en el formulario "Price per hour (CUP)". Español solo se usa para
+  `price_per_day`, ruta `/bikesPublic/sync`, label en el formulario "Price per day (USD)". Español solo se usa para
   la conversación entre el usuario y Claude Code, nunca dentro del código.
 - Text domain: `citykleta-shared-bikes`
 - Seguir los **WordPress Coding Standards** (indentación con tabs, espacios dentro de paréntesis).
@@ -179,7 +171,7 @@ languages/                           → Traducciones (vacío por ahora).
 | location           | string  | Ubicación                   | Texto libre por ahora       |
 | lat                | number  | Latitude                    | Viene de `coordinates.lat` en la API. Usado por el widget de mapa. |
 | lng                | number  | Longitude                   | Viene de `coordinates.lng` en la API. Usado por el widget de mapa. |
-| price_per_hour     | number  | Precio por hora (CUP)       | En CUP                      |
+| price_per_day      | number  | Precio por día (USD)        | De `daily_rate`. La app cobra **por día** y no tiene tarifa horaria. Se muestra con `Citykleta_Bike_Meta::price_html()` / `format_price()`, único lugar que arma el texto `$900 USD /día`. Reemplazó a `price_per_hour`, que solo existía en el mock (ver abajo). |
 | available          | boolean | ¿Disponible?                | Checkbox                    |
 | brand              | string  | Marca                       | Marca de la bici            |
 | size               | string  | Talla                       | Talla del cuadro            |
@@ -210,12 +202,19 @@ porque esos términos también se crean solos al sincronizar (`wp_set_object_ter
 excepción — esa sí la declara el administrador a mano (ver `Citykleta_Bike_Usage_Taxonomy`),
 no viene de la API, así que **no** se le oculta nada.
 
-Como esa API real todavía no existe, hay una **API falsa temporal** dentro del propio
-plugin (`includes/mock/class-citykleta-mock-api.php`, activada por la constante
-`CITYKLETA_USE_MOCK_API`) que expone `/wp-json/citykleta-mock/v1/bikes`. También se está
-probando con **Mockoon** (app de escritorio) corriendo en `http://localhost:3000/bikes`
-con el mismo JSON (ver `includes/mock/bikes-mock.json`). Cuando exista la API real de la
-app, borrar `includes/mock/` y apuntar el sync a esa URL.
+**Esa API real ya existe y es la única fuente: `citykleta-sharing-api`.** En desarrollo corre
+en `http://localhost:8001` (ojo: `http://localhost:5175` es el **Back Office**, un dev server de
+Vite que responde 200 a cualquier ruta por el fallback del SPA — apuntar el sync ahí parece
+funcionar y no sincroniza nada). Esa URL base se configura en Settings → Sync; los paths van
+fijos en código (`Citykleta_Settings::PATHS`).
+
+**Ya no hay mock ni datos de prueba.** Existieron una API falsa dentro del plugin
+(`includes/mock/`, constante `CITYKLETA_USE_MOCK_API`) y un **Mockoon** en `localhost:3000`
+sirviendo el mismo JSON; ambos se borraron en 2026-08 tras conectar el backend real. Se
+quitaron porque hacían daño activo: inventaban un contrato (`{ data, meta: { has_more } }`,
+`id`, `price_per_hour`) que **no existe en el backend**, y trabajar contra él llevó a escribir
+código para una API imaginaria. Si hace falta volver a probar sin backend, levantar un servidor
+que imite `GET /bikesPublic/sync` **de verdad** — nunca reintroducir un contrato inventado.
 
 ## Settings page (pestañas Sync / Maps)
 
@@ -252,21 +251,19 @@ blanco" en vez de "no tocados". La regla es: un `OPTION_GROUP` por cada `<form>`
 por separado, nunca uno compartido entre formularios distintos.
 
 - **Sync** (antes toda la página se llamaba así) — URL base de la API, frecuencia, slug de la URL,
-  estado de la última sincronización y el botón "Sync now". Ya no es "una URL base + un campo de path
-  editable por cada recurso": desde 2026-08 el *path* de cada recurso vive en código, no en wp-admin —
-  ver `Citykleta_Settings::get_endpoint_url( $key )`. Dos categorías, según qué tan asentado esté el
-  contrato real con `citykleta-sharing-api`:
-  - **Ruta fija** (`Citykleta_Settings::MAP_SETTINGS_PATH`) — para un recurso cuyo contrato real ya está
-    confirmado (hoy solo `map_settings` → `/map-settings`). Nada que editar en wp-admin: un typo en un
-    campo de texto no puede romper el sync silenciosamente.
-  - **Ruta editable** (`Citykleta_Settings::ENDPOINTS`, con su campo `citykleta_path_{key}` en esta
-    pestaña) — para un recurso cuyo path por defecto todavía no coincide con la ruta real de
-    `citykleta-sharing-api` (hoy `bikes` → `/bikes` y `bike_types` → `/bike-types`; la real de bikes es
-    `GET /bikesPublic/sync`, y bike-types ni siquiera tiene ruta pública todavía, solo el
-    `GET /bike-types` de staff — ver `HANDOFF-map-config-backoffice.md`). Se deja editable a propósito
-    mientras eso se reconcilia, para no bloquear el sync con un valor fijo que hoy sabemos que está mal.
-  Reconciliar un recurso de `ENDPOINTS` (confirmar su ruta real y no volver a tocarla) es quitarlo de ahí
-  y agregarlo como una constante de ruta fija más, igual que se hizo con `map_settings`.
+  estado de la última sincronización y el botón "Sync now". **Lo único editable de la conexión es la
+  URL base**: el *path* de cada recurso vive en código, en `Citykleta_Settings::PATHS`, y se resuelve
+  con `get_endpoint_url( $key )`. Los campos de path por recurso (`citykleta_path_{key}`, la vieja
+  constante `ENDPOINTS`) **se eliminaron en 2026-08**, una vez confirmadas las rutas reales contra
+  `citykleta-sharing-api`: un typo en un campo de texto no puede romper un sync en silencio.
+  - `bikes` → **`/bikesPublic/sync`**, el catálogo sin PII hecho para este plugin. Es público a
+    propósito (montado *antes* del `verifyAuth` global de la API), así que no hay sesión ni llave
+    compartida de por medio. **No es `/bikes`** — ese es el router de staff y está detrás de auth.
+  - `map_settings` → `/map-settings` (ver "Configuración de mapas: mudada a Back Office").
+  No hay entrada `bike_types` a propósito: el `GET /bike-types` de la API está montado después del
+  `verifyAuth` y responde **401** sin sesión de staff, así que este plugin no puede leerlo — y no le
+  hace falta, porque cada fila de `/bikesPublic/sync` trae `bike_type` (slug) y `bike_type_name`. Ver
+  `Citykleta_Bike_Type_Sync` más abajo.
 - **Maps** — **de solo lectura desde 2026-08**: esta configuración ahora la administra Back Office
   (ver la nota "Configuración de mapas: mudada a Back Office" más abajo) y llega por sync, no por un
   formulario de wp-admin. La pestaña conserva las mismas cuatro secciones
@@ -306,11 +303,16 @@ por separado, nunca uno compartido entre formularios distintos.
   (`DEFAULT_MESSAGE`) está en español, como el resto del front-end, aunque los identificadores/labels
   sigan en inglés.
 
-`Citykleta_Bike_Type_Sync` corre primero en cada sincronización: trae `/bike-types` (la lista
-canónica de tipos de bici de la app) y crea/actualiza los términos de la taxonomía `bike_type` por
-`slug` — nunca los borra, si un tipo desaparece de la API el término se marca inactivo
-(`_citykleta_type_active` en term meta, columna "Active" visible en wp-admin) para no romper bicis
-o asignaciones de Uso que ya lo referencien.
+`Citykleta_Bike_Type_Sync` **ya no trae nada de la red**: recibe los tipos por parámetro
+(`run( array $types )`, slug => nombre) y crea/actualiza los términos de la taxonomía `bike_type` por
+`slug`. El motivo es que el `GET /bike-types` de la API es solo de staff (401 sin sesión, ver arriba),
+pero cada fila de `/bikesPublic/sync` ya trae `bike_type` y `bike_type_name` — así que
+`Citykleta_Bike_Sync::collect_bike_types()` los recoge del payload de bicis que de todos modos acaba
+de descargar, y se los pasa. Por eso **corre después del fetch de bicis** pero **antes del loop de
+`upsert_bike()`**, que resuelve el tipo de cada bici por slug. Nunca borra términos: si un tipo deja
+de aparecer, el término se marca inactivo (`_citykleta_type_active` en term meta, columna "Active" en
+wp-admin) para no romper bicis o asignaciones de Uso que ya lo referencien. Un `$types` vacío (catálogo
+vacío, o payload sin ningún `bike_type`) no marca nada inactivo — no hay información para hacerlo.
 
 `Citykleta_Map_Settings_Sync` corre justo después, también dentro de `Citykleta_Bike_Sync::run()`:
 trae `/map-settings` y sobrescribe con `update_option()` las mismas opciones que antes editaba a mano
@@ -334,8 +336,7 @@ opciones, no cómo se leen.
 Contrato del endpoint `/map-settings`: **objeto plano, sin el envelope `{ "data": [...] }`** que sí usan
 `/bikes` y `/bike-types` — a diferencia de esos dos, `citykleta-sharing-api` ya lo sirve así de verdad
 (confirmado en su propio código al implementar el lado de Back Office, no es una suposición). Ver
-`includes/mock/class-citykleta-mock-api.php::get_map_settings()` y
-`includes/mock/map-settings-mock.json` para un ejemplo funcionando:
+la respuesta real de `GET /map-settings` para un ejemplo:
 
 ```json
 {
@@ -376,6 +377,97 @@ que dejó `Citykleta_Bike_Type_Sync`). Corre automáticamente por WP-Cron según
 `citykleta_sync_frequency` (cada 15/30 min, hora, etc., configurable en la misma página), o al
 toque con el botón "Sincronizar ahora".
 
+### Contrato real de `/bikesPublic/sync` y traducción de campos
+
+El backend describe la bici con claves distintas a las que usa el plugin por dentro, así que
+`Citykleta_Bike_Sync::normalize_item()` traduce cada fila **una sola vez, al entrar** (dentro de
+`fetch_all_pages()`, no después: el deduplicado por id ya necesita la forma canónica). Clave real a la
+izquierda, clave canónica que usa el resto del plugin a la derecha:
+
+| `/bikesPublic/sync` | canónico | nota |
+|---|---|---|
+| `app_bike_id` | `id` | sin esto **se descartarían todas las bicis** (`empty($item['id'])`) |
+| `name` | `title` | solo si no hay `brand`/`model`, ver `build_title()` |
+| `daily_rate` (string) | `price_per_day` | **por día, no por hora** — ver abajo |
+| `location.address` | `location` | la API lo anida dentro de `location` |
+| `location.lat` / `location.long` | `coordinates.lat` / `.lng` | ojo: **`long`**, no `lng` |
+| `images[].url` | `images[]` | featured primero, y **resueltas a absolutas** (llegan como `/uploads/…`) |
+| `status === 'active'` | `available` | el real no tiene booleano de disponibilidad |
+| `bike_type` | `bike_type` | ya es slug en ambos, no necesita nada |
+
+Lo que ya viene en forma canónica se deja intacto. Una fila sin id usable se descarta.
+
+### El precio: por día, en USD, y en un solo sitio
+
+La app cobra **por día** y no existe tarifa horaria (el propio router de la API lo dice: *"the only
+rate: renting is priced per day"*). `daily_rate` se guarda en el meta `price_per_day` y se muestra
+**siempre** a través de `Citykleta_Bike_Meta`:
+
+- `price_amount( $post_id )` → el número (o `null`), para calcular (ej. el promedio de un destino).
+- `format_price( $amount )` → el texto: **`$900 USD /día`**.
+- `price_html( $post_id )` → las dos cosas juntas, que es lo que usan las plantillas.
+
+El formato vive en **un único método** a propósito. Antes cada plantilla lo armaba a mano
+(`echo $price . ' CUP/hora'` repetido en siete sitios), y por eso las siete siguieron mostrando un
+precio horario obsoleto cuando la fuente de datos cambió. La moneda base es **USD**; internacionalizar
+la moneda es un trabajo aparte, todavía sin hacer.
+
+**Cuidado con `price_per_hour` si aparece en una base de datos vieja.** Ese meta solo existió en el
+mock. La API real nunca manda esa clave, así que el sync **no lo actualizaba ni lo borraba** y se
+quedaba congelado: las bicis sincronizadas en la época de Mockoon mostraban un precio inventado con
+toda la apariencia de ser correcto (ej. "Pinarello Prima" a 290 CUP/hora, cuando su precio real es
+1740 USD/día). Por eso `upsert_bike()` hace un `delete_post_meta( $post_id, 'price_per_hour' )` en
+cada bici que toca: es limpieza de una sola vez, y se puede quitar cuando ninguna base de datos
+conserve el campo.
+
+### Paginación y retiro de bicis (reconciliación)
+
+El sync no solo crea/actualiza: también **retira** las bicis que dejaron de venir de la API, porque
+WP es una copia de solo lectura y una bici que ya no existe en el origen no puede quedarse publicada
+para siempre. Las dos cosas van juntas a propósito — el retiro sin paginación sería destructivo.
+
+- **Paginación** (`Citykleta_Bike_Sync::fetch_all_pages()`) — recorre todas las páginas y **tolera tres
+  formas de respuesta**, porque en Citykleta conviven las tres y no se van a unificar pronto
+  (`extract_items()` / `has_next_page()`):
+  1. **Array plano** — lo que `GET /bikesPublic/sync` de `citykleta-sharing-api` devuelve **hoy**:
+     el catálogo entero de una vez, ignorando el request (su servicio recibe `_req` y no lo usa).
+     Sin señal de paginación = respuesta completa, no primera página.
+  2. **`{ items, total, page, limit, pages }`** — el envelope paginado que usa el **resto** del backend
+     real (bicis de staff, orders, reservations, reviews, messages, events…), con `?page=N&limit=N` y
+     `skip/take` por debajo. Es la forma a la que `/bikesPublic/sync` migraría si algún día pagina.
+
+  El parámetro `?page=N` sí coincide con el backend real. Los ids se deduplican **entre** páginas, no
+  solo dentro de una, por si el backend pagina sobre un orden inestable. Si una página no trae ningún
+  `id` nuevo, se está sirviendo la página 1 una y otra vez y el recorrido para (`MAX_PAGES` es la misma
+  protección contra un contador de páginas que nunca se agota).
+- **Retiro** (`retire_missing()`) — pasa a **borrador** (`RETIRED_STATUS`), no a papelera ni borrado
+  real: así las vistas acumuladas (`_citykleta_views_by_day`) siguen pegadas al post y una bici que
+  vuelve se republica sola, sin código especial (`upsert_bike()` siempre escribe
+  `post_status => 'publish'`). Solo toca bicis con `external_id`, o sea las que creó el propio sync —
+  una bici hecha a mano en wp-admin no tiene ese meta y nunca se retira, así el override manual sigue
+  funcionando. No hace falta limpiar el meta de destinos: todas las queries de mapa/destino filtran
+  por `post_status = publish`, así que una bici en borrador sale sola.
+- **Dos redes de seguridad, porque equivocarse aquí vacía el sitio:**
+  1. Una respuesta **incompleta nunca retira nada**. `fetch_all_pages()` devuelve un flag `complete`;
+     si el recorrido se cortó por cualquiera de las protecciones de arriba, `run()` se salta el retiro
+     entero — con una lista a la que le pueden faltar páginas no hay forma de distinguir "desapareció
+     de la API" de "nunca pedimos la página donde estaba".
+  2. Una **caída brusca** tampoco. Si la respuesta cubre menos de `RETIRE_SAFETY_RATIO` (50%) de las
+     bicis publicadas con `external_id`, se lee como un backend respondiendo a medias, no como una
+     baja masiva: se actualiza lo que llegó y no se retira nada. Equivocarse por este lado cuesta una
+     bici desactualizada hasta el próximo sync; por el otro lado deja el sitio vacío.
+  Un fallo de red o un HTTP != 200 cortan antes todavía (`return` temprano en `run()`), así que
+  tampoco retiran.
+- **Qué se ve en wp-admin** — la pestaña Sync reporta cuántas se pasaron a borrador junto al conteo
+  de procesadas, y los avisos de las redes de seguridad salen como "Heads up" en
+  `citykleta_last_sync_warning`, aparte de `citykleta_last_sync_error`: son corridas que salieron
+  bien pero que a propósito hicieron menos de lo normal, no fallos.
+
+**Probar el retiro** ya no es tan cómodo como con el mock (que tenía un `?limit=N` para fingir
+bajas): hoy hay que dar de baja una bici de verdad en la app / el Back Office, o apuntar el sync a
+un servidor propio que devuelva menos bicis, y sincronizar. La red de seguridad del 50% se dispara
+antes si la caída es grande — está pensada exactamente para eso.
+
 **Dos bugs de WordPress ya resueltos aquí, por si se repiten en clases nuevas:**
 1. **No engancharse a un hook desde dentro de un callback de ese mismo hook a la misma
    prioridad** — `citykleta_init()` corre en `init`; si una clase llamada desde ahí hace
@@ -388,17 +480,52 @@ toque con el botón "Sincronizar ahora".
 
 ### Imágenes
 
-Cada bici de la API trae un campo `image` (URL). El sync la descarga con
-`media_sideload_image()` y la deja como imagen destacada del post (no como campo
-meta). Solo la vuelve a descargar si la URL cambió desde la última vez (se guarda en
-el meta interno `_citykleta_image_source_url`), para no gastar ancho de banda de más.
+Cada bici trae sus imágenes en `images` (el backend real manda objetos
+`{ url, featured }` con rutas relativas — `normalize_item()` las deja en una lista de
+URLs absolutas con la destacada primero, ver la tabla de traducción más arriba). El sync descarga **la primera** con `media_sideload_image()`
+y la deja como imagen destacada del post (no como campo meta).
 
-**Gotcha:** `media_sideload_image()` decide el tipo de archivo por la **extensión en la
-URL**, no por el `Content-Type` real de la respuesta. Una URL sin extensión (ej.
-`https://placehold.co/600x400?text=...`) falla con "Invalid image URL." aunque la
-descarga funcione perfectamente. Hay que usar una URL con extensión antes del `?`
-(ej. `https://placehold.co/600x400.png?text=...`). Ver `placeholder_image()` en
-`class-citykleta-mock-api.php`.
+**Un adjunto por URL de origen, compartido entre bicis.** El meta
+`_citykleta_image_source_url` (`Citykleta_Bike_Sync::IMAGE_SOURCE_META`) se escribe en los
+**dos** lados: en la bici, para no volver a descargar una imagen que no cambió; y en el
+**adjunto**, que es lo que permite a `find_attachment_by_source()` reutilizarlo cuando otra
+bici apunta a la misma URL. No es un detalle menor: en el catálogo real las 68 bicis de
+prueba comparten un mismo `bike-placeholder.jpg`, y descargarlo una vez por bici significaba
+68 descargas más 68 juegos de miniaturas — una primera sincronización que **no terminaba en
+15 minutos**. Con el adjunto compartido, esa misma corrida tarda ~98 s y crea **1** adjunto.
+WordPress no tiene problema en que un adjunto sea la imagen destacada de varios posts.
+
+**Gotcha grande — por qué el sync NO usa `media_sideload_image()`:** esa función (vía
+`download_url()` → `wp_safe_remote_get()`) pasa la URL por `wp_http_validate_url()`, que
+**rechaza cualquier URL cuyo puerto no sea 80, 443 u 8080** (salvo que coincida con el host
+*y* puerto del propio sitio). El final de esa función es literal:
+
+```php
+if ( empty( $parsed_url['port'] ) ) return $url;
+$port = $parsed_url['port'];
+if ( 80 === $port || 443 === $port || 8080 === $port ) return $url;
+// ...mismo host que home y mismo puerto...
+return false;
+```
+
+Con la API de desarrollo en `http://localhost:8001` eso descarta **todas** las imágenes, y el
+error que aparece en Settings viene de muy adentro de `WP_Http` y despista mucho: **"A valid
+URL was not provided."**, como si la URL estuviera mal formada, cuando es perfecta y el
+archivo se descarga sin problemas con `curl` (200, `image/jpeg`). **No hay filtro que
+levante ese chequeo de puerto** — a diferencia del rechazo por host loopback/privado que
+hace la misma función unas líneas antes, que sí tiene `http_request_host_is_external`. Se
+intentó primero con ese filtro y no alcanzó: arregla la mitad de arriba, no el puerto.
+
+La solución es `Citykleta_Bike_Sync::sideload_image()`: baja el archivo con un
+`wp_remote_get()` normal (que no aplica ninguna de esas políticas de URL) y le entrega los
+bytes a `media_handle_sideload()` como **archivo local**, que ya no mira la URL.
+
+Como efecto secundario desaparece un gotcha viejo: `media_sideload_image()` deducía el tipo
+solo por la **extensión de la URL**, así que una URL sin extensión (ej.
+`https://placehold.co/600x400?text=...`) fallaba con "Invalid image URL.". Ahora
+`image_filename()` usa la extensión si la hay y, si no, la deriva del **`Content-Type`** de
+la respuesta (soporta jpg/png/gif/webp/avif y descarta lo que no sea imagen), así que ese
+caso ya funciona.
 
 ### Archivo de bicis (grid de tarjetas)
 
@@ -413,7 +540,7 @@ datos van en la página individual de cada bici (pendiente de construir, con el
 `bicicleta` → `bike`), la URL del archivo (`/bikes/`) puede dar 404 hasta que se
 haga un flush de rewrite rules — no basta con que el código esté bien. Se puede
 forzar visitando Ajustes → Enlaces permanentes en wp-admin (guardar sin cambiar
-nada ya lo dispara), o con un POST a `/wp-json/citykleta-mock/v1/flush-rewrite`.
+nada ya lo dispara).
 
 El slug (`bikes` en `/bikes/`) es editable en Bicicletas → Settings → Sync (opción
 `citykleta_bike_slug`). Cambiarlo mueve la URL de **todas** las bicicletas. El
@@ -549,26 +676,39 @@ devuelve el array listo para `wp_json_encode()`. Dos consumidores lo usan:
 - **`Citykleta_Map_Widget`** (Elementor) — filtra por cantidad/disponibilidad/
   ubicación según los controles del widget, pensado para incrustarse en una
   página pública.
-- **`Citykleta_Admin_Map`** (`includes/admin/`) — submenú "Bikes Map" dentro de
-  "Bicicletas" en wp-admin (segunda opción, justo después de "All Bikes",
-  antes de "Bike types"/"Usages"/"Settings"). Lograrlo con solo la prioridad
-  del hook `admin_menu` no alcanza: WordPress arma las entradas de "All
-  Bikes" y las taxonomías del CPT (`$submenu['edit.php?post_type=bike'][5]`,
-  `[15]`, `[20]`) como código directo dentro de `wp-admin/menu.php`, **antes**
-  de que la acción `admin_menu` siquiera se dispare — así que da igual qué
-  tan temprano se enganche `add_menu()` a ese hook, esas entradas del core
-  ya existen. La solución real es `reposition_menu()`, enganchado a
-  `admin_menu` con prioridad `999` (después de que todo — core y plugin —
-  ya agregó lo suyo): mueve la entrada de "Bikes Map" a la clave `6` dentro
-  de `$submenu['edit.php?post_type=bike']` y llama a `ksort()`, el mismo
-  mecanismo que usa `add_submenu_page()` internamente para mantener el
-  array ordenado por clave.
+- **`Citykleta_Admin_Map`** (`includes/admin/`) — fusionado (2026) dentro de la
+  lista "All Bikes" en vez de ser su propia página: se dibuja justo debajo del
+  título "Bikes", enganchado a `admin_notices` (mismo patrón de bajo riesgo
+  que usa `Citykleta_Bike_Meta::render_sync_warning()` para inyectar contenido
+  en una pantalla específica sin tocar el `WP_List_Table` del core), filtrado
+  por `get_current_screen()` a la pantalla de lista del CPT `bike`.
+  **Gotcha de posición:** lo que imprime `admin_notices` en `edit.php` sale
+  *antes* del `<h1>` propio de la página en el HTML (`admin-header.php`, donde
+  se dispara ese hook, se incluye antes de que `edit.php` imprima su propio
+  `<div class="wrap"><h1>`) — así que sin más, el bloque aparecería arriba del
+  título, no debajo. El JS del propio core (`common.js`) reubica cualquier
+  `div.notice` (que no sea `.inline`) justo después de `.wp-header-end` (que
+  queda pegado al `<h1>`) al cargar la página — por eso el wrapper del mapa
+  lleva la clase `notice` a propósito, solo para activar esa reubicación, con
+  su estilo de caja por defecto (borde/fondo/padding) anulado inline para que
+  no se vea como un aviso descartable.
   Sin filtros (`count => -1`, todas las bicis),
   con un aviso si hay bicis sin coordenadas (`count_all()` vs. las que sí
   tienen lat/lng). Pensada para que el equipo vea de un vistazo dónde están
   las bicis sin salir del admin — por eso `centerOnUser` va en `false` acá
   (tiene sentido centrar en el visitante en una página pública, no en quien
   esté mirando el dashboard), y el mapa se apoya solo en `fitBounds()`.
+  **Se puede ocultar por usuario** desde el panel "Screen Options" de esa
+  misma lista (el desplegable con "Columns"/"Pagination"/"View mode"): un
+  checkbox "Show bikes map above the list" agregado vía el filtro
+  `screen_settings` de `WP_Screen`, guardado como user meta
+  (`citykleta_admin_map_visible`) al enviar ese formulario. El guardado se
+  engancha a `admin_init` en vez de comprobar la pantalla actual ahí mismo,
+  porque `get_current_screen()` todavía no es confiable en `admin_init` (el
+  core llama a `set_current_screen()` *después* de disparar `admin_init`, ver
+  `wp-admin/admin.php`) — por eso en vez de confiar en la pantalla, se
+  comprueba la presencia de un campo oculto marcador que solo existe cuando
+  el formulario enviado fue el panel de Screen Options de esta lista.
 
 Ambos imprimen el mismo `<div class="citykleta-map" data-bikes="…" data-options="…">`
 sin script inline por instancia — la inicialización la hace citykleta-map.js.
@@ -620,12 +760,13 @@ hay ninguna bici válida).
 dibuja nada (tiles en blanco) si el `<div>` mide 0px de alto porque solo tiene
 `width`. `citykleta-map.css` pone `height: 400px` por defecto; el control "Map
 Height" del widget lo sobreescribe vía `selectors` (en `Citykleta_Admin_Map` es
-un `style="height:600px"` fijo en el propio HTML, no hay control que lo cambie).
+un `style="height:400px;width:100%"` fijo en el propio HTML, no hay control que
+lo cambie — a todo el ancho de la lista de bicis).
 
 `Citykleta_Admin_Map::enqueue_assets()` está enganchado a `admin_enqueue_scripts`
-(que corre en **cada** pantalla de wp-admin) pero corta temprano comparando el
-`$hook_suffix` recibido contra el que devolvió `add_submenu_page()` — así Leaflet
-no se carga de más en el resto del admin, solo en Bicicletas → Map.
+(que corre en **cada** pantalla de wp-admin) pero corta temprano comparando
+`get_current_screen()` contra la pantalla de lista del CPT `bike` — así Leaflet
+no se carga de más en el resto del admin, solo en Bicicletas → All Bikes.
 
 Para descargar los archivos que faltan:
 `https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js` → `assets/js/leaflet.js`,
@@ -747,7 +888,7 @@ un destino sin trucos), no como término de taxonomía.
   destino aparece listado en su página (`get_posts( array( 'tag' => $destination_slug ) )`). Convención
   nueva, no una taxonomía propia — reusa el sistema nativo de tags de WordPress.
 - **Precio promedio** — calculado en PHP sobre los resultados de la misma query de bicis del destino
-  (`array_sum/count` de `price_per_hour`), no con un `AVG()` en SQL aparte: la lista de bicis de un
+  (`array_sum/count` sobre `Citykleta_Bike_Meta::price_amount()`), no con un `AVG()` en SQL aparte: la lista de bicis de un
   destino es chica (geocerca local), no vale la pena una segunda consulta.
 - **FAQ genérico + override por destino** — `Citykleta_Settings` tiene una pestaña nueva **Destinations**
   con un textarea de formato libre ("una pregunta por línea: `Pregunta :: Respuesta`", el mismo truco de
@@ -789,32 +930,34 @@ un destino sin trucos), no como término de taxonomía.
 2. Aparece el menú "Bicicletas" → Añadir nueva.
 3. Rellenar título, descripción, foto destacada y los campos de "Datos de la bicicleta".
 4. Comprobar la API en: `http://<tu-sitio-local>/wp-json/wp/v2/bike`
-5. Comprobar la API falsa (mock) en: `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/bikes`
-   (también hay `/bike-types` y `/map-settings`, mismo patrón).
+5. Comprobar que el backend real responde: `curl http://localhost:8001/bikesPublic/sync`
+   (debe devolver un **array plano** de bicis con `app_bike_id`). `/map-settings` es la otra ruta
+   pública que consume el plugin. Ojo: `/bike-types` da **401**, es solo de staff.
 6. Ir a "Bicicletas" → "Settings" (pestaña "Sync") en wp-admin, revisar/guardar la URL de la API y
    la frecuencia, y probar el botón "Sync now". Debe crear/actualizar posts `bike` y, de paso, refrescar
    la pestaña "Maps" (ahora de solo lectura — ver "Configuración de mapas: mudada a Back Office" más
    arriba): "Base Map" (estilo de tiles vigente + access token si el proveedor lo necesita), "Marker
    design" (tamaño), "Cluster Behavior" y "Cluster Colors" (pequeño/mediano/grande), todo sincronizado
    desde `/map-settings`, no editable a mano.
-7. Ver el estado de la última sincronización sin entrar a wp-admin en:
-   `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/sync-status`
-8. Forzar una sincronización inmediata sin esperar al cron (útil en desarrollo), con un
-   POST a: `http://<tu-sitio-local>/wp-json/citykleta-mock/v1/trigger-sync`
-   (ej. `curl -X POST http://<tu-sitio-local>/wp-json/citykleta-mock/v1/trigger-sync`)
-9. Ver el grid de tarjetas en: `http://<tu-sitio-local>/bikes/`
+7. El estado de la última sincronización (fecha, cuántas se procesaron, cuántas se retiraron,
+   errores y avisos) se ve **solo** en esa misma pestaña Sync. Los endpoints `/sync-status` y
+   `/trigger-sync` que permitían mirarlo y dispararlo por `curl` vivían en el mock y ya no existen:
+   hoy el disparo manual es el botón "Sync now".
+8. Ver el grid de tarjetas en: `http://<tu-sitio-local>/bikes/`
    Si da 404, hacer flush de rewrite rules (ver gotcha en la sección de arquitectura).
-10. Con Elementor activo, crear/editar cualquier página con Elementor y buscar el
+9. Con Elementor activo, crear/editar cualquier página con Elementor y buscar el
     widget "Bicicletas" en el panel — se puede arrastrar donde sea.
-11. Buscar el widget "Search Bikes" y arrastrarlo también. El campo de fechas necesita
+10. Buscar el widget "Search Bikes" y arrastrarlo también. El campo de fechas necesita
     los archivos de Flatpickr descargados a mano (ver sección "Widget de búsqueda")
     para verse como calendario de rango; sin ellos, el campo se ve pero no abre nada.
-12. Buscar el widget "Bikes Map" y arrastrarlo también. Necesita: (a) los archivos de
+11. Buscar el widget "Bikes Map" y arrastrarlo también. Necesita: (a) los archivos de
     Leaflet/Leaflet.markercluster descargados a mano (ver sección "Mapa de bicis"), y
     (b) que las bicis tengan `lat`/`lng` — solo las sincronizadas *después* de este
     cambio los van a tener, así que puede hacer falta un "Sincronizar ahora" (paso 6)
     antes de ver algo en el mapa.
-13. En wp-admin, ir a Bicicletas → "Map" para ver el mismo mapa pero con **todas**
-    las bicis con coordenadas (sin filtros), pensado para revisar la cobertura desde
-    el propio admin. Si aparece el aviso de bicis sin coordenadas, es la misma causa
-    del paso 12: hace falta un "Sincronizar ahora".
+12. En wp-admin, ir a Bicicletas → "All Bikes": arriba de la lista debe verse el mismo
+    mapa pero con **todas** las bicis con coordenadas (sin filtros), pensado para
+    revisar la cobertura desde el propio admin. Si aparece el aviso de bicis sin
+    coordenadas, es la misma causa del paso 11: hace falta un "Sincronizar ahora". Si
+    no hay ninguna bici con coordenadas todavía, el mapa no se muestra (no tiene
+    sentido un mapa vacío).

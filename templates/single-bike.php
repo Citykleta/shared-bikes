@@ -44,7 +44,7 @@ while ( have_posts() ) :
 
 	$model       = get_post_meta( get_the_ID(), 'model', true );
 	$location    = get_post_meta( get_the_ID(), 'location', true );
-	$price       = get_post_meta( get_the_ID(), 'price_per_hour', true );
+	$price       = Citykleta_Bike_Meta::price_html( get_the_ID() );
 	$available   = '1' === (string) get_post_meta( get_the_ID(), 'available', true );
 	$brand       = get_post_meta( get_the_ID(), 'brand', true );
 	$size        = get_post_meta( get_the_ID(), 'size', true );
@@ -128,7 +128,7 @@ while ( have_posts() ) :
 
 				<?php if ( $price ) : ?>
 					<p class="citykleta-bike-single__price">
-						<?php echo esc_html( $price ); ?> CUP <span>/ hora</span>
+						<?php echo esc_html( $price ); ?>
 					</p>
 				<?php endif; ?>
 

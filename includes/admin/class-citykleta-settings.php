@@ -62,7 +62,7 @@ class Citykleta_Settings {
 	const MESSAGE_PLACEHOLDERS = array(
 		'{owner}' => 'Owner name',
 		'{bike}'  => 'Bike title',
-		'{price}' => 'Price per hour',
+		'{price}' => 'Price per day',
 		'{url}'   => 'Link to the bike page',
 	);
 
@@ -74,43 +74,33 @@ class Citykleta_Settings {
 	const DEFAULT_MESSAGE = 'Hola {owner}, vi tu bicicleta "{bike}" en Citykleta y me interesa alquilarla. ¿Está disponible? {url}';
 
 	/**
-	 * API resources whose PATH is still user-configurable, keyed by the slug
-	 * used in option names (citykleta_path_{key}). To add a new synced
-	 * resource whose path may need to change by hand, add an entry here and
-	 * read it with self::get_endpoint_url( $key ) from the new sync class —
-	 * no other change to this settings page is needed, the path field is
-	 * generated from this list.
+	 * Fixed path of every API resource the plugin syncs, keyed by the slug the
+	 * sync classes pass to self::get_endpoint_url().
 	 *
-	 * A resource whose real path on citykleta-sharing-api is already
-	 * confirmed and stable does NOT belong here — see self::MAP_SETTINGS_PATH
-	 * for why 'map_settings' was pulled out. bikes/bike-types stay here
-	 * because their defaults below don't actually match sharing-api's real
-	 * routes yet (bikes is really GET /bikesPublic/sync; bike-types has no
-	 * public route at all today, only the staff-only GET /bike-types) — see
-	 * HANDOFF-map-config-backoffice.md. Once those are reconciled, they
-	 * should probably move to a fixed path too, the same way map_settings did.
+	 * These are NOT editable in wp-admin on purpose: each one is confirmed
+	 * against citykleta-sharing-api's real routes, and a typo in a text field
+	 * would silently break a sync. They used to be editable (self::ENDPOINTS,
+	 * option citykleta_path_{key}) while the plugin was pointed at a mock and
+	 * the real routes weren't settled — that reconciliation is done, so the
+	 * fields are gone and the paths live here.
+	 *
+	 * - bikes: GET /bikesPublic/sync, the PII-free catalogue built for this
+	 *   plugin. Public on purpose (mounted before the API's global verifyAuth),
+	 *   so no session or shared key is involved. NOT /bikes — that one is the
+	 *   staff router and sits behind auth.
+	 * - map_settings: GET /map-settings, see the map-config hand-off note in
+	 *   CLAUDE.md.
+	 *
+	 * There is deliberately no 'bike_types' entry: the API's GET /bike-types is
+	 * mounted after verifyAuth and answers 401 without a staff session, so this
+	 * plugin can't read it. It doesn't need to — every row of /bikesPublic/sync
+	 * carries bike_type (slug) and bike_type_name, so the taxonomy is built
+	 * from the bike payload instead. See Citykleta_Bike_Type_Sync::run().
 	 */
-	const ENDPOINTS = array(
-		'bikes'      => array(
-			'label'        => 'Bikes',
-			'default_path' => '/bikes',
-		),
-		'bike_types' => array(
-			'label'        => 'Bike types',
-			'default_path' => '/bike-types',
-		),
+	const PATHS = array(
+		'bikes'        => '/bikesPublic/sync',
+		'map_settings' => '/map-settings',
 	);
-
-	/**
-	 * Fixed path for the map settings resource — confirmed against
-	 * citykleta-sharing-api's actual GET /map-settings while implementing the
-	 * Back Office side of the map-config hand-off (see CLAUDE.md and
-	 * HANDOFF-map-config-backoffice.md). Not in self::ENDPOINTS: unlike
-	 * bikes/bike-types, this one real contract is settled, so there's no
-	 * reason to leave it editable in wp-admin where a typo could silently
-	 * break map sync.
-	 */
-	const MAP_SETTINGS_PATH = '/map-settings';
 
 	/**
 	 * Settings section IDs the "Maps" tab groups its fields into.
@@ -217,29 +207,27 @@ class Citykleta_Settings {
 
 	/**
 	 * Builds the full URL for a synced resource — the configured base URL
-	 * plus that resource's path. Used by sync classes instead of reading a
-	 * full URL option directly. 'map_settings' resolves against the fixed
-	 * self::MAP_SETTINGS_PATH; every other key resolves against
-	 * self::ENDPOINTS' user-configurable path option.
+	 * plus that resource's fixed path (self::PATHS). Used by sync classes
+	 * instead of reading a full URL option directly.
 	 *
-	 * @param string $key Endpoint key, e.g. 'bikes', 'bike_types', or 'map_settings'.
+	 * @param string $key Endpoint key, e.g. 'bikes' or 'map_settings'.
 	 * @return string Empty string if $key isn't a known endpoint.
 	 */
 	public static function get_endpoint_url( $key ) {
-		$base = get_option( 'citykleta_api_base_url', home_url( '/wp-json/citykleta-mock/v1' ) );
-
-		// Fixed path, not read from an option — see self::MAP_SETTINGS_PATH.
-		if ( 'map_settings' === $key ) {
-			return rtrim( $base, '/' ) . '/' . ltrim( self::MAP_SETTINGS_PATH, '/' );
-		}
-
-		if ( ! isset( self::ENDPOINTS[ $key ] ) ) {
+		if ( ! isset( self::PATHS[ $key ] ) ) {
 			return '';
 		}
 
-		$path = get_option( 'citykleta_path_' . $key, self::ENDPOINTS[ $key ]['default_path'] );
+		$base = trim( (string) get_option( 'citykleta_api_base_url', '' ) );
 
-		return rtrim( $base, '/' ) . '/' . ltrim( $path, '/' );
+		// No default any more: it used to fall back to the bundled mock API,
+		// which is gone. Without a base URL there is nowhere to sync from, and
+		// callers report that rather than build a nonsense URL.
+		if ( '' === $base ) {
+			return '';
+		}
+
+		return rtrim( $base, '/' ) . '/' . ltrim( self::PATHS[ $key ], '/' );
 	}
 
 	/**
@@ -560,21 +548,11 @@ class Citykleta_Settings {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => 'esc_url_raw',
-				'default'           => home_url( '/wp-json/citykleta-mock/v1' ),
+				// No default: this used to point at the bundled mock API, which
+				// no longer exists. It has to be set to the real API.
+				'default'           => '',
 			)
 		);
-
-		foreach ( self::ENDPOINTS as $key => $endpoint ) {
-			register_setting(
-				self::OPTION_GROUP_SYNC,
-				'citykleta_path_' . $key,
-				array(
-					'type'              => 'string',
-					'sanitize_callback' => array( $this, 'sanitize_path' ),
-					'default'           => $endpoint['default_path'],
-				)
-			);
-		}
 
 		register_setting(
 			self::OPTION_GROUP_SYNC,
@@ -614,20 +592,6 @@ class Citykleta_Settings {
 			self::PAGE_SLUG . '-sync',
 			'citykleta_sync_section'
 		);
-
-		foreach ( self::ENDPOINTS as $key => $endpoint ) {
-			add_settings_field(
-				'citykleta_path_' . $key,
-				$endpoint['label'],
-				array( $this, 'render_path_field' ),
-				self::PAGE_SLUG . '-sync',
-				'citykleta_sync_section',
-				array(
-					'key'          => $key,
-					'default_path' => $endpoint['default_path'],
-				)
-			);
-		}
 
 		add_settings_field(
 			'citykleta_sync_frequency',
@@ -682,7 +646,7 @@ class Citykleta_Settings {
 			self::SECTION_MARKER_DESIGN,
 			'Marker design',
 			function () {
-				echo '<p>Size for individual bike markers — a fixed circle showing the built-in bike glyph, colored by availability (not configurable, see assets/css/citykleta-map.css). Used by the Elementor "Bikes Map" widget and the wp-admin overview page (Bicicletas → Map), so there\'s one place to keep them on-brand.</p>';
+				echo '<p>Size for individual bike markers — a fixed circle showing the built-in bike glyph, colored by availability (not configurable, see assets/css/citykleta-map.css). Used by the Elementor "Bikes Map" widget and the map shown above the bike list (Bicicletas → All Bikes), so there\'s one place to keep them on-brand.</p>';
 			},
 			self::PAGE_SLUG . '-maps'
 		);
@@ -943,37 +907,12 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Normalizes an endpoint path so it always starts with a single slash.
-	 *
-	 * @param string $value Value submitted by the form.
-	 * @return string
-	 */
-	public function sanitize_path( $value ) {
-		$value = trim( $value );
-		return '/' . ltrim( $value, '/' );
-	}
-
-	/**
 	 * Renders the API base URL field.
 	 */
 	public function render_api_base_url_field() {
 		$value = get_option( 'citykleta_api_base_url' );
-		echo '<input type="url" name="citykleta_api_base_url" value="' . esc_attr( $value ) . '" class="regular-text" placeholder="https://server.domain:6453" />';
-		echo '<p class="description">Base URL of the Sharing App API. Each resource below is appended to it.</p>';
-	}
-
-	/**
-	 * Renders one resource's path field, plus a preview of the full URL
-	 * it resolves to. Shared by every entry in self::ENDPOINTS.
-	 *
-	 * @param array $args { 'key' => string, 'default_path' => string }.
-	 */
-	public function render_path_field( $args ) {
-		$key   = $args['key'];
-		$value = get_option( 'citykleta_path_' . $key, $args['default_path'] );
-
-		echo '<input type="text" name="citykleta_path_' . esc_attr( $key ) . '" value="' . esc_attr( $value ) . '" class="regular-text" style="width:220px" placeholder="' . esc_attr( $args['default_path'] ) . '" />';
-		echo '<p class="description">→ <code>' . esc_html( self::get_endpoint_url( $key ) ) . '</code></p>';
+		echo '<input type="url" name="citykleta_api_base_url" value="' . esc_attr( $value ) . '" class="regular-text" placeholder="http://localhost:8001" />';
+		echo '<p class="description">Base URL of the Sharing App API, e.g. <code>http://localhost:8001</code>. Resource paths are fixed in code &mdash; bikes sync from <code>' . esc_html( self::PATHS['bikes'] ) . '</code>.</p>';
 	}
 
 	/**
@@ -1288,18 +1227,36 @@ class Citykleta_Settings {
 	private function render_status() {
 		$last_sync   = get_option( 'citykleta_last_sync' );
 		$count       = get_option( 'citykleta_last_sync_count' );
+		$retired     = (int) get_option( 'citykleta_last_sync_retired' );
 		$error       = get_option( 'citykleta_last_sync_error' );
+		$warning     = get_option( 'citykleta_last_sync_warning' );
 		$image_error = get_option( 'citykleta_last_image_error' );
 
 		echo '<p>';
 		if ( $error ) {
 			echo '<strong>Error on last sync:</strong> ' . esc_html( $error );
 		} elseif ( $last_sync ) {
-			echo 'Last sync: ' . esc_html( $last_sync ) . ' — ' . intval( $count ) . ' bikes processed.';
+			echo 'Last sync: ' . esc_html( $last_sync ) . ' — ' . intval( $count ) . ' bikes processed';
+
+			// Bikes that stopped coming from the API are moved to draft, not
+			// deleted (see Citykleta_Bike_Sync::retire_missing()), so this is a
+			// reversible action worth reporting rather than applying silently.
+			if ( $retired > 0 ) {
+				echo ', ' . $retired . ' no longer in the API moved to draft';
+			}
+
+			echo '.';
 		} else {
 			echo 'No sync has run yet.';
 		}
 		echo '</p>';
+
+		// Not a failure: the sync ran fine but deliberately held back from
+		// retiring anything because the response looked partial. Kept apart
+		// from $error so a cautious run doesn't read as a broken one.
+		if ( $warning ) {
+			echo '<p><strong>Heads up:</strong> ' . esc_html( $warning ) . '</p>';
+		}
 
 		if ( $image_error ) {
 			echo '<p><strong>Error fetching an image:</strong> ' . esc_html( $image_error ) . '</p>';

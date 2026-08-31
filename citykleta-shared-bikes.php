@@ -20,11 +20,6 @@ define( 'CITYKLETA_VERSION', '0.1.2' );
 define( 'CITYKLETA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
 
-// Mientras la API real de la app Bike Sharing no exista, se usa una API
-// falsa local para desarrollar la sincronización. Poner en false (o borrar
-// includes/mock/) en cuanto haya un endpoint real.
-define( 'CITYKLETA_USE_MOCK_API', true );
-
 /**
  * Carga los archivos que componen el plugin.
  */
@@ -50,10 +45,6 @@ require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber-r
 require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-app-cta.php';
 require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-elementor.php';
 
-if ( CITYKLETA_USE_MOCK_API ) {
-	require_once CITYKLETA_PATH . 'includes/mock/class-citykleta-mock-api.php';
-}
-
 /**
  * Arranca el plugin.
  */
@@ -77,16 +68,14 @@ function citykleta_init() {
 	// Registra los campos personalizados (modelo, ubicación, precio, etc.).
 	( new Citykleta_Bike_Meta() )->register();
 
-	// Sincroniza las bicicletas desde la API configurada (mock por ahora).
+	// Sincroniza las bicicletas desde la API configurada.
 	( new Citykleta_Bike_Sync() )->register();
 
 	// Columnas de marca, ubicación e imagen en la lista de bicis de wp-admin.
 	( new Citykleta_List_Columns() )->register();
 
-	// Página de wp-admin con el mapa de todas las bicis con coordenadas.
-	// Queda como segunda opción del menú "Bicicletas" (justo después de
-	// "All Bikes", antes de "Bike types"/"Usages"/"Settings") — ver
-	// Citykleta_Admin_Map::reposition_menu() para el porqué de cómo se logra.
+	// Mapa de todas las bicis con coordenadas, mostrado arriba de la lista
+	// "All Bikes" (fusionado ahí en vez de ser su propia página aparte).
 	( new Citykleta_Admin_Map() )->register();
 
 	// Página de configuración: URL de la API, frecuencia de sincronización
@@ -119,11 +108,6 @@ function citykleta_init() {
 
 	// Widget de Elementor (no hace nada si Elementor no está activo).
 	( new Citykleta_Elementor() )->register();
-
-	// API falsa temporal (ver nota de CITYKLETA_USE_MOCK_API arriba).
-	if ( CITYKLETA_USE_MOCK_API ) {
-		( new Citykleta_Mock_Api() )->register();
-	}
 
 	// El slug de Destinations puede haber cambiado en Settings (ver
 	// Citykleta_Settings::on_destination_slug_changed()). A diferencia del

@@ -1,7 +1,11 @@
 <?php
 /**
- * Admin page: map of every bike that has coordinates, so the team can see
- * at a glance where bikes actually are without leaving wp-admin.
+ * Map of every bike that has coordinates, shown at the top of the "All Bikes"
+ * list screen in wp-admin, so the team sees at a glance where bikes are
+ * without leaving the list they already use daily.
+ *
+ * Used to be its own "Bikes Map" submenu page; fused into the list screen
+ * instead (2026) so there's one bikes view, not two half-used ones.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -16,88 +20,112 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Citykleta_Admin_Map {
 
 	/**
-	 * Page slug.
+	 * User meta: whether this user wants the map shown ('1') or hidden ('0')
+	 * on the bike list. Missing meta means "show it" (see is_visible_for_user()).
 	 */
-	const PAGE_SLUG = 'citykleta-bikes-map';
+	const META_VISIBLE = 'citykleta_admin_map_visible';
 
 	/**
-	 * Hook suffix returned by add_submenu_page(), used so the map assets
-	 * only load on this specific admin page, not on every wp-admin screen.
-	 *
-	 * @var string
+	 * Name of the hidden marker field in the Screen Options form — its
+	 * presence in $_POST is how save_visibility_preference() knows the
+	 * submitted form was this screen's Screen Options panel, not some other
+	 * page's (see that method's docblock).
 	 */
-	private $page_hook = '';
+	const SCREEN_MARKER_FIELD = 'citykleta_admin_map_screen';
 
 	/**
 	 * Connects the class to WordPress hooks.
 	 */
 	public function register() {
-		add_action( 'admin_menu', array( $this, 'add_menu' ) );
-		// Runs after everything else has added its submenu — see
-		// reposition_menu() for why an earlier priority on add_menu()
-		// itself can't achieve this.
-		add_action( 'admin_menu', array( $this, 'reposition_menu' ), 999 );
+		add_action( 'admin_notices', array( $this, 'render_map' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_filter( 'screen_settings', array( $this, 'render_visibility_toggle' ), 10, 2 );
+		add_action( 'admin_init', array( $this, 'save_visibility_preference' ) );
 	}
 
 	/**
-	 * Adds the map page as a submenu of the bike CPT menu.
-	 */
-	public function add_menu() {
-		$this->page_hook = add_submenu_page(
-			'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE,
-			'Bikes Map',
-			'Bikes Map',
-			'manage_options',
-			self::PAGE_SLUG,
-			array( $this, 'render_page' )
-		);
-	}
-
-	/**
-	 * Moves "Bikes Map" to right after "All Bikes" in the sidebar, before
-	 * the taxonomy submenus (Bike types, Usages).
+	 * Whether the current admin screen is the bike list ("All Bikes").
 	 *
-	 * A hook priority on add_menu() itself can't do this: WordPress core
-	 * builds $submenu['edit.php?post_type=bike'][5] ("All Bikes") and the
-	 * taxonomy entries (keys 15, 20) directly in wp-admin/menu.php, as plain
-	 * procedural code that runs *before* the 'admin_menu' action fires at
-	 * all — so no matter how early our own add_submenu_page() call runs
-	 * relative to other 'admin_menu' callbacks, core's entries already
-	 * exist first. The only way to land between them is to move our entry
-	 * after the fact, once every submenu (core's and ours) has been added —
-	 * hence priority 999 here. add_submenu_page() re-sorts $submenu by key
-	 * (ksort()) after every call, which is also why re-keying our entry to
-	 * 6 and sorting again is enough to make it "stick" in that position.
+	 * @return bool
 	 */
-	public function reposition_menu() {
-		global $submenu;
+	private function is_bike_list_screen() {
+		$screen = get_current_screen();
 
-		$parent = 'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE;
+		return $screen && 'edit' === $screen->base && Citykleta_Bike_Post_Type::POST_TYPE === $screen->post_type;
+	}
 
-		if ( empty( $submenu[ $parent ] ) ) {
+	/**
+	 * Whether the current user has the map shown. Defaults to shown (missing
+	 * meta = '1') so nobody loses the map just because they never touched the
+	 * new toggle.
+	 *
+	 * @return bool
+	 */
+	private function is_visible_for_user() {
+		$value = get_user_meta( get_current_user_id(), self::META_VISIBLE, true );
+
+		return '0' !== $value;
+	}
+
+	/**
+	 * Adds the "Show bikes map" checkbox to the Screen Options panel (the
+	 * "Columns" / "Pagination" / "View mode" panel opened from the
+	 * "Screen Options" tab), so hiding the map is a per-user preference next
+	 * to the list's other display settings, not a separate control.
+	 *
+	 * @param string    $settings Existing screen_settings HTML from other
+	 *                            plugins/core (empty on this screen so far).
+	 * @param WP_Screen $screen   Screen the panel is being rendered for.
+	 * @return string
+	 */
+	public function render_visibility_toggle( $settings, $screen ) {
+		if ( 'edit' !== $screen->base || Citykleta_Bike_Post_Type::POST_TYPE !== $screen->post_type ) {
+			return $settings;
+		}
+
+		$checked = $this->is_visible_for_user() ? ' checked="checked"' : '';
+
+		$settings .= '<h5>Bikes map</h5>';
+		$settings .= '<input type="hidden" name="' . esc_attr( self::SCREEN_MARKER_FIELD ) . '" value="1" />';
+		$settings .= '<label><input type="checkbox" name="citykleta_show_map" value="1"' . $checked . ' /> Show bikes map above the list</label>';
+
+		return $settings;
+	}
+
+	/**
+	 * Saves the map-visibility checkbox when the Screen Options form is
+	 * submitted (the "Apply" button there does a normal POST back to the same
+	 * page, reusing the same 'screenoptionnonce' nonce WordPress uses for its
+	 * own per-page/view-mode fields — see wp_screen_options() in
+	 * wp-admin/includes/misc.php for the core equivalent this mirrors).
+	 *
+	 * Hooked to 'admin_init' rather than checked inside render_map() itself
+	 * because get_current_screen() isn't reliable yet at 'admin_init' (core
+	 * calls set_current_screen() *after* firing 'admin_init', see admin.php) —
+	 * so instead of trusting the screen, this checks for
+	 * self::SCREEN_MARKER_FIELD, a hidden input only present in $_POST when
+	 * the submitted form was this screen's own Screen Options panel (it's
+	 * only ever rendered there, see render_visibility_toggle()).
+	 */
+	public function save_visibility_preference() {
+		if ( ! isset( $_POST[ self::SCREEN_MARKER_FIELD ] ) ) {
 			return;
 		}
 
-		foreach ( $submenu[ $parent ] as $key => $item ) {
-			if ( isset( $item[2] ) && self::PAGE_SLUG === $item[2] ) {
-				$entry = $item;
-				unset( $submenu[ $parent ][ $key ] );
-				$submenu[ $parent ][6] = $entry;
-				break;
-			}
-		}
+		check_admin_referer( 'screen-options-nonce', 'screenoptionnonce' );
 
-		ksort( $submenu[ $parent ] );
+		$visible = isset( $_POST['citykleta_show_map'] ) ? '1' : '0';
+
+		update_user_meta( get_current_user_id(), self::META_VISIBLE, $visible );
 	}
 
 	/**
-	 * Loads Leaflet + citykleta-map.js/css, only on this page.
-	 *
-	 * @param string $hook_suffix Current admin page's hook suffix.
+	 * Loads Leaflet + citykleta-map.js/css, only on the bike list screen —
+	 * same file-existence guards as the rest of the plugin (vendor files
+	 * aren't shipped, see CLAUDE.md).
 	 */
-	public function enqueue_assets( $hook_suffix ) {
-		if ( $hook_suffix !== $this->page_hook ) {
+	public function enqueue_assets() {
+		if ( ! $this->is_bike_list_screen() || ! $this->is_visible_for_user() ) {
 			return;
 		}
 
@@ -120,44 +148,55 @@ class Citykleta_Admin_Map {
 	}
 
 	/**
-	 * Renders the page.
+	 * Renders the map above the list table. Hooked to 'admin_notices' (same
+	 * pattern as Citykleta_Bike_Meta::render_sync_warning()) — that's just the
+	 * standard low-risk hook for injecting screen-specific content on a
+	 * wp-admin page without touching WP_List_Table internals.
+	 *
+	 * Content printed via 'admin_notices' lands in the HTML *before* the
+	 * page's own <h1> (edit.php requires admin-header.php, which fires
+	 * 'admin_notices', before it prints its own "<div class='wrap'><h1>").
+	 * Core's own admin.js/common.js works around exactly this by relocating
+	 * any `div.notice` (that isn't `.inline`) to right after `.wp-header-end`
+	 * — which sits right below the title — via JS on page load. So the
+	 * wrapper keeps the "notice" class purely to opt into that repositioning,
+	 * with its default box styling (border/background/padding) neutralized
+	 * inline so it doesn't read as a dismissible admin notice.
 	 */
-	public function render_page() {
+	public function render_map() {
+		if ( ! $this->is_bike_list_screen() || ! $this->is_visible_for_user() ) {
+			return;
+		}
+
 		$bikes   = Citykleta_Bike_Map_Data::query( array( 'count' => -1 ) );
 		$total   = Citykleta_Bike_Map_Data::count_all();
 		$missing = $total - count( $bikes );
-		?>
-		<div class="wrap">
-			<h1>Bikes Map</h1>
 
-			<?php if ( $missing > 0 ) : ?>
-				<div class="notice notice-warning">
-					<p>
-						<?php echo (int) $missing; ?> bike<?php echo 1 === $missing ? '' : 's'; ?>
-						<?php echo 1 === $missing ? 'has' : 'have'; ?> no coordinates yet and
-						<?php echo 1 === $missing ? "isn't" : "aren't"; ?> shown on the map — run a sync
-						(Bicicletas → Settings → Sync) to pull them in.
-					</p>
-				</div>
-			<?php endif; ?>
+		if ( ! $bikes ) {
+			return; // Nothing to plot — don't show an empty map above the list.
+		}
 
-			<?php if ( ! $bikes ) : ?>
-				<p>No bikes to show yet.</p>
-			<?php else : ?>
-				<p><?php echo count( $bikes ); ?> bike<?php echo 1 === count( $bikes ) ? '' : 's'; ?> shown.</p>
-				<?php
-				$options              = array_merge( array( 'centerOnUser' => false ), Citykleta_Settings::tile_layer(), Citykleta_Settings::cluster_options() );
-				$options['iconSize'] = Citykleta_Settings::marker_icon_size();
+		echo '<div class="notice" style="margin:16px 0;padding:0;border:none;background:transparent;box-shadow:none;">';
 
-				printf(
-					'<div id="citykleta-admin-map" class="citykleta-map" style="height:500px;max-width:1200px;%3$s" data-bikes="%1$s" data-options="%2$s"></div>',
-					esc_attr( wp_json_encode( $bikes ) ),
-					esc_attr( wp_json_encode( $options ) ),
-					esc_attr( Citykleta_Settings::map_color_style_attr() )
-				);
-				?>
-			<?php endif; ?>
-		</div>
-		<?php
+		if ( $missing > 0 ) {
+			echo '<div class="notice notice-warning inline"><p>';
+			echo (int) $missing . ' bike' . ( 1 === $missing ? '' : 's' );
+			echo ' ' . ( 1 === $missing ? 'has' : 'have' ) . ' no coordinates yet and ';
+			echo ( 1 === $missing ? "isn't" : "aren't" ) . ' shown on the map — run a sync';
+			echo ' (Bicicletas &rarr; Settings &rarr; Sync) to pull ' . ( 1 === $missing ? 'it' : 'them' ) . ' in.';
+			echo '</p></div>';
+		}
+
+		$options              = array_merge( array( 'centerOnUser' => false ), Citykleta_Settings::tile_layer(), Citykleta_Settings::cluster_options() );
+		$options['iconSize'] = Citykleta_Settings::marker_icon_size();
+
+		printf(
+			'<div id="citykleta-admin-map" class="citykleta-map" style="height:400px;width:100%%;%3$s" data-bikes="%1$s" data-options="%2$s"></div>',
+			esc_attr( wp_json_encode( $bikes ) ),
+			esc_attr( wp_json_encode( $options ) ),
+			esc_attr( Citykleta_Settings::map_color_style_attr() )
+		);
+
+		echo '</div>';
 	}
 }
