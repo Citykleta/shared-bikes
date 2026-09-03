@@ -39,7 +39,6 @@
 		}
 
 		new window.TomSelect( select, {
-			placeholder: select.dataset.placeholder || '',
 			allowEmptyOption: true,
 			maxOptions: null,
 			render: {

@@ -212,10 +212,24 @@
 	}
 
 	function buildMap( container, bikes, options ) {
+		// "interactive: false" freezes the map into a static backdrop: no
+		// +/- control, no zoom by any route, and no panning by mouse or
+		// touch. Markers stay clickable — that's not zoom or pan. Defaults
+		// to true so a direct CityKletaMap.init() call, or a caller that
+		// doesn't know the option (e.g. Citykleta_Admin_Map), behaves as
+		// it always did.
+		var interactive = false !== options.interactive;
+
 		var map = L.map( container, {
 			// Off by default so scrolling the page past an inline map
 			// doesn't get trapped by the map's own zoom.
-			scrollWheelZoom: true === options.scrollWheelZoom,
+			scrollWheelZoom: interactive && true === options.scrollWheelZoom,
+			zoomControl: interactive,
+			dragging: interactive,
+			touchZoom: interactive,
+			doubleClickZoom: interactive,
+			boxZoom: interactive,
+			keyboard: interactive,
 		} );
 
 		L.tileLayer( options.tileUrl || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

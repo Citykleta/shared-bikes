@@ -2,10 +2,10 @@
 /**
  * Elementor widget: bike search bar.
  *
- * Sends a GET to the bike archive (/bikes/) with location, dates, and
- * quantity as parameters. Only location actually filters results today —
- * dates and quantity don't have an availability/booking system behind them
- * yet, so they just travel in the URL, ready for when one exists.
+ * Sends a GET to the bike archive (/bikes/) with location and dates as
+ * parameters. Only location actually filters results today — dates don't
+ * have an availability/booking system behind them yet, so they just travel
+ * in the URL, ready for when one exists.
  *
  * The widget's interface text (labels, sections, descriptions) is in
  * English to feel consistent with Elementor's native widgets. The text
@@ -39,7 +39,7 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 	 * @return string
 	 */
 	public function get_title() {
-		return 'Search Bikes';
+		return 'Bike Search';
 	}
 
 	/**
@@ -196,39 +196,6 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
-			'heading_quantity',
-			array(
-				'label'     => 'Quantity',
-				'type'      => \Elementor\Controls_Manager::HEADING,
-				'separator' => 'before',
-			)
-		);
-
-		$this->add_control(
-			'show_quantity',
-			array(
-				'label'     => 'Show bike quantity',
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'  => 'Show',
-				'label_off' => 'Hide',
-				'default'   => 'yes',
-			)
-		);
-
-		$this->add_control(
-			'quantity_label',
-			array(
-				'label'     => 'Label',
-				'type'      => \Elementor\Controls_Manager::TEXT,
-				'default'   => 'Cantidad de bicis',
-				'condition' => array(
-					'show_quantity' => 'yes',
-					'show_labels'   => 'yes',
-				),
-			)
-		);
-
-		$this->add_control(
 			'heading_electric',
 			array(
 				'label'     => 'Electric bikes',
@@ -342,30 +309,6 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 				'condition' => array(
 					'show_usage_filter' => 'yes',
 					'show_labels'       => 'yes',
-				),
-			)
-		);
-
-		$this->add_control(
-			'usage_placeholder',
-			array(
-				'label'     => 'Placeholder',
-				'type'      => \Elementor\Controls_Manager::TEXT,
-				'default'   => 'Selecciona el uso',
-				'condition' => array(
-					'show_usage_filter' => 'yes',
-				),
-			)
-		);
-
-		$this->add_control(
-			'usage_note',
-			array(
-				'type'            => \Elementor\Controls_Manager::RAW_HTML,
-				'raw'             => 'Each usage maps to a group of bike types (taxonomy "bike_type") on the server — see Citykleta_Templates::usage_to_bike_types(). The dropdown shows a description of each usage to help visitors choose.',
-				'content_classes' => 'elementor-descriptor',
-				'condition'       => array(
-					'show_usage_filter' => 'yes',
 				),
 			)
 		);
@@ -511,6 +454,34 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_responsive_control(
+			'container_gap',
+			array(
+				'label'          => 'Spacing',
+				'type'           => \Elementor\Controls_Manager::SLIDER,
+				'size_units'     => array( 'px' ),
+				'range'          => array(
+					'px' => array(
+						'min' => 0,
+						'max' => 40,
+					),
+				),
+				'default'        => array(
+					'size' => 10,
+				),
+				// On mobile the bar stacks vertically and the dividers are
+				// hidden (see search-bar.css), so this gap is the only thing
+				// separating one field from the next — it can't start at 0.
+				'mobile_default' => array(
+					'size' => 8,
+				),
+				'description'    => 'Space between fields, and between the last field and the button.',
+				'selectors'      => array(
+					'{{WRAPPER}} .citykleta-search-bar' => 'gap: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -614,7 +585,13 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			array(
 				'name'           => 'field_border',
 				'label'          => 'Field border',
-				'selector'       => '{{WRAPPER}} .citykleta-search-bar__field',
+				// The electric checkbox is excluded here rather than undone
+				// later in CSS: it has no input inside, so a box around it
+				// reads as an empty field. Fighting it from search-bar.css
+				// doesn't work — {{WRAPPER}} expands to three classes
+				// (.elementor-N .elementor-element.elementor-element-ID), so
+				// Elementor's rule outweighs anything reasonable there.
+				'selector'       => '{{WRAPPER}} .citykleta-search-bar__field:not(.citykleta-search-bar__field--electric)',
 				'fields_options' => array(
 					'border' => array(
 						'default' => 'solid',
@@ -691,6 +668,19 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 					'{{WRAPPER}} .citykleta-search-bar__button'    => 'color: {{VALUE}};',
 					'{{WRAPPER}} .citykleta-search-bar__button svg' => 'fill: {{VALUE}};',
 					'{{WRAPPER}} .citykleta-search-bar__button i'  => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'button_color_hover',
+			array(
+				'label'     => 'Text/icon color (hover)',
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-search-bar__button:hover'     => 'color: {{VALUE}};',
+					'{{WRAPPER}} .citykleta-search-bar__button:hover svg' => 'fill: {{VALUE}};',
+					'{{WRAPPER}} .citykleta-search-bar__button:hover i'   => 'color: {{VALUE}};',
 				),
 			)
 		);
@@ -817,7 +807,6 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 							class="citykleta-search-bar__input citykleta-search-bar__usage"
 							id="citykleta-usage-<?php echo esc_attr( $this->get_id() ); ?>"
 							name="usage"
-							data-placeholder="<?php echo esc_attr( $settings['usage_placeholder'] ); ?>"
 						>
 							<option value="">Todas</option>
 							<?php
@@ -926,25 +915,6 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 						/>
 						<input type="hidden" class="citykleta-search-bar__date-from" name="from" />
 						<input type="hidden" class="citykleta-search-bar__date-to" name="to" />
-					</div>
-				</div>
-			<?php endif; ?>
-
-			<?php if ( 'yes' === $settings['show_quantity'] ) : ?>
-				<div class="citykleta-search-bar__divider"></div>
-				<div class="citykleta-search-bar__field citykleta-search-bar__field--quantity">
-					<div class="citykleta-search-bar__field-inner">
-						<?php if ( 'yes' === $settings['show_labels'] ) : ?>
-							<label class="citykleta-search-bar__label" for="citykleta-quantity-<?php echo esc_attr( $this->get_id() ); ?>"><?php echo esc_html( $settings['quantity_label'] ); ?></label>
-						<?php endif; ?>
-						<input
-							class="citykleta-search-bar__input"
-							type="number"
-							id="citykleta-quantity-<?php echo esc_attr( $this->get_id() ); ?>"
-							name="quantity"
-							min="1"
-							value="1"
-						/>
 					</div>
 				</div>
 			<?php endif; ?>

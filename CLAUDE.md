@@ -947,7 +947,7 @@ un destino sin trucos), no como término de taxonomía.
    Si da 404, hacer flush de rewrite rules (ver gotcha en la sección de arquitectura).
 9. Con Elementor activo, crear/editar cualquier página con Elementor y buscar el
     widget "Bicicletas" en el panel — se puede arrastrar donde sea.
-10. Buscar el widget "Search Bikes" y arrastrarlo también. El campo de fechas necesita
+10. Buscar el widget "Bike Search" y arrastrarlo también. El campo de fechas necesita
     los archivos de Flatpickr descargados a mano (ver sección "Widget de búsqueda")
     para verse como calendario de rango; sin ellos, el campo se ve pero no abre nada.
 11. Buscar el widget "Bikes Map" y arrastrarlo también. Necesita: (a) los archivos de

@@ -88,18 +88,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'min'         => 1,
 				'max'         => 200,
 				'placeholder' => 'All',
-				'description' => 'Leave empty to show all bikes matching the filters below, with no limit.',
-			)
-		);
-
-		$this->add_control(
-			'only_available',
-			array(
-				'label'     => 'Show Only Available',
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'  => 'Yes',
-				'label_off' => 'No',
-				'default'   => '',
+				'description' => 'Leave empty for no limit.',
 			)
 		);
 
@@ -118,7 +107,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'label'       => 'Location',
 				'type'        => \Elementor\Controls_Manager::TEXT,
 				'placeholder' => 'E.g. Vedado',
-				'description' => 'Leave empty to show bikes from any location. Matches partial text.',
+				'description' => 'Partial match. Leave empty for any location.',
 			)
 		);
 
@@ -146,19 +135,19 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'default'     => array(
 					'size' => 13,
 				),
-				'description' => 'Initial zoom level, used only as a fallback when there are no bikes to fit the map to (e.g. a filter above matches none). Otherwise the map auto-zooms to fit the bikes shown.',
+				'description' => 'Fallback only, for when no bikes match. Otherwise the map auto-zooms to fit them.',
 			)
 		);
 
 		$this->add_control(
-			'show_zoom_lock',
+			'interactive',
 			array(
-				'label'       => 'Zoom Lock Button',
+				'label'       => 'Zoom & Pan',
 				'type'        => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'    => 'Show',
-				'label_off'   => 'Hide',
+				'label_on'    => 'On',
+				'label_off'   => 'Off',
 				'default'     => 'yes',
-				'description' => 'Adds a lock button on the map that toggles all zoom interaction on/off together — the +/- control, mouse wheel, double-click, and touch pinch — so a visitor scrolling or swiping past the map on a long page doesn\'t get stuck zooming it by accident. Starts unlocked; panning stays enabled either way.',
+				'description' => 'Off hides the +/- control and freezes the map: no zoom, no dragging, no touch panning. Markers stay clickable.',
 			)
 		);
 
@@ -177,45 +166,8 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'default'    => array(
 					'size' => 400,
 				),
-				'condition'  => array(
-					'cover_mode!' => 'yes',
-				),
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-map' => 'height: {{SIZE}}{{UNIT}};',
-				),
-			)
-		);
-
-		$this->add_control(
-			'cover_mode',
-			array(
-				'label'       => 'Cover Mode',
-				'type'        => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'    => 'Yes',
-				'label_off'   => 'No',
-				'default'     => '',
-				'separator'   => 'before',
-				'description' => 'Fills the parent Container as a background layer (position: absolute, covering the full container) instead of taking up its own space. Drop this widget into an Elementor Container first, set that Container\'s own Advanced → Position to "Relative" so this has something to size against, then add other widgets on top of it in the same Container. The map stays interactive (draggable/zoomable) anywhere the widgets on top don\'t cover it — the on-screen +/- zoom control is hidden too, since it doesn\'t make sense floating over a background.',
-				'selectors'   => array(
-					'{{WRAPPER}}'                        => 'position: absolute; inset: 0; width: 100%; height: 100%;',
-					'{{WRAPPER}} .citykleta-map'          => 'width: 100%; height: 100%;',
-					'{{WRAPPER}} .leaflet-control-zoom'   => 'display: none;',
-				),
-			)
-		);
-
-		$this->add_control(
-			'cover_z_index',
-			array(
-				'label'       => 'Z-Index',
-				'type'        => \Elementor\Controls_Manager::NUMBER,
-				'default'     => -1,
-				'condition'   => array(
-					'cover_mode' => 'yes',
-				),
-				'description' => 'Keeps the map behind the widgets stacked on top of it in the same Container (lower number = further back).',
-				'selectors'   => array(
-					'{{WRAPPER}}' => 'z-index: {{VALUE}};',
 				),
 			)
 		);
@@ -228,7 +180,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'label_on'    => 'Yes',
 				'label_off'   => 'No',
 				'default'     => 'yes',
-				'description' => 'Asks the visitor\'s browser for their location and centers the map there, with a "you are here" marker. Falls back to fitting all bikes on screen if denied or unavailable, or to the Default Location below if set.',
+				'description' => 'Centers on the visitor with a "you are here" marker. If denied, falls back to the coordinates below, or to fitting all bikes.',
 			)
 		);
 
@@ -238,7 +190,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'label'       => 'Default Latitude',
 				'type'        => \Elementor\Controls_Manager::TEXT,
 				'placeholder' => 'e.g. 23.1367',
-				'description' => 'Optional, used together with Default Longitude. Recenters the map here if the visitor\'s browser can\'t get or rejects their location (only relevant while "Center On Visitor" is on). Leave both empty to just keep fitting the bikes shown.',
+				'description' => 'Optional, needs both fields. Leave empty to fit the bikes instead.',
 				'condition'   => array(
 					'center_on_user' => 'yes',
 				),
@@ -283,17 +235,24 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 		$bikes = Citykleta_Bike_Map_Data::query(
 			array(
-				'count'          => $count,
-				'only_available' => 'yes' === $settings['only_available'],
-				'location'       => $settings['location_filter'],
+				'count'    => $count,
+				'location' => $settings['location_filter'],
 			)
 		);
 
+		// Every bike gets the same default marker color here, whatever its
+		// availability today: a visitor planning to rent a month from now
+		// would read a greyed-out marker as "something's wrong with this
+		// bike". The wp-admin map (Citykleta_Admin_Map) keeps the real
+		// availability color, since that one is for the team.
+		foreach ( $bikes as &$bike ) {
+			$bike['available'] = true;
+		}
+		unset( $bike );
+
 		// Unlike Citykleta_Bike_Widget's grid, the map container always
-		// prints even with zero matching bikes — this widget is meant to
-		// stay on screen as a persistent layer (see Cover Mode), so an empty
-		// result should show an empty map, not make the whole widget
-		// disappear.
+		// prints even with zero matching bikes — an empty result should show
+		// an empty map, not make the whole widget disappear.
 		$options = array_merge(
 			array( 'centerOnUser' => 'yes' === $settings['center_on_user'] ),
 			Citykleta_Settings::tile_layer(),
@@ -308,8 +267,11 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 			$options['fallbackCenter'] = array( (float) $settings['default_lat'], (float) $settings['default_lng'] );
 		}
 
-		$options['iconSize']       = Citykleta_Settings::marker_icon_size();
-		$options['zoomLockButton'] = 'yes' === $settings['show_zoom_lock'];
+		// No zoom lock button here on purpose: that on-map toggle is a
+		// wp-admin-only affordance (see Citykleta_Admin_Map). On the public
+		// side the decision is the editor's, via the "Zoom & Pan" control.
+		$options['iconSize']    = Citykleta_Settings::marker_icon_size();
+		$options['interactive'] = 'yes' === $settings['interactive'];
 
 		printf(
 			'<div id="citykleta-map-%1$s" class="citykleta-map" style="%4$s" data-bikes="%2$s" data-options="%3$s"></div>',

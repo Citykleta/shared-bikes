@@ -197,8 +197,12 @@ class Citykleta_Admin_Map {
 			echo '</p></div>';
 		}
 
-		$options              = array_merge( array( 'centerOnUser' => false ), Citykleta_Settings::tile_layer(), Citykleta_Settings::cluster_options() );
-		$options['iconSize'] = Citykleta_Settings::marker_icon_size();
+		$options                   = array_merge( array( 'centerOnUser' => false ), Citykleta_Settings::tile_layer(), Citykleta_Settings::cluster_options() );
+		$options['iconSize']       = Citykleta_Settings::marker_icon_size();
+		// Only here, not in the public widget: this map sits inside a long
+		// wp-admin list, where scrolling past it would otherwise zoom it by
+		// accident.
+		$options['zoomLockButton'] = true;
 
 		printf(
 			'<div id="citykleta-admin-map" class="citykleta-map" style="height:400px;width:100%%;%3$s" data-bikes="%1$s" data-options="%2$s"></div>',

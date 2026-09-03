@@ -27,10 +27,6 @@
 	box-sizing: border-box;
 }
 
-.citykleta-search-bar__field--quantity {
-	flex: 0 1 130px;
-}
-
 .citykleta-search-bar__field--usage {
 	flex: 0 1 160px;
 }
@@ -196,30 +192,47 @@
 	background: #f5cc2e;
 }
 
-@media (max-width: 780px) {
+/*
+ * En pantallas angostas la barra deja de ser una fila: cada campo pasa a
+ * ocupar su propia fila a todo el ancho, y el botón cierra abajo. Las
+ * reglas de ancho fijo de cada campo (--usage, --electric,
+ * definidas más arriba) quedan anuladas por estar este bloque después en
+ * el archivo, a igual especificidad.
+ */
+@media (max-width: 767px) {
 	.citykleta-search-bar {
-		flex-wrap: wrap;
+		flex-direction: column;
+		align-items: stretch;
 		border-radius: 20px;
 	}
 
 	.citykleta-search-bar__field {
-		flex: 1 1 45%;
+		flex: 0 0 auto;
+		width: 100%;
 		padding: 0.6rem 0.75rem;
 	}
 
+	/*
+	 * En vertical no hay líneas: una línea a todo el ancho lee como
+	 * separador de secciones, no de campos. La separación entre filas la
+	 * da el control "Spacing" del widget (gap), que trae 8px por defecto
+	 * en móvil.
+	 */
 	.citykleta-search-bar__divider {
 		display: none;
 	}
 
-	.citykleta-search-bar__field--location {
-		flex-basis: 100%;
-		border-bottom: 1px solid #e5e0d3;
-	}
-
-	.citykleta-search-bar__button {
-		flex-basis: 100%;
+	/*
+	 * Tres clases a propósito: el control "Button size (icon style)" de
+	 * Elementor imprime un width fijo (52px por defecto) sobre
+	 * ".elementor-element-X .citykleta-search-bar__button--icon", que le
+	 * gana a un selector de una sola clase aunque esté dentro de un media
+	 * query. Solo se pisa el ancho — alto, color y radio siguen saliendo
+	 * de los controles del widget.
+	 */
+	.citykleta-search-bar .citykleta-search-bar__button,
+	.citykleta-search-bar .citykleta-search-bar__button.citykleta-search-bar__button--icon {
 		width: 100%;
-		border-radius: 14px;
-		margin-top: 0.5rem;
+		align-self: stretch;
 	}
 }
