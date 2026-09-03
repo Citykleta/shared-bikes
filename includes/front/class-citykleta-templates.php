@@ -32,8 +32,8 @@ class Citykleta_Templates {
 	/**
 	 * Filters the bike archive by the `location` parameter sent
 	 * by the search widget (Citykleta_Search_Widget), if present in the
-	 * URL. Dates and quantity don't filter anything yet — there's no
-	 * availability/booking system behind them — they just travel in the URL.
+	 * URL. Dates don't filter anything yet — there's no availability/booking
+	 * system behind them — they just travel in the URL.
 	 *
 	 * @param WP_Query $query Current query.
 	 */

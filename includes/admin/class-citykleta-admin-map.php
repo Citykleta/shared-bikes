@@ -40,7 +40,9 @@ class Citykleta_Admin_Map {
 		add_action( 'admin_notices', array( $this, 'render_map' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_filter( 'screen_settings', array( $this, 'render_visibility_toggle' ), 10, 2 );
-		add_action( 'admin_init', array( $this, 'save_visibility_preference' ) );
+		// Try to save as early as possible — wp_footer in admin is late in the process
+		// but earlier hooks may not have valid state. Catch it at the very start.
+		add_action( 'wp_loaded', array( $this, 'save_visibility_preference' ), 1 );
 	}
 
 	/**
@@ -112,7 +114,15 @@ class Citykleta_Admin_Map {
 			return;
 		}
 
-		check_admin_referer( 'screen-options-nonce', 'screenoptionnonce' );
+		// Verify nonce safely without wp_die if it fails — just return
+		// and let the meta remain unchanged (the toggle doesn't change).
+		if ( ! isset( $_POST['screenoptionnonce'] ) ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['screenoptionnonce'] ) ), 'screen-options-nonce' ) ) {
+			return;
+		}
 
 		$visible = isset( $_POST['citykleta_show_map'] ) ? '1' : '0';
 
