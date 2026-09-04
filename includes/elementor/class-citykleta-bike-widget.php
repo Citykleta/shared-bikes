@@ -33,7 +33,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 	 * @return string
 	 */
 	public function get_title() {
-		return 'Bikes';
+		return 'Bikes Grid';
 	}
 
 	/**
@@ -81,11 +81,24 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 				'type'    => \Elementor\Controls_Manager::SELECT,
 				'default' => '3',
 				'options' => array(
+					'1' => '1',
 					'2' => '2',
 					'3' => '3',
 					'4' => '4',
 					'5' => '5',
 				),
+			)
+		);
+
+		$this->add_control(
+			'masonry',
+			array(
+				'label'       => 'Masonry',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Yes',
+				'label_off'   => 'No',
+				'default'     => '',
+				'description' => 'Pinterest-style grid: cards keep their natural height instead of lining up in even rows.',
 			)
 		);
 
@@ -147,16 +160,34 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'image_position',
+			array(
+				'label'   => 'Image Position',
+				'type'    => \Elementor\Controls_Manager::SELECT,
+				'default' => 'top',
+				'options' => array(
+					'top'   => 'Top',
+					'left'  => 'Left',
+					'right' => 'Right',
+					'none'  => 'None',
+				),
+			)
+		);
+
+		$this->add_control(
 			'image_resolution',
 			array(
-				'label'   => 'Image Resolution',
-				'type'    => \Elementor\Controls_Manager::SELECT,
-				'default' => 'medium',
-				'options' => array(
+				'label'     => 'Image Resolution',
+				'type'      => \Elementor\Controls_Manager::SELECT,
+				'default'   => 'medium',
+				'options'   => array(
 					'thumbnail' => 'Thumbnail',
 					'medium'    => 'Medium',
 					'large'     => 'Large',
 					'full'      => 'Full',
+				),
+				'condition' => array(
+					'image_position!' => 'none',
 				),
 			)
 		);
@@ -164,19 +195,23 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		$this->add_responsive_control(
 			'image_ratio',
 			array(
-				'label'     => 'Image Ratio',
-				'type'      => \Elementor\Controls_Manager::SLIDER,
-				'range'     => array(
+				'label'       => 'Image Ratio',
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'range'       => array(
 					'px' => array(
 						'min'  => 0.5,
 						'max'  => 2,
 						'step' => 0.05,
 					),
 				),
-				'default'   => array(
+				'default'     => array(
 					'size' => 1.5,
 				),
-				'selectors' => array(
+				'description' => 'Top position only — Left/Right size the image by the row\'s own height instead.',
+				'condition'   => array(
+					'image_position' => 'top',
+				),
+				'selectors'   => array(
 					'{{WRAPPER}} .citykleta-bike-card__image' => 'aspect-ratio: {{SIZE}};',
 				),
 			)
@@ -199,17 +234,6 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 				'default' => 6,
 				'min'     => 1,
 				'max'     => 50,
-			)
-		);
-
-		$this->add_control(
-			'only_available',
-			array(
-				'label'     => 'Show Only Available',
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'  => 'Yes',
-				'label_off' => 'No',
-				'default'   => '',
 			)
 		);
 
@@ -307,8 +331,12 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 				'default'    => array(
 					'size' => 24,
 				),
+				// CSS multi-column layout (used for Masonry) has no row-gap
+				// of its own — margin-bottom on each card stands in for it
+				// there, same value as the grid's row-gap everywhere else.
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-grid' => 'row-gap: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-grid'                          => 'row-gap: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-grid--masonry .citykleta-bike-card' => 'margin-bottom: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -650,37 +678,6 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
-		$this->add_control(
-			'heading_badge',
-			array(
-				'label'     => 'Availability Badge',
-				'type'      => \Elementor\Controls_Manager::HEADING,
-				'separator' => 'before',
-			)
-		);
-
-		$this->add_control(
-			'badge_available_color',
-			array(
-				'label'     => '"Available" Background',
-				'type'      => \Elementor\Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .citykleta-bike-card__badge--available' => 'background-color: {{VALUE}};',
-				),
-			)
-		);
-
-		$this->add_control(
-			'badge_unavailable_color',
-			array(
-				'label'     => '"Unavailable" Background',
-				'type'      => \Elementor\Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .citykleta-bike-card__badge--unavailable' => 'background-color: {{VALUE}};',
-				),
-			)
-		);
-
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -870,13 +867,6 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 
 		$meta_query = array();
 
-		if ( 'yes' === $settings['only_available'] ) {
-			$meta_query[] = array(
-				'key'   => 'available',
-				'value' => '1',
-			);
-		}
-
 		if ( ! empty( $settings['location_filter'] ) ) {
 			$meta_query[] = array(
 				'key'     => 'location',
@@ -898,38 +888,39 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 
 		// The CSS is enqueued early in Citykleta_Elementor::enqueue_styles(),
 		// not here — see that class for why.
-		printf( '<div class="citykleta-bike-grid citykleta-bike-grid--cols-%d">', (int) $settings['columns'] );
+		$grid_class = 'citykleta-bike-grid citykleta-bike-grid--cols-' . (int) $settings['columns'];
+		if ( 'yes' === $settings['masonry'] ) {
+			$grid_class .= ' citykleta-bike-grid--masonry';
+		}
+		printf( '<div class="%s">', esc_attr( $grid_class ) );
 
 		while ( $query->have_posts() ) {
 			$query->the_post();
 
 			$price       = Citykleta_Bike_Meta::price_html( get_the_ID() );
 			$location    = get_post_meta( get_the_ID(), 'location', true );
-			$available   = get_post_meta( get_the_ID(), 'available', true );
 			$owner_name  = get_post_meta( get_the_ID(), 'owner_name', true );
 			$owner_photo = get_post_meta( get_the_ID(), 'owner_photo', true );
 
-			$allowed_tags = array( 'h2', 'h3', 'h4', 'p' );
-			$title_tag    = in_array( $settings['title_tag'], $allowed_tags, true ) ? $settings['title_tag'] : 'h2';
+			$allowed_tags     = array( 'h2', 'h3', 'h4', 'p' );
+			$title_tag        = in_array( $settings['title_tag'], $allowed_tags, true ) ? $settings['title_tag'] : 'h2';
+			$allowed_positions = array( 'top', 'left', 'right', 'none' );
+			$image_position    = in_array( $settings['image_position'], $allowed_positions, true ) ? $settings['image_position'] : 'top';
 			?>
-			<a class="citykleta-bike-card" href="<?php the_permalink(); ?>">
-				<div class="citykleta-bike-card__image">
-					<?php if ( has_post_thumbnail() ) : ?>
-						<?php the_post_thumbnail( $settings['image_resolution'] ); ?>
-					<?php else : ?>
-						<div class="citykleta-bike-card__image-placeholder"></div>
-					<?php endif; ?>
+			<a class="citykleta-bike-card citykleta-bike-card--image-<?php echo esc_attr( $image_position ); ?>" href="<?php the_permalink(); ?>">
+				<?php if ( 'none' !== $image_position ) : ?>
+					<div class="citykleta-bike-card__image">
+						<?php if ( has_post_thumbnail() ) : ?>
+							<?php the_post_thumbnail( $settings['image_resolution'] ); ?>
+						<?php else : ?>
+							<div class="citykleta-bike-card__image-placeholder"></div>
+						<?php endif; ?>
 
-					<?php if ( '1' === (string) $available ) : ?>
-						<span class="citykleta-bike-card__badge citykleta-bike-card__badge--available">Disponible</span>
-					<?php else : ?>
-						<span class="citykleta-bike-card__badge citykleta-bike-card__badge--unavailable">No disponible</span>
-					<?php endif; ?>
-
-					<?php if ( $owner_photo && 'yes' === $settings['show_owner_photo'] ) : ?>
-						<img class="citykleta-bike-card__owner" src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="20" height="20" />
-					<?php endif; ?>
-				</div>
+						<?php if ( $owner_photo && 'yes' === $settings['show_owner_photo'] ) : ?>
+							<img class="citykleta-bike-card__owner" src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="20" height="20" />
+						<?php endif; ?>
+					</div>
+				<?php endif; ?>
 
 				<div class="citykleta-bike-card__body">
 					<<?php echo esc_html( $title_tag ); ?> class="citykleta-bike-card__title"><?php the_title(); ?></<?php echo esc_html( $title_tag ); ?>>

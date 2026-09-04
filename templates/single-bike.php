@@ -1,9 +1,19 @@
 <?php
 /**
  * Plantilla de detalle de una bicicleta: muestra todos los datos que tenemos
- * (ficha técnica, tipos, propietario y precio). La reserva real la maneja la
- * app de Citykleta, por eso el bloque final es solo una llamada a la acción,
- * no un muro que esconda contenido.
+ * (fotos, ficha técnica, tipos, propietario y precio). La reserva real la
+ * maneja la app de Citykleta, por eso no hay formulario de reserva acá.
+ *
+ * Estructura, de arriba a abajo: título y ubicación primero (el visitante sabe
+ * qué está mirando antes de ver las fotos), después el mosaico de fotos a todo
+ * el ancho, y debajo dos columnas — contenido a la izquierda, tarjeta de precio
+ * pegajosa a la derecha. Es el orden de las páginas de alojamiento/producto que
+ * el visitante ya conoce, y evita el problema del diseño anterior: el título
+ * colgando debajo de la foto mientras el precio flotaba en una columna aparte.
+ *
+ * El mosaico se adapta a la cantidad real de fotos (1 a 5, ver
+ * Citykleta_Bike_Meta::MAX_IMAGES) con la clase --count-N; hoy la API manda una
+ * sola por bici, así que ese es el caso que más se ve.
  *
  * Diseño en assets/css/single-bike.css, encolado desde
  * Citykleta_Templates::enqueue_styles(). Ver también
@@ -53,6 +63,7 @@ while ( have_posts() ) :
 	$owner_name  = get_post_meta( get_the_ID(), 'owner_name', true );
 	$owner_photo = get_post_meta( get_the_ID(), 'owner_photo', true );
 	$bike_types  = get_the_terms( get_the_ID(), Citykleta_Bike_Type_Taxonomy::TAXONOMY );
+	$images      = Citykleta_Bike_Meta::gallery_ids( get_the_ID() );
 
 	if ( ! is_array( $bike_types ) ) {
 		$bike_types = array();
@@ -92,30 +103,12 @@ while ( have_posts() ) :
 		?>
 		<a class="citykleta-bike-single__back" href="<?php echo esc_url( $citykleta_back_url ); ?>">&larr; Volver a bicicletas</a>
 
-		<div class="citykleta-bike-single__layout">
+		<header class="citykleta-bike-single__header">
+			<h1 class="citykleta-bike-single__title"><?php the_title(); ?></h1>
 
-			<div class="citykleta-bike-single__main">
-
-				<div class="citykleta-bike-single__media">
-					<?php if ( has_post_thumbnail() ) : ?>
-						<?php the_post_thumbnail( 'large' ); ?>
-					<?php endif; ?>
-
-					<?php if ( $available ) : ?>
-						<span class="citykleta-bike-single__badge citykleta-bike-single__badge--available">Disponible</span>
-					<?php else : ?>
-						<span class="citykleta-bike-single__badge citykleta-bike-single__badge--unavailable">No disponible</span>
-					<?php endif; ?>
-				</div>
-
-				<h1 class="citykleta-bike-single__title"><?php the_title(); ?></h1>
-
-			</div>
-
-			<div class="citykleta-bike-single__info">
-
+			<div class="citykleta-bike-single__subhead">
 				<?php if ( $location ) : ?>
-					<p class="citykleta-bike-single__location"><?php echo esc_html( $location ); ?></p>
+					<span class="citykleta-bike-single__location"><?php echo esc_html( $location ); ?></span>
 				<?php endif; ?>
 
 				<?php if ( $tags ) : ?>
@@ -125,46 +118,85 @@ while ( have_posts() ) :
 						<?php endforeach; ?>
 					</ul>
 				<?php endif; ?>
+			</div>
+		</header>
 
-				<?php if ( $price ) : ?>
-					<p class="citykleta-bike-single__price">
-						<?php echo esc_html( $price ); ?>
-					</p>
-				<?php endif; ?>
+		<?php if ( $images ) : ?>
+			<div class="citykleta-bike-single__gallery citykleta-bike-single__gallery--count-<?php echo (int) count( $images ); ?>">
+				<?php
+				foreach ( $images as $index => $image_id ) {
+					// La primera es la grande del mosaico, por eso pide un
+					// tamaño mayor que las demás.
+					$image_size = 0 === $index ? 'large' : 'medium_large';
+					?>
+					<figure class="citykleta-bike-single__shot">
+						<?php echo wp_get_attachment_image( $image_id, $image_size, false, array( 'loading' => 0 === $index ? 'eager' : 'lazy' ) ); ?>
+					</figure>
+					<?php
+				}
+				?>
+			</div>
+		<?php endif; ?>
 
-				<?php if ( $specs ) : ?>
-					<dl class="citykleta-bike-single__specs">
-						<?php foreach ( $specs as $label => $value ) : ?>
-							<div class="citykleta-bike-single__spec">
-								<dt><?php echo esc_html( $label ); ?></dt>
-								<dd><?php echo esc_html( $value ); ?></dd>
-							</div>
-						<?php endforeach; ?>
-					</dl>
-				<?php endif; ?>
+		<div class="citykleta-bike-single__layout">
+
+			<div class="citykleta-bike-single__content">
 
 				<?php if ( $owner_name ) : ?>
-					<div class="citykleta-bike-single__owner">
+					<section class="citykleta-bike-single__owner">
 						<?php if ( $owner_photo ) : ?>
-							<img src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="40" height="40" />
+							<img class="citykleta-bike-single__owner-photo" src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="48" height="48" loading="lazy" />
 						<?php endif; ?>
 						<div>
 							<span class="citykleta-bike-single__owner-label">Publicado por</span>
 							<span class="citykleta-bike-single__owner-name"><?php echo esc_html( $owner_name ); ?></span>
 						</div>
-					</div>
+					</section>
+				<?php endif; ?>
+
+				<?php if ( trim( get_the_content() ) ) : ?>
+					<section class="citykleta-bike-single__section">
+						<h2 class="citykleta-bike-single__section-title">Sobre esta bicicleta</h2>
+						<div class="citykleta-bike-single__description"><?php the_content(); ?></div>
+					</section>
+				<?php endif; ?>
+
+				<?php if ( $specs ) : ?>
+					<section class="citykleta-bike-single__section">
+						<h2 class="citykleta-bike-single__section-title">Ficha técnica</h2>
+						<dl class="citykleta-bike-single__specs">
+							<?php foreach ( $specs as $label => $value ) : ?>
+								<div class="citykleta-bike-single__spec">
+									<dt><?php echo esc_html( $label ); ?></dt>
+									<dd><?php echo esc_html( $value ); ?></dd>
+								</div>
+							<?php endforeach; ?>
+						</dl>
+					</section>
 				<?php endif; ?>
 
 			</div>
 
-		</div>
+			<aside class="citykleta-bike-single__aside">
+				<div class="citykleta-bike-single__price-card">
+					<?php if ( $price ) : ?>
+						<p class="citykleta-bike-single__price"><?php echo esc_html( $price ); ?></p>
+					<?php endif; ?>
 
-		<?php if ( trim( get_the_content() ) ) : ?>
-			<div class="citykleta-bike-single__description">
-				<h2>Sobre esta bicicleta</h2>
-				<?php the_content(); ?>
-			</div>
-		<?php endif; ?>
+					<?php
+					// "hoy" a propósito: una bici ocupada hoy se puede alquilar
+					// más adelante, y un "No disponible" a secas se lee como si
+					// la bici tuviera algún problema.
+					?>
+					<p class="citykleta-bike-single__status citykleta-bike-single__status--<?php echo $available ? 'available' : 'unavailable'; ?>">
+						<?php echo $available ? 'Disponible hoy' : 'No disponible hoy'; ?>
+					</p>
+
+					<p class="citykleta-bike-single__note">La reserva se hace desde la app de Citykleta.</p>
+				</div>
+			</aside>
+
+		</div>
 
 	</main>
 

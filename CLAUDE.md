@@ -102,7 +102,7 @@ includes/
   elementor/
     class-citykleta-elementor.php     → Registra los widgets de Elementor (no hace nada si Elementor no
                                          está activo) y encola su CSS desde temprano (wp_enqueue_scripts).
-    class-citykleta-bike-widget.php   → Widget "Bicicletas": grid de bicis para arrastrar en cualquier
+    class-citykleta-bike-widget.php   → Widget "Bikes Grid": grid de bicis para arrastrar en cualquier
                                          página armada con Elementor. Secciones Content: Contenido, Query,
                                          Layout. Pestaña Style completa. Reusa bike-cards.css.
     class-citykleta-search-widget.php → Widget "Buscar bicicletas": barra de búsqueda (ubicación, fechas,
@@ -482,8 +482,23 @@ antes si la caída es grande — está pensada exactamente para eso.
 
 Cada bici trae sus imágenes en `images` (el backend real manda objetos
 `{ url, featured }` con rutas relativas — `normalize_item()` las deja en una lista de
-URLs absolutas con la destacada primero, ver la tabla de traducción más arriba). El sync descarga **la primera** con `media_sideload_image()`
-y la deja como imagen destacada del post (no como campo meta).
+URLs absolutas con la destacada primero, ver la tabla de traducción más arriba).
+`Citykleta_Bike_Sync::sync_images()` se queda con las primeras
+**`Citykleta_Bike_Meta::MAX_IMAGES` (5)**: la primera va como **imagen destacada** del post
+(donde el resto del plugin ya la busca — tarjetas, popups del mapa, REST) y las demás como
+lista de IDs de adjunto en el meta `_citykleta_gallery_ids`
+(`Citykleta_Bike_Meta::GALLERY_META`). Ese meta se reescribe **siempre**, incluso a vacío:
+una foto borrada en la app tiene que desaparecer del sitio, no quedarse de un sync anterior.
+
+Para leerlas, `Citykleta_Bike_Meta::gallery_ids( $post_id )` devuelve la lista completa
+(destacada primero), deduplicada y recortada a `MAX_IMAGES` — es lo que usa el mosaico de
+`templates/single-bike.php`. El tope se aplica **una sola vez, al entrar**: sin él, una bici
+con muchas fotos convertiría un sync en decenas de descargas más sus juegos de miniaturas,
+el mismo problema de costo que motivó el adjunto compartido de más abajo.
+
+Ojo: hoy la API real manda **una sola foto por bici** (`images` con un elemento), así que el
+caso de 1 foto es el único que se ve en desarrollo — el mosaico de 2 a 5 está construido y
+verificado, pero contra datos inyectados a mano, no contra el backend.
 
 **Un adjunto por URL de origen, compartido entre bicis.** El meta
 `_citykleta_image_source_url` (`Citykleta_Bike_Sync::IMAGE_SOURCE_META`) se escribe en los
@@ -574,12 +589,18 @@ header/footer si en producción están armados con el Theme Builder de Pro.
 
 Controles del widget en la pestaña Content (secciones inspiradas en el widget nativo
 "Posts" de Elementor, mismos nombres que usa Elementor para que se sienta familiar):
-**Contenido** (cantidad, solo disponibles), **Query** (ubicación por coincidencia
-parcial, ordenar por fecha/precio/nombre, ascendente/descendente) y **Layout**
-(columnas, etiqueta HTML del título, mostrar/ocultar ubicación, precio y foto del
-propietario, resolución de imagen, proporción de imagen). La foto de la bici en sí
-**siempre se muestra** (no es opcional) — lo único opcional es la foto del
-propietario, que se superpone sobre ella.
+**Contenido** (cantidad — sin filtro de disponibilidad: una bici no disponible hoy
+puede reservarse para más adelante, así que no hay razón para ocultarla ni para
+marcarla con un badge), **Query** (ubicación por coincidencia parcial, ordenar por
+fecha/precio/nombre, ascendente/descendente) y **Layout** (columnas, **Masonry**
+— grid tipo Pinterest con `column-count` en vez de `grid-template-columns`, cada
+tarjeta conserva su alto natural en lugar de estirarse a la fila más alta —,
+etiqueta HTML del título, mostrar/ocultar ubicación, precio y foto del propietario,
+**Image Position** — Top/Left/Right/None, mismo control que Elementor Posts; con
+None no se imprime ni el contenedor de imagen ni la foto del propietario, que se
+superpone sobre ella — resolución de imagen y proporción de imagen, esta última
+solo aplica con Top: en Left/Right el alto de la imagen lo da la fila, no el
+control).
 
 Los widgets del plugin aparecen agrupados bajo su propia categoría **"Shared Bikes"**
 en el panel de Elementor (no en "General"), registrada en
@@ -917,8 +938,8 @@ un destino sin trucos), no como término de taxonomía.
   bici (ver tabla de campos), sin CPT ni perfil propio — nombres de ejemplo: Laura,
   John, María, Alfonso, Gustavo.
 - Taxonomía de tipo de bici (montaña, ciudad, paseo, eléctrica).
-- Fotos múltiples por bicicleta (galería) — hoy el sync solo trae una imagen destacada
-  (campo `image` de la API), no una galería.
+- Lightbox / ampliar foto en la página individual — el mosaico muestra hasta 5 fotos pero
+  no se pueden abrir a pantalla completa (haría falta JS; hoy la plantilla no carga ninguno).
 - Sistema de disponibilidad/reservas por fecha — hace falta para que las fechas del
   widget de búsqueda (`Citykleta_Search_Widget`) filtren resultados de verdad; hoy
   solo viajan en la URL sin usarse. También calendario personalizado en vez del

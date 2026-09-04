@@ -5,20 +5,22 @@
  * no se encolan aquí a propósito: en producción (Elementor) ya vienen del
  * tema, y si no están, cae en la sans-serif del sistema.
  *
- * Diseño de dos columnas (foto | datos) que colapsa a una sola en móvil.
+ * Orden vertical: encabezado (título + ubicación) → mosaico de fotos a todo
+ * el ancho → dos columnas (contenido | tarjeta de precio pegajosa), que
+ * colapsan a una sola en pantallas angostas.
  */
 
 .citykleta-bike-single {
-	max-width: 1200px;
+	max-width: 1120px;
 	margin: 0 auto;
-	padding: 2rem 1rem 4rem;
+	padding: 1.5rem 1.25rem 4rem;
 	font-family: 'Inter', sans-serif;
 	color: #282120;
 }
 
 .citykleta-bike-single__back {
 	display: inline-block;
-	margin-bottom: 1.5rem;
+	margin-bottom: 1.25rem;
 	font-size: 0.9rem;
 	color: #5a5250;
 	text-decoration: none;
@@ -28,143 +30,215 @@
 	color: #151b1d;
 }
 
-.citykleta-bike-single__layout {
-	display: grid;
-	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-	gap: 2.5rem;
-	align-items: start;
+/* -------------------------------------------------------------------------
+ * Encabezado
+ * ------------------------------------------------------------------------- */
+
+.citykleta-bike-single__header {
+	margin-bottom: 1.25rem;
 }
 
-@media (max-width: 860px) {
-	.citykleta-bike-single__layout {
-		grid-template-columns: 1fr;
-		gap: 1.75rem;
-	}
+.citykleta-bike-single__title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+	line-height: 1.15;
+	color: #151b1d;
+	margin: 0 0 0.5rem;
 }
 
-/* Columna de la foto */
+/* Ubicación y etiquetas en una sola línea que envuelve si no cabe. */
+.citykleta-bike-single__subhead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 0.75rem;
+}
 
-.citykleta-bike-single__media {
-	position: relative;
-	border-radius: 3px;
-	overflow: hidden;
+.citykleta-bike-single__location {
+	font-size: 0.95rem;
+	color: #5a5250;
+}
+
+.citykleta-bike-single__tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.citykleta-bike-single__tag {
+	padding: 0.15rem 0.6rem;
+	border-radius: 999px;
 	background: #f0ece0;
-	aspect-ratio: 3 / 2;
+	font-size: 0.78rem;
+	color: #5a5250;
+	white-space: nowrap;
 }
 
-.citykleta-bike-single__media img {
+/* -------------------------------------------------------------------------
+ * Mosaico de fotos
+ *
+ * Rejilla fija de 4 columnas × 2 filas: la primera foto ocupa siempre la
+ * mitad izquierda y las demás se reparten la derecha. Cada cantidad (1 a 5,
+ * ver Citykleta_Bike_Meta::MAX_IMAGES) tiene su propio reparto en vez de
+ * dejarlo al auto-placement, que con 3 o 4 fotos deja huecos.
+ * ------------------------------------------------------------------------- */
+
+.citykleta-bike-single__gallery {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	grid-template-rows: repeat(2, 1fr);
+	gap: 0.5rem;
+	aspect-ratio: 2 / 1;
+	/* width explícito + max-height: el ancho queda "definido" y la proporción
+	   solo calcula el alto, que el tope recorta. Sin el width, limitar el alto
+	   encoge también el ancho (la proporción se mantiene por los dos lados) y
+	   el mosaico deja de llegar al borde del contenido. */
+	width: 100%;
+	max-height: 68vh;
+	margin-bottom: 2.5rem;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.citykleta-bike-single__shot {
+	position: relative;
+	margin: 0;
+	background: #f0ece0;
+	overflow: hidden;
+}
+
+.citykleta-bike-single__shot img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 	display: block;
 }
 
-.citykleta-bike-single__badge {
-	position: absolute;
-	top: 0.75rem;
-	right: 0.75rem;
-	padding: 0.25rem 0.8rem;
-	border-radius: 3px;
-	font-size: 0.8rem;
-	font-weight: 500;
+/* La primera foto siempre manda: mitad izquierda, alto completo. */
+.citykleta-bike-single__shot:first-child {
+	grid-column: span 2;
+	grid-row: span 2;
 }
 
-.citykleta-bike-single__badge--available {
-	background: #fed94c;
-	color: #151b1d;
+/* Una sola foto: ocupa todo, y con una proporción más cómoda que 2/1. */
+.citykleta-bike-single__gallery--count-1 {
+	aspect-ratio: 3 / 2;
 }
 
-.citykleta-bike-single__badge--unavailable {
-	background: #e5e0d3;
-	color: #5a5250;
+.citykleta-bike-single__gallery--count-1 .citykleta-bike-single__shot:first-child {
+	grid-column: span 4;
 }
 
-/* Columna izquierda: imagen + título debajo */
-
-.citykleta-bike-single__title {
-	font-family: 'Poppins', sans-serif;
-	font-weight: 600;
-	font-size: 1.9rem;
-	line-height: 1.2;
-	color: #151b1d;
-	text-align: left;
-	margin: 1rem 0 0;
+/* Dos: mitad y mitad. */
+.citykleta-bike-single__gallery--count-2 .citykleta-bike-single__shot:nth-child(2) {
+	grid-column: span 2;
+	grid-row: span 2;
 }
 
-/* Columna de datos */
-
-.citykleta-bike-single__model {
-	margin: 0 0 1rem;
-	color: #5a5250;
+/* Tres: la grande más dos apiladas a la derecha. */
+.citykleta-bike-single__gallery--count-3 .citykleta-bike-single__shot:nth-child(2),
+.citykleta-bike-single__gallery--count-3 .citykleta-bike-single__shot:nth-child(3) {
+	grid-column: span 2;
 }
 
-.citykleta-bike-single__location {
-	margin: 0 0 1.25rem;
-	font-size: 0.95rem;
-	color: #5a5250;
+/* Cuatro: la grande, dos chicas arriba y una ancha abajo. */
+.citykleta-bike-single__gallery--count-4 .citykleta-bike-single__shot:nth-child(4) {
+	grid-column: span 2;
 }
 
-.citykleta-bike-single__price {
-	font-family: 'Poppins', sans-serif;
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: #151b1d;
-	margin: 0 0 1.5rem;
+/* Cinco: la grande más una cuadrícula 2×2 a la derecha (sin reglas extra —
+   cada foto ocupa una celda, que es el reparto por defecto). */
+
+/*
+ * En móvil el mosaico no se sostiene (cinco fotos en media pantalla no se
+ * ven): pasa a carrusel horizontal con scroll-snap, sin JS.
+ */
+@media (max-width: 700px) {
+	.citykleta-bike-single__gallery,
+	.citykleta-bike-single__gallery--count-1 {
+		display: flex;
+		aspect-ratio: auto;
+		gap: 0.5rem;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		border-radius: 0;
+		margin-bottom: 2rem;
+		/* Sangrado a los bordes de la pantalla: el carrusel se ve "cortado"
+		   por el borde, que es lo que insinúa que hay más fotos al lado. */
+		margin-left: -1.25rem;
+		margin-right: -1.25rem;
+		padding: 0 1.25rem;
+		scroll-padding: 0 1.25rem;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.citykleta-bike-single__shot,
+	.citykleta-bike-single__shot:first-child {
+		flex: 0 0 85%;
+		aspect-ratio: 3 / 2;
+		scroll-snap-align: start;
+		border-radius: 6px;
+	}
+
+	/*
+	 * Con una sola foto no hay nada que deslizar: se quita el sangrado del
+	 * carrusel, que si no la dejaría más angosta que el texto de abajo.
+	 */
+	.citykleta-bike-single__gallery--count-1 {
+		margin-left: 0;
+		margin-right: 0;
+		padding: 0;
+	}
+
+	.citykleta-bike-single__gallery--count-1 .citykleta-bike-single__shot {
+		flex-basis: 100%;
+	}
 }
 
-.citykleta-bike-single__price span {
-	font-family: 'Inter', sans-serif;
-	font-size: 0.9rem;
-	font-weight: 400;
-	color: #5a5250;
+/* -------------------------------------------------------------------------
+ * Cuerpo: contenido + tarjeta de precio
+ * ------------------------------------------------------------------------- */
+
+.citykleta-bike-single__layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 320px;
+	gap: 3rem;
+	align-items: start;
 }
 
-/* Etiquetas de tipo de bici / eléctrica */
-
-.citykleta-bike-single__tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.4rem;
-	margin: 0 0 1.5rem;
-	padding: 0;
-	list-style: none;
+@media (max-width: 860px) {
+	.citykleta-bike-single__layout {
+		grid-template-columns: 1fr;
+		gap: 2rem;
+	}
 }
 
-.citykleta-bike-single__tag {
-	padding: 0.2rem 0.7rem;
-	border-radius: 3px;
-	background: #f0ece0;
-	font-size: 0.8rem;
-	color: #5a5250;
-}
-
-/* Ficha técnica */
-
-.citykleta-bike-single__specs {
-	margin: 0 0 1.75rem;
-	padding: 0;
-	list-style: none;
+.citykleta-bike-single__section + .citykleta-bike-single__section,
+.citykleta-bike-single__owner + .citykleta-bike-single__section {
+	margin-top: 2rem;
+	padding-top: 2rem;
 	border-top: 1px solid #e5e0d3;
 }
 
-.citykleta-bike-single__spec {
-	display: flex;
-	justify-content: space-between;
-	gap: 1rem;
-	padding: 0.65rem 0;
-	border-bottom: 1px solid #e5e0d3;
-	font-size: 0.9rem;
+.citykleta-bike-single__section-title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: 1.1rem;
+	color: #151b1d;
+	margin: 0 0 0.75rem;
 }
 
-.citykleta-bike-single__spec dt {
-	color: #5a5250;
-	margin: 0;
+.citykleta-bike-single__description {
+	line-height: 1.65;
+	color: #282120;
 }
 
-.citykleta-bike-single__spec dd {
-	margin: 0;
-	font-weight: 500;
-	text-align: right;
+.citykleta-bike-single__description > *:last-child {
+	margin-bottom: 0;
 }
 
 /* Propietario */
@@ -172,45 +246,114 @@
 .citykleta-bike-single__owner {
 	display: flex;
 	align-items: center;
-	gap: 0.7rem;
-	padding: 0.9rem 0;
-	border-top: 1px solid #e5e0d3;
-	margin-bottom: 1.5rem;
+	gap: 0.75rem;
 }
 
-.citykleta-bike-single__owner img {
-	width: 40px;
-	height: 40px;
+.citykleta-bike-single__owner-photo {
+	width: 48px;
+	height: 48px;
 	border-radius: 50%;
 	object-fit: cover;
-	box-shadow: 0 0 0 0.5px rgba(21, 27, 29, 0.15);
+	background: #f0ece0;
+	flex-shrink: 0;
 }
 
 .citykleta-bike-single__owner-label {
+	display: block;
 	font-size: 0.8rem;
 	color: #5a5250;
-	display: block;
 }
 
 .citykleta-bike-single__owner-name {
-	font-weight: 600;
-	color: #151b1d;
-}
-
-/* Descripción / especificaciones largas, debajo de las dos columnas */
-
-.citykleta-bike-single__description {
-	margin-top: 2.5rem;
-	padding-top: 2rem;
-	border-top: 1px solid #e5e0d3;
-	max-width: 70ch;
-	line-height: 1.7;
-}
-
-.citykleta-bike-single__description h2 {
+	display: block;
 	font-family: 'Poppins', sans-serif;
 	font-weight: 600;
-	font-size: 1.2rem;
+	color: #151b1d;
+}
+
+/*
+ * Ficha técnica en dos columnas de pares etiqueta/valor. El diseño anterior
+ * usaba filas a todo el ancho con el valor pegado al borde derecho, que a
+ * 1200px dejaba medio metro de vacío entre la etiqueta y su dato.
+ */
+.citykleta-bike-single__specs {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 0.75rem 2rem;
+	margin: 0;
+}
+
+.citykleta-bike-single__spec {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	padding-bottom: 0.75rem;
+	border-bottom: 1px solid #f0ece0;
+}
+
+.citykleta-bike-single__spec dt {
+	font-size: 0.8rem;
+	color: #5a5250;
+}
+
+.citykleta-bike-single__spec dd {
+	margin: 0;
+	font-weight: 600;
+	color: #151b1d;
+}
+
+/* Tarjeta de precio */
+
+.citykleta-bike-single__aside {
+	position: sticky;
+	/* Deja aire arriba y esquiva la barra de admin cuando está logueado. */
+	top: 2rem;
+}
+
+@media (max-width: 860px) {
+	.citykleta-bike-single__aside {
+		position: static;
+	}
+}
+
+.citykleta-bike-single__price-card {
+	padding: 1.5rem;
+	border: 1px solid #e5e0d3;
+	border-radius: 8px;
+	background: #fff;
+	box-shadow: 0 2px 10px rgba(21, 27, 29, 0.06);
+}
+
+.citykleta-bike-single__price {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: 1.5rem;
 	color: #151b1d;
 	margin: 0 0 0.75rem;
+}
+
+.citykleta-bike-single__status {
+	display: inline-block;
+	margin: 0 0 1rem;
+	padding: 0.25rem 0.75rem;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.citykleta-bike-single__status--available {
+	background: #fed94c;
+	color: #151b1d;
+}
+
+.citykleta-bike-single__status--unavailable {
+	background: #f0ece0;
+	color: #5a5250;
+}
+
+.citykleta-bike-single__note {
+	margin: 0;
+	font-size: 0.85rem;
+	line-height: 1.5;
+	color: #5a5250;
 }

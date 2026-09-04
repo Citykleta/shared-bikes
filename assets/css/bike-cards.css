@@ -32,7 +32,15 @@
 	gap: 1.5rem;
 }
 
-/* Usadas por el widget de Elementor, donde el usuario elige la cantidad de columnas. */
+/*
+ * Usadas por el widget de Elementor, donde el usuario elige la cantidad de
+ * columnas. --cols-1 no entra en los media queries de abajo a propósito: ya
+ * es una sola columna en cualquier ancho, así que no hay nada que colapsar.
+ */
+.citykleta-bike-grid--cols-1 {
+	grid-template-columns: 1fr;
+}
+
 .citykleta-bike-grid--cols-2 {
 	grid-template-columns: repeat(2, 1fr);
 }
@@ -45,19 +53,45 @@
 	grid-template-columns: repeat(4, 1fr);
 }
 
+.citykleta-bike-grid--cols-5 {
+	grid-template-columns: repeat(5, 1fr);
+}
+
 @media (max-width: 780px) {
 	.citykleta-bike-grid--cols-2,
 	.citykleta-bike-grid--cols-3,
-	.citykleta-bike-grid--cols-4 {
+	.citykleta-bike-grid--cols-4,
+	.citykleta-bike-grid--cols-5 {
 		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-2,
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-3,
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-4,
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-5 {
+		column-count: 2;
+	}
+
+	/* Left/Right would squeeze the image into an unusably narrow column here. */
+	.citykleta-bike-card--image-left,
+	.citykleta-bike-card--image-right {
+		display: block;
 	}
 }
 
 @media (max-width: 480px) {
 	.citykleta-bike-grid--cols-2,
 	.citykleta-bike-grid--cols-3,
-	.citykleta-bike-grid--cols-4 {
+	.citykleta-bike-grid--cols-4,
+	.citykleta-bike-grid--cols-5 {
 		grid-template-columns: 1fr;
+	}
+
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-2,
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-3,
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-4,
+	.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-5 {
+		column-count: 1;
 	}
 }
 
@@ -76,6 +110,73 @@
 .citykleta-bike-card:hover {
 	box-shadow: 0 4px 12px rgba(21, 27, 29, 0.15);
 	transform: translateY(-2px);
+}
+
+/*
+ * Image Position (Bikes Grid widget: Top/Left/Right/None). Top is the
+ * default block stacking above and needs no override here. Left/Right turn
+ * the card into a row; the image's height then comes from the row itself
+ * (align-items: stretch), not from the Image Ratio control, which is
+ * disabled in the widget for those two positions.
+ */
+.citykleta-bike-card--image-left,
+.citykleta-bike-card--image-right {
+	display: flex;
+	align-items: stretch;
+}
+
+.citykleta-bike-card--image-right {
+	flex-direction: row-reverse;
+}
+
+.citykleta-bike-card--image-left .citykleta-bike-card__image,
+.citykleta-bike-card--image-right .citykleta-bike-card__image {
+	flex: 0 0 40%;
+	aspect-ratio: auto;
+}
+
+.citykleta-bike-card--image-left .citykleta-bike-card__body,
+.citykleta-bike-card--image-right .citykleta-bike-card__body {
+	flex: 1;
+	min-width: 0;
+}
+
+/*
+ * Masonry: CSS multi-column layout instead of grid, so cards keep their
+ * natural height (Pinterest-style) instead of stretching to match the
+ * tallest card in the row. column-gap is already set by the "Columns Gap"
+ * control (it targets .citykleta-bike-grid, and that property name works
+ * the same in both grid and multi-column layouts); vertical spacing comes
+ * from each card's own margin-bottom instead of row-gap, which multi-column
+ * layout has no equivalent for — see the widget's "Rows Gap" control.
+ */
+.citykleta-bike-grid--masonry {
+	display: block;
+}
+
+.citykleta-bike-grid--masonry .citykleta-bike-card {
+	break-inside: avoid;
+	margin-bottom: 1.5rem;
+}
+
+.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-1 {
+	column-count: 1;
+}
+
+.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-2 {
+	column-count: 2;
+}
+
+.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-3 {
+	column-count: 3;
+}
+
+.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-4 {
+	column-count: 4;
+}
+
+.citykleta-bike-grid--masonry.citykleta-bike-grid--cols-5 {
+	column-count: 5;
 }
 
 .citykleta-bike-card__image {

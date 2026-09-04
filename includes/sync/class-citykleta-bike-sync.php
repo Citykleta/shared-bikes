@@ -730,9 +730,8 @@ class Citykleta_Bike_Sync {
 			update_post_meta( $post_id, 'owner_phone', sanitize_text_field( $item['owner']['phone'] ) );
 		}
 
-		// Only the first image is used until gallery support exists.
-		if ( ! empty( $item['images'][0] ) ) {
-			$this->sync_image( $post_id, esc_url_raw( $item['images'][0] ) );
+		if ( ! empty( $item['images'] ) && is_array( $item['images'] ) ) {
+			$this->sync_images( $post_id, $item['images'] );
 		}
 
 		if ( ! empty( $item['bike_type'] ) ) {
@@ -780,6 +779,83 @@ class Citykleta_Bike_Sync {
 		}
 
 		return 'Bike #' . (int) $item['id'];
+	}
+
+	/**
+	 * Stores a bike's photos: the first one as the featured image (where the
+	 * rest of the plugin already looks for it), the others as attachment IDs
+	 * in Citykleta_Bike_Meta::GALLERY_META, in the order the API sent them.
+	 *
+	 * Capped at Citykleta_Bike_Meta::MAX_IMAGES so a bike with a long photo
+	 * roll can't turn one sync into dozens of downloads plus their generated
+	 * thumbnail sets — the same cost problem that made the shared-attachment
+	 * lookup necessary in the first place (see sync_image()).
+	 *
+	 * The gallery meta is always rewritten, even to empty: a photo removed in
+	 * the app has to disappear here too, rather than linger from an older
+	 * sync.
+	 *
+	 * @param int   $post_id "bike" post ID.
+	 * @param array $urls    Absolute image URLs, featured first (see normalize_item()).
+	 */
+	private function sync_images( $post_id, array $urls ) {
+		$urls = array_slice( array_filter( $urls ), 0, Citykleta_Bike_Meta::MAX_IMAGES );
+
+		if ( ! $urls ) {
+			delete_post_meta( $post_id, Citykleta_Bike_Meta::GALLERY_META );
+			return;
+		}
+
+		$this->sync_image( $post_id, esc_url_raw( array_shift( $urls ) ) );
+
+		$gallery_ids = array();
+
+		foreach ( $urls as $url ) {
+			$attachment_id = $this->resolve_attachment( esc_url_raw( $url ), $post_id );
+
+			if ( $attachment_id ) {
+				$gallery_ids[] = $attachment_id;
+			}
+		}
+
+		if ( $gallery_ids ) {
+			update_post_meta( $post_id, Citykleta_Bike_Meta::GALLERY_META, $gallery_ids );
+		} else {
+			delete_post_meta( $post_id, Citykleta_Bike_Meta::GALLERY_META );
+		}
+	}
+
+	/**
+	 * Attachment ID for a source URL, downloading it only if no attachment
+	 * came from that URL before. Shared by the featured image and the gallery
+	 * so both benefit from the one-attachment-per-source-URL rule described
+	 * in sync_image().
+	 *
+	 * @param string $image_url Image URL on the external API.
+	 * @param int    $post_id   "bike" post ID the download is attributed to.
+	 * @return int Attachment ID, or 0 when the download failed.
+	 */
+	private function resolve_attachment( $image_url, $post_id ) {
+		$attachment_id = $this->find_attachment_by_source( $image_url );
+
+		if ( $attachment_id ) {
+			return (int) $attachment_id;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$attachment_id = $this->sideload_image( $image_url, $post_id );
+
+		if ( is_wp_error( $attachment_id ) ) {
+			update_option( 'citykleta_last_image_error', $attachment_id->get_error_message() . ' (' . $image_url . ')' );
+			return 0;
+		}
+
+		update_post_meta( $attachment_id, self::IMAGE_SOURCE_META, $image_url );
+
+		return (int) $attachment_id;
 	}
 
 	/**

@@ -267,4 +267,54 @@ class Citykleta_Bike_Meta {
 	public static function price_html( $post_id ) {
 		return self::format_price( self::price_amount( $post_id ) );
 	}
+
+	/**
+	 * Meta key holding the attachment IDs of a bike's extra photos, in the
+	 * order the API sent them. The featured image is NOT in here — it stays
+	 * where WordPress expects it (_thumbnail_id) so every existing consumer
+	 * (cards, map popups, REST) keeps working untouched. Written by
+	 * Citykleta_Bike_Sync; read through gallery_ids() below.
+	 */
+	const GALLERY_META = '_citykleta_gallery_ids';
+
+	/**
+	 * How many photos a bike shows at most, featured image included.
+	 *
+	 * The single-bike template's mosaic is laid out for up to this many; the
+	 * sync stops downloading past it, so the cap is enforced once, on the way
+	 * in, rather than in every place that displays photos.
+	 */
+	const MAX_IMAGES = 5;
+
+	/**
+	 * All of a bike's photos as attachment IDs, featured image first.
+	 *
+	 * Deduplicated (the same attachment is shared between bikes when they
+	 * point at the same source URL, and could otherwise repeat within one
+	 * bike) and capped at MAX_IMAGES.
+	 *
+	 * @param int $post_id Bike post ID.
+	 * @return int[] Attachment IDs, possibly empty.
+	 */
+	public static function gallery_ids( $post_id ) {
+		$ids = array();
+
+		$featured = (int) get_post_thumbnail_id( $post_id );
+
+		if ( $featured ) {
+			$ids[] = $featured;
+		}
+
+		$extra = get_post_meta( $post_id, self::GALLERY_META, true );
+
+		if ( is_array( $extra ) ) {
+			foreach ( $extra as $id ) {
+				$ids[] = (int) $id;
+			}
+		}
+
+		$ids = array_values( array_unique( array_filter( $ids ) ) );
+
+		return array_slice( $ids, 0, self::MAX_IMAGES );
+	}
 }

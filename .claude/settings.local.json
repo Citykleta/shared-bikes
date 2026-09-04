@@ -35,7 +35,13 @@
       "Bash(curl -sf -o js/leaflet.markercluster.js https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js)",
       "Bash(curl -sf -o css/MarkerCluster.css https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css)",
       "Bash(curl -sf -o css/MarkerCluster.Default.css https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css)",
-      "Bash(node -e \"const d=require\\('./bikes-mock.json'\\); console.log\\('total entries:', d.data.length, 'meta.total:', d.meta.total\\); const ids=d.data.map\\(b=>b.id\\); console.log\\('ids ok:', JSON.stringify\\(ids\\)===JSON.stringify\\([...Array\\(41\\)].map\\(\\(_,i\\)=>i+1\\)\\)\\);\")"
+      "Bash(node -e \"const d=require\\('./bikes-mock.json'\\); console.log\\('total entries:', d.data.length, 'meta.total:', d.meta.total\\); const ids=d.data.map\\(b=>b.id\\); console.log\\('ids ok:', JSON.stringify\\(ids\\)===JSON.stringify\\([...Array\\(41\\)].map\\(\\(_,i\\)=>i+1\\)\\)\\);\")",
+      "Read(//c/Users/Yasser/Local Sites/mysite/app/public/wp-content/plugins/**)",
+      "Read(//c/Users/Yasser/Local Sites/**)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"bikesPublic/sync: %{http_code}\\\\n\" http://localhost:8001/bikesPublic/sync)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"reservations: %{http_code}\\\\n\" http://localhost:8001/reservations)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"orders: %{http_code}\\\\n\" http://localhost:8001/orders)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"root: %{http_code}\\\\n\" http://localhost:8001/)"
     ]
   }
 }
