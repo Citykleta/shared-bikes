@@ -1334,6 +1334,19 @@ class Citykleta_Settings {
 				'detail'  => 'Same <code>filters="url"</code> as the grid — put both on the same page and they stay in sync.',
 			),
 		);
+
+		// The single-bike pieces. Listed apart because they behave
+		// differently: they take no query settings at all, they just draw
+		// whichever bike the visitor is looking at.
+		$bike_parts = array(
+			array( '[citykleta_bike_gallery]', 'Photo carousel.' ),
+			array( '[citykleta_bike_header]', 'Title, location and tags.' ),
+			array( '[citykleta_bike_owner]', '"Publicado por" + owner photo.' ),
+			array( '[citykleta_bike_description]', "The bike's own description." ),
+			array( '[citykleta_bike_specs]', 'Brand, model, size, wheel size.' ),
+			array( '[citykleta_bike_request]', 'Price + the request form.' ),
+			array( '[citykleta_bike_location]', 'Small pickup map.' ),
+		);
 		?>
 		<style>
 			.citykleta-frontend-ref { max-width: 820px; }
@@ -1375,10 +1388,26 @@ class Citykleta_Settings {
 				</tbody>
 			</table>
 
-			<p>This is exactly how the bikes results page ("Bicicletas (resultados)", shown at
-			<code>/bikes/</code>) is put together by default — see
-			<a href="<?php echo esc_url( admin_url( 'edit.php?post_type=page' ) ); ?>">Pages</a> to open
-			and redesign it in Elementor.</p>
+			<h2 style="margin-top:2em;">Single bike pieces</h2>
+			<p>These draw whichever bike the visitor is looking at, so they take no query
+			settings — drop them on the "Single bike" template and arrange them freely.
+			On any other page they render nothing (in the Elementor editor they show the
+			most recent bike, so you can see what you're designing).</p>
+
+			<table>
+				<tbody>
+					<?php foreach ( $bike_parts as $part ) : ?>
+						<tr>
+							<td class="citykleta-frontend-ref__code"><code><?php echo esc_html( $part[0] ); ?></code></td>
+							<td><span class="citykleta-frontend-ref__summary"><?php echo esc_html( $part[1] ); ?></span></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<p>Both the results page (<code>/bikes/</code>) and each bike's page are drawn from
+			layouts you can edit: <a href="<?php echo esc_url( admin_url( 'edit.php?post_type=' . Citykleta_Template_Post_Type::POST_TYPE ) ); ?>">Bicicletas&nbsp;→&nbsp;Templates</a>.
+			Open one and hit "Edit with Elementor" — no Elementor Pro needed.</p>
 		</div>
 		<?php
 	}

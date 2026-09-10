@@ -50,6 +50,35 @@ class Citykleta_Elementor {
 			CITYKLETA_VERSION
 		);
 
+		// Pieces of a single-bike layout (Citykleta_Bike_Part_Widgets) can be
+		// dropped on any page now, not just a bike's own — including the
+		// Elementor canvas while a template is being designed. Same
+		// "enqueue early, not inside render()" reason as everything else
+		// here; templates/single-bike.php no longer has to load these
+		// itself. Splide is vendor and may be missing (see CLAUDE.md).
+		if ( file_exists( CITYKLETA_PATH . 'assets/js/splide.min.js' ) ) {
+			wp_enqueue_style(
+				'splide',
+				CITYKLETA_URL . 'assets/css/splide.min.css',
+				array(),
+				CITYKLETA_VERSION
+			);
+		}
+
+		wp_enqueue_style(
+			'citykleta-single-bike',
+			CITYKLETA_URL . 'assets/css/single-bike.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_style(
+			'citykleta-bike-request',
+			CITYKLETA_URL . 'assets/css/bike-request.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
 		// Flatpickr (date-range calendar) — see enqueue_scripts() for why
 		// it's loaded early instead of inside render().
 		if ( file_exists( CITYKLETA_PATH . 'assets/css/flatpickr.min.css' ) ) {
@@ -170,6 +199,31 @@ class Citykleta_Elementor {
 			true
 		);
 
+		// Splide + the gallery glue, for the Bike Gallery widget. Same
+		// reasoning as the styles above: these widgets are no longer tied to
+		// templates/single-bike.php. Vendor file may be missing (CLAUDE.md).
+		if ( file_exists( CITYKLETA_PATH . 'assets/js/splide.min.js' ) ) {
+			wp_enqueue_script(
+				'splide',
+				CITYKLETA_URL . 'assets/js/splide.min.js',
+				array(),
+				CITYKLETA_VERSION,
+				true
+			);
+		}
+
+		wp_enqueue_script(
+			'citykleta-bike-gallery',
+			CITYKLETA_URL . 'assets/js/citykleta-bike-gallery.js',
+			array( 'splide' ),
+			CITYKLETA_VERSION,
+			true
+		);
+
+		// The request form's own JS needs its REST base, so it goes through
+		// the form class rather than being enqueued straight from here.
+		Citykleta_Bike_Request_Form::enqueue_form_assets();
+
 		// Leaflet + Leaflet.markercluster (bikes map widget).
 		if ( file_exists( CITYKLETA_PATH . 'assets/js/leaflet.js' ) ) {
 			wp_enqueue_script(
@@ -226,5 +280,18 @@ class Citykleta_Elementor {
 		$widgets_manager->register( new Citykleta_Bike_Widget() );
 		$widgets_manager->register( new Citykleta_Search_Widget() );
 		$widgets_manager->register( new Citykleta_Map_Widget() );
+
+		// The pieces a single-bike layout is built from. They resolve the
+		// bike from the current query themselves, which is what lets one
+		// layout serve every bike without Elementor Pro's Dynamic Tags —
+		// see Citykleta_Bike_Part_Widget.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-bike-part-widgets.php';
+		$widgets_manager->register( new Citykleta_Bike_Gallery_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Header_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Owner_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Description_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Specs_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Request_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Location_Widget() );
 	}
 }

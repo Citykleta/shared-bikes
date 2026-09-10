@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Citykleta Shared Bikes
  * Description: Integración de bicicletas compartidas de Citykleta.
- * Version: 0.1.9
+ * Version: 0.2.0
  * Author: Yasser
  * License: GPL-2.0-or-later
  * Text Domain: citykleta-shared-bikes
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Constantes del plugin.
-define( 'CITYKLETA_VERSION', '0.1.9' );
+define( 'CITYKLETA_VERSION', '0.2.0' );
 define( 'CITYKLETA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
 
@@ -25,6 +25,7 @@ define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
  */
 require_once CITYKLETA_PATH . 'includes/post-types/class-bike-post-type.php';
 require_once CITYKLETA_PATH . 'includes/post-types/class-citykleta-destination-post-type.php';
+require_once CITYKLETA_PATH . 'includes/post-types/class-citykleta-template-post-type.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-usage-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-bike-meta.php';
@@ -64,6 +65,11 @@ function citykleta_init() {
 	// Citykleta_Bike_Sync::run()).
 	( new Citykleta_Destination_Post_Type() )->register();
 
+	// "Templates": los layouts con los que se dibujan las páginas propias
+	// del plugin (resultados, ficha de una bici). Tipo de contenido privado,
+	// editable con Elementor gratis — ver Citykleta_Template_Post_Type.
+	( new Citykleta_Template_Post_Type() )->register();
+
 	// Taxonomía de tipo de bicicleta (Road, MTB XC, Cargo bicycle, etc.).
 	( new Citykleta_Bike_Type_Taxonomy() )->register();
 
@@ -93,9 +99,10 @@ function citykleta_init() {
 	// y colores del mapa.
 	( new Citykleta_Settings() )->register();
 
-	// Plantilla del archivo de bicis: sirve el contenido de una Page
-	// editable (ver Citykleta_Templates::ensure_bikes_page()), armada por
-	// defecto con los shortcodes de abajo — no una grilla fija.
+	// Plantillas del front-end: el archivo de bicis y la ficha de una bici
+	// dibujan la plantilla editable que les toca (ver
+	// Citykleta_Templates::ensure_results_template() /
+	// ensure_single_bike_template()), no un diseño fijo.
 	( new Citykleta_Templates() )->register();
 
 	// [citykleta_search] / [citykleta_grid] / [citykleta_map]: los mismos

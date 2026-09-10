@@ -107,84 +107,221 @@ class Citykleta_Templates {
 	}
 
 	/**
-	 * Option holding the ID of the editable Page whose content is shown at
-	 * the bikes archive URL. See ensure_bikes_page().
+	 * Option that used to hold the results Page's ID, back when the results
+	 * layout lived in a normal WordPress Page. Kept only so the one-time
+	 * migration below can find that page and clean it up — templates are
+	 * their own private post type now (Citykleta_Template_Post_Type).
 	 */
-	const BIKES_PAGE_OPTION = 'citykleta_bikes_page_id';
+	const LEGACY_BIKES_PAGE_OPTION = 'citykleta_bikes_page_id';
 
 	/**
-	 * Returns the ID of the Page that holds the results shortcodes, creating
-	 * it the first time it's needed. Same trick WooCommerce uses for its
-	 * "Shop" page: a normal, freely editable Page (no Elementor Pro required
-	 * — this isn't a content-type template) whose content is shown at the
-	 * archive URL by load_archive_template()/templates/archive-bike.php,
-	 * instead of a fixed template. The Page's own permalink is never visited
-	 * directly by a visitor; only its content is pulled.
+	 * The template drawn at the bikes archive URL, created on first need.
 	 *
-	 * Idempotent and cheap on the common path: one get_option() read, no
-	 * query, unless the page has never been created or was trashed/deleted.
-	 *
-	 * @return int Page ID, or 0 if creation somehow failed.
+	 * @return WP_Post|null
 	 */
-	public static function ensure_bikes_page() {
-		$page_id = (int) get_option( self::BIKES_PAGE_OPTION );
-		$page    = $page_id ? get_post( $page_id ) : null;
+	public static function ensure_results_template() {
+		self::migrate_legacy_bikes_page();
 
-		if ( $page && 'trash' !== $page->post_status ) {
-			// One-time upgrade: an earlier version of this page shipped with
-			// the now-retired [citykleta_bikes] all-in-one shortcode as its
-			// content. Only touches the page if it still has EXACTLY that
-			// untouched default — anyone who already edited the page (in
-			// Elementor or otherwise) keeps whatever they built.
-			if ( '[citykleta_bikes]' === trim( $page->post_content ) ) {
-				wp_update_post(
-					array(
-						'ID'           => $page_id,
-						'post_content' => self::default_bikes_page_content(),
-					)
-				);
-			}
-
-			return $page_id;
-		}
-
-		$page_id = wp_insert_post(
-			array(
-				'post_type'    => 'page',
-				'post_status'  => 'publish',
-				'post_title'   => 'Bicicletas (resultados)',
-				'post_name'    => 'citykleta-bikes-results',
-				// A shortcode alone on its own line renders cleanly (WordPress
-				// unwraps the stray <p> wpautop would otherwise add around a
-				// lone block-level shortcode) — see shortcode_unautop().
-				'post_content' => self::default_bikes_page_content(),
-			),
-			true
+		return Citykleta_Template_Post_Type::ensure_template(
+			'results',
+			'Bike results',
+			self::default_results_content(),
+			self::default_results_layout()
 		);
-
-		if ( is_wp_error( $page_id ) || ! $page_id ) {
-			return 0;
-		}
-
-		update_option( self::BIKES_PAGE_OPTION, $page_id );
-
-		return (int) $page_id;
 	}
 
 	/**
-	 * Default content for the auto-created results page: search, map, then
-	 * the grid, as three independent pieces (Citykleta_Search_Widget,
-	 * Citykleta_Map_Widget, Citykleta_Bike_Widget — via their shortcode
-	 * wrappers, see includes/elementor/class-citykleta-widget-shortcodes.php)
-	 * instead of one bundled block. The map and grid both read the URL's
-	 * search filters (`filters="url"`) and the map has no show/hide toggle
-	 * anymore — it's just always there, a plain starting point meant to be
-	 * redesigned in Elementor, not a fixed "showroom" experience.
+	 * The template drawn on a bike's own page, created on first need.
+	 *
+	 * @return WP_Post|null
+	 */
+	public static function ensure_single_bike_template() {
+		return Citykleta_Template_Post_Type::ensure_template(
+			'single_bike',
+			'Single bike',
+			self::default_single_bike_content(),
+			self::default_single_bike_layout()
+		);
+	}
+
+	/**
+	 * The results layout as real Elementor elements: three full-width
+	 * sections, one per piece. Opening this in Elementor shows three widgets
+	 * you can drag, restyle and reorder — not a block of shortcode text.
+	 *
+	 * @return array
+	 */
+	public static function default_results_layout() {
+		$t = 'Citykleta_Template_Post_Type';
+
+		return array(
+			$t::el_section( array( $t::el_column( 100, array( $t::el_widget( 'citykleta_search' ) ) ) ) ),
+			$t::el_section(
+				array(
+					$t::el_column(
+						100,
+						array(
+							$t::el_widget(
+								'citykleta_map',
+								array(
+									'use_url_filters' => 'yes',
+									'map_height'      => array(
+										'unit'  => 'px',
+										'size'  => 450,
+										'sizes' => array(),
+									),
+								)
+							),
+						)
+					),
+				)
+			),
+			$t::el_section(
+				array(
+					$t::el_column(
+						100,
+						array(
+							$t::el_widget(
+								'citykleta_bikes',
+								array(
+									'use_url_filters' => 'yes',
+									'posts_per_page'  => 10,
+									'columns'         => '4',
+								)
+							),
+						)
+					),
+				)
+			),
+		);
+	}
+
+	/**
+	 * The single-bike layout as real Elementor elements: the same two-column
+	 * design the old fixed template had — content on the left, price/request
+	 * card on the right — but every piece is now its own widget on the
+	 * canvas.
+	 *
+	 * @return array
+	 */
+	public static function default_single_bike_layout() {
+		$t = 'Citykleta_Template_Post_Type';
+
+		return array(
+			$t::el_section(
+				array(
+					$t::el_column(
+						66,
+						array(
+							$t::el_widget( 'citykleta_bike_gallery' ),
+							$t::el_widget( 'citykleta_bike_header' ),
+							$t::el_widget( 'citykleta_bike_owner' ),
+							$t::el_widget( 'citykleta_bike_description' ),
+							$t::el_widget( 'citykleta_bike_specs' ),
+							$t::el_widget( 'citykleta_bike_location' ),
+						)
+					),
+					$t::el_column(
+						34,
+						array(
+							$t::el_widget( 'citykleta_bike_request' ),
+						)
+					),
+				),
+				array( 'gap' => 'extended' )
+			),
+		);
+	}
+
+	/**
+	 * Moves the old results Page into the templates post type, once.
+	 *
+	 * The layout used to live in a regular Page ("Bicicletas (resultados)"),
+	 * which meant it sat in the Pages list beside real content and had a URL
+	 * of its own. Whatever was built there is carried over as-is — including
+	 * an Elementor design, since _elementor_data travels with the meta — and
+	 * the old Page is trashed (not deleted: if this migration ever gets
+	 * something wrong, the original is still recoverable by hand).
+	 */
+	private static function migrate_legacy_bikes_page() {
+		$page_id = (int) get_option( self::LEGACY_BIKES_PAGE_OPTION );
+
+		if ( ! $page_id ) {
+			return;
+		}
+
+		$page = get_post( $page_id );
+
+		// Already migrated, or the page is gone: drop the pointer and stop.
+		if ( ! $page || 'page' !== $page->post_type || Citykleta_Template_Post_Type::get_template( 'results' ) ) {
+			delete_option( self::LEGACY_BIKES_PAGE_OPTION );
+			return;
+		}
+
+		$template = Citykleta_Template_Post_Type::ensure_template(
+			'results',
+			$page->post_title,
+			$page->post_content
+		);
+
+		if ( ! $template ) {
+			return;
+		}
+
+		// Elementor keeps its layout in post meta, not post_content — copy it
+		// across so a design built on the old Page survives the move.
+		foreach ( get_post_meta( $page_id ) as $meta_key => $values ) {
+			if ( 0 !== strpos( $meta_key, '_elementor' ) ) {
+				continue;
+			}
+
+			foreach ( $values as $value ) {
+				update_post_meta( $template->ID, $meta_key, maybe_unserialize( $value ) );
+			}
+		}
+
+		wp_trash_post( $page_id );
+		delete_option( self::LEGACY_BIKES_PAGE_OPTION );
+	}
+
+	/**
+	 * Default results layout: search, map, then the grid, as three
+	 * independent pieces (Citykleta_Search_Widget, Citykleta_Map_Widget,
+	 * Citykleta_Bike_Widget — through their shortcode wrappers, see
+	 * includes/elementor/class-citykleta-widget-shortcodes.php). The map and
+	 * grid both read the URL's search filters (`filters="url"`); the map has
+	 * no show/hide toggle, it's simply always there. A plain starting point
+	 * meant to be redesigned in Elementor, not a fixed experience.
 	 *
 	 * @return string
 	 */
-	private static function default_bikes_page_content() {
+	public static function default_results_content() {
 		return "[citykleta_search]\n[citykleta_map filters=\"url\" map_height=\"450\"]\n[citykleta_grid filters=\"url\"]";
+	}
+
+	/**
+	 * Default single-bike layout — the same two-column design the old fixed
+	 * template had (content left, price/request card sticky at the right),
+	 * rebuilt out of the individual pieces so every part of it can now be
+	 * moved, restyled or removed in Elementor. The wrapper divs reuse the
+	 * classes single-bike.css already styles.
+	 *
+	 * @return string
+	 */
+	public static function default_single_bike_content() {
+		return '<div class="citykleta-bike-single">' .
+			'<div class="citykleta-bike-single__layout">' .
+			'<div class="citykleta-bike-single__content">' .
+			'[citykleta_bike_gallery]' .
+			'[citykleta_bike_header]' .
+			'[citykleta_bike_owner]' .
+			'[citykleta_bike_description]' .
+			'[citykleta_bike_specs]' .
+			'[citykleta_bike_location]' .
+			'</div>' .
+			'[citykleta_bike_request]' .
+			'</div>' .
+			'</div>';
 	}
 
 	/**

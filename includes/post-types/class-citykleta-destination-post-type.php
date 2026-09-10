@@ -75,7 +75,7 @@ class Citykleta_Destination_Post_Type {
 			'search_items'  => 'Search Destinations',
 			'not_found'     => 'No destinations found',
 			'menu_name'     => 'Destinations',
-			'all_items'     => 'All Destinations',
+			'all_items'     => 'Destinations',
 		);
 
 		// Editable from Settings → Destinations → URL slug (Citykleta_Settings).

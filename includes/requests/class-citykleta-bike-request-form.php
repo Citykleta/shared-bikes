@@ -37,6 +37,19 @@ class Citykleta_Bike_Request_Form {
 			return;
 		}
 
+		self::enqueue_form_assets();
+	}
+
+	/**
+	 * The form's CSS/JS plus the REST base its script needs.
+	 *
+	 * Public and static because the form is no longer only printed by
+	 * templates/single-bike.php: it's also the "Bike Price & Request"
+	 * Elementor widget/shortcode (Citykleta_Bike_Part_Widgets), which can
+	 * land on any page — so Citykleta_Elementor calls this too. Safe to
+	 * call more than once: wp_enqueue_* dedupes by handle.
+	 */
+	public static function enqueue_form_assets() {
 		wp_enqueue_style(
 			'citykleta-bike-request',
 			CITYKLETA_URL . 'assets/css/bike-request.css',

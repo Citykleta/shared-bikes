@@ -46,23 +46,15 @@ else :
 	get_header();
 endif;
 
-$citykleta_page_id = Citykleta_Templates::ensure_bikes_page();
-$citykleta_page    = $citykleta_page_id ? get_post( $citykleta_page_id ) : null;
+$citykleta_template = Citykleta_Templates::ensure_results_template();
 
-if ( $citykleta_page ) :
-	// Elementor's the_content filter (and anyone else's) only renders the
-	// post it thinks is "current" — swap the global $post so it renders
-	// THIS page's design, not whatever the archive query resolved to.
-	global $post;
-	$post = $citykleta_page; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-	setup_postdata( $post );
-	echo apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	wp_reset_postdata();
-else :
-	// Shouldn't happen — ensure_bikes_page() always returns an id — but
-	// never show a blank page if it somehow does.
-	echo do_shortcode( '[citykleta_bikes]' );
-endif;
+if ( $citykleta_template ) {
+	Citykleta_Template_Post_Type::render_template( $citykleta_template );
+} else {
+	// Shouldn't happen — ensure_results_template() creates it if missing —
+	// but never show a blank page if it somehow does.
+	echo do_shortcode( Citykleta_Templates::default_results_content() );
+}
 
 if ( $is_block_theme ) :
 	block_template_part( 'footer' );

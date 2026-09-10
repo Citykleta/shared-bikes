@@ -309,14 +309,19 @@
 
 /* Tarjeta de precio */
 
-.citykleta-bike-single__aside {
+/*
+ * Pegajoso solo si el widget "Bike Price & Request" lo pide (control "Stick
+ * On Scroll") — antes era fijo en el CSS porque la plantilla era fija; ahora
+ * la decisión es de quien arma el layout.
+ */
+.citykleta-bike-single__aside--sticky {
 	position: sticky;
 	/* Deja aire arriba y esquiva la barra de admin cuando está logueado. */
 	top: 2rem;
 }
 
 @media (max-width: 860px) {
-	.citykleta-bike-single__aside {
+	.citykleta-bike-single__aside--sticky {
 		position: static;
 	}
 }

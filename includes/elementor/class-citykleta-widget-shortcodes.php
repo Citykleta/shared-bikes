@@ -43,7 +43,32 @@ class Citykleta_Widget_Shortcodes {
 		add_shortcode( 'citykleta_search', array( $this, 'render_search' ) );
 		add_shortcode( 'citykleta_grid', array( $this, 'render_grid' ) );
 		add_shortcode( 'citykleta_map', array( $this, 'render_map' ) );
+
+		// Pieces of a single-bike layout — each resolves the bike it's about
+		// from the current query (Citykleta_Bike_Part_Widget::bike_id()), so
+		// they take no bike id, only presentation attributes.
+		foreach ( self::BIKE_PART_SHORTCODES as $tag => $class ) {
+			add_shortcode(
+				$tag,
+				function ( $atts ) use ( $class ) {
+					return self::render_widget( $class, (array) $atts );
+				}
+			);
+		}
 	}
+
+	/**
+	 * Shortcode tag => widget class, for the single-bike pieces.
+	 */
+	const BIKE_PART_SHORTCODES = array(
+		'citykleta_bike_gallery'     => 'Citykleta_Bike_Gallery_Widget',
+		'citykleta_bike_header'      => 'Citykleta_Bike_Header_Widget',
+		'citykleta_bike_owner'       => 'Citykleta_Bike_Owner_Widget',
+		'citykleta_bike_description' => 'Citykleta_Bike_Description_Widget',
+		'citykleta_bike_specs'       => 'Citykleta_Bike_Specs_Widget',
+		'citykleta_bike_request'     => 'Citykleta_Bike_Request_Widget',
+		'citykleta_bike_location'    => 'Citykleta_Bike_Location_Widget',
+	);
 
 	/**
 	 * [citykleta_search] — Citykleta_Search_Widget, no attribute mapping

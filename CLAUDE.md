@@ -593,6 +593,82 @@ le pasó a la última bici procesada**: con 68 fallos se veía el 68º, y si la 
 funcionado no se habría visto ninguno. El código de error se compara contra
 `Citykleta_Bike_Sync::IMAGE_TYPE_ERROR`, no contra el texto del mensaje.
 
+## Plantillas (Bicicletas → Templates)
+
+Las páginas propias del plugin (resultados y ficha de una bici) **ya no son
+plantillas PHP fijas**: cada una dibuja una **plantilla** que el usuario edita con
+Elementor. `Citykleta_Template_Post_Type` registra el CPT `citykleta_template`,
+privado (sin URL, sin archivo, fuera de búsquedas y menús) bajo el menú
+"Bicicletas".
+
+**Funciona con Elementor GRATIS, sin Theme Builder.** Elementor decide si un tipo
+de contenido es editable únicamente con `post_type_supports( $tipo, 'elementor' )`
+(ver `Elementor\Utils::is_post_type_support()`); declarar ese soporte alcanza —
+verificado en vivo con el propio chequeo de Elementor. Lo que Pro agregaría son los
+**Dynamic Tags** (atar un widget genérico de Elementor a un campo de la bici), y
+eso no hace falta acá porque **el plugin trae sus propias piezas y cada una
+resuelve la bici sola**, leyéndola de la query (`get_queried_object_id()` en
+`Citykleta_Bike_Part_Widget::bike_id()`). Ese es el truco que hace que **una sola
+plantilla sirva para las 68 bicis**.
+
+**El límite real, para no prometer de más:** se pueden acomodar y estilar *las
+piezas que trae el plugin*, mezcladas con cualquier elemento normal de Elementor
+(títulos, columnas, fondos). Lo que NO se puede sin Pro es atar un widget genérico
+a un campo que no esté envuelto en una pieza — para eso hay que agregar el widget.
+
+- Cada plantilla declara qué dibuja con la meta `_citykleta_template_type`
+  (`Citykleta_Template_Post_Type::TYPES`: `results` / `single_bike`), elegible en
+  la caja "Draws" y visible como columna en la lista. Solo cuenta una plantilla
+  **publicada**, así que un borrador es un lugar seguro para probar un rediseño.
+- `ensure_template()` la crea la primera vez que hace falta y **nunca pisa** una
+  que ya exista. Los layouts por defecto están en
+  `Citykleta_Templates::default_results_content()` /
+  `default_single_bike_content()`.
+- `render_template()` cambia el `$post` global a la plantilla mientras la imprime
+  (para que Elementor renderice ESE layout). **Ojo:** dentro de una pieza,
+  `get_the_ID()` devolvería la plantilla, no la bici — siempre `bike_id()`.
+- **Las plantillas se siembran con un diseño de Elementor de verdad**, no con
+  texto de shortcodes. `seed_elementor_layout()` escribe `_elementor_data` (más
+  `_elementor_edit_mode = builder`) igual que lo hace el propio Elementor —
+  incluido el `wp_slash()` sobre el JSON, porque `update_post_meta()` desescapa
+  lo que recibe. Los layouts están en `Citykleta_Templates::default_*_layout()`,
+  armados con los helpers `el_section()` / `el_column()` / `el_widget()`. Sin
+  esto, abrir la plantilla en Elementor mostraba **un lienzo vacío**: el
+  `post_content` con shortcodes se sigue guardando, pero solo como respaldo por
+  si Elementor se desactiva. La siembra **nunca pisa** una plantilla que ya
+  tenga `_elementor_data` — a partir de ahí el diseño es del usuario.
+- **`public => true` no es un descuido.** El CPT usa exactamente los flags del
+  `elementor_library` del propio Elementor: `public => true` + `rewrite => false`
+  + fuera de búsquedas y de menús. Con `public => false` la plantilla no es
+  consultable y **la vista previa da 404** — y el lienzo del editor también, que
+  carga el permalink con `?elementor-preview=`.
+- **Vista previa:** sin bici en contexto las piezas no dibujarían nada, así que
+  cuando lo que se está mirando ES la plantilla (el canvas de Elementor, o el
+  post de la plantilla directamente) caen a la bici más reciente
+  (`Citykleta_Bike_Part_Widget::bike_id()`). En cualquier otra página, sin bici
+  en contexto, siguen sin imprimir nada — para que no aparezca una bici al azar
+  donde no corresponde.
+- **Migración hecha:** la página de resultados vivía como una Page normal
+  (opción `citykleta_bikes_page_id`), mezclada con las páginas reales y con URL
+  propia. `Citykleta_Templates::migrate_legacy_bikes_page()` la mueve al CPT una
+  sola vez, copiando también la meta `_elementor*` (ahí vive el diseño, no en
+  `post_content`) y mandando la Page vieja a la **papelera**, no borrándola.
+
+### Piezas de la ficha de una bici
+
+`includes/elementor/class-citykleta-bike-part-widgets.php` — siete widgets (y sus
+shortcodes, ver `Citykleta_Widget_Shortcodes::BIKE_PART_SHORTCODES`), todos
+extendiendo `Citykleta_Bike_Part_Widget`: galería (`[citykleta_bike_gallery]`),
+título/ubicación (`[citykleta_bike_header]`), propietario, descripción, ficha
+técnica, precio+solicitud y mapa de recogida. Van todos en un archivo a propósito:
+son ~40 líneas cada uno y solo tienen sentido como conjunto.
+
+Dos detalles que se repiten del resto del plugin: la altura del mapa se imprime
+**inline** (el CSS de `selectors` no existe para un shortcode, y sin altura
+explícita Leaflet no dibuja nada), y la descripción se formatea con
+`wpautop( do_shortcode() )` en vez de `apply_filters( 'the_content' )` para no
+re-entrar en ese filtro estando ya dentro de él.
+
 ### Archivo de bicis (grid de tarjetas) — editable como la página "Shop" de WooCommerce
 
 `/bikes/` sigue siendo la URL del archivo del CPT `bike` (nada cambió en el rewrite),
