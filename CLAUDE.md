@@ -627,16 +627,36 @@ a un campo que no esté envuelto en una pieza — para eso hay que agregar el wi
 - `render_template()` cambia el `$post` global a la plantilla mientras la imprime
   (para que Elementor renderice ESE layout). **Ojo:** dentro de una pieza,
   `get_the_ID()` devolvería la plantilla, no la bici — siempre `bike_id()`.
-- **Las plantillas se siembran con un diseño de Elementor de verdad**, no con
-  texto de shortcodes. `seed_elementor_layout()` escribe `_elementor_data` (más
-  `_elementor_edit_mode = builder`) igual que lo hace el propio Elementor —
-  incluido el `wp_slash()` sobre el JSON, porque `update_post_meta()` desescapa
-  lo que recibe. Los layouts están en `Citykleta_Templates::default_*_layout()`,
-  armados con los helpers `el_section()` / `el_column()` / `el_widget()`. Sin
-  esto, abrir la plantilla en Elementor mostraba **un lienzo vacío**: el
-  `post_content` con shortcodes se sigue guardando, pero solo como respaldo por
-  si Elementor se desactiva. La siembra **nunca pisa** una plantilla que ya
-  tenga `_elementor_data` — a partir de ahí el diseño es del usuario.
+- **El layout por defecto se siembra como documento de Elementor.** Elementor es
+  una dependencia asumida de este plugin (decisión del usuario: el sitio real se
+  arma con Elementor, y el gratis alcanza — ver arriba), así que una plantilla
+  recién creada nace ya diseñada: `ensure_template()` llama a
+  `Citykleta_Template_Post_Type::seed_elementor_layout()`, que escribe
+  `_elementor_data` (JSON, con `wp_slash()` — sin eso las comillas del JSON se
+  pierden al guardar), `_elementor_edit_mode = 'builder'`,
+  `_elementor_template_type` y `_elementor_version`. Los árboles vienen de
+  `Citykleta_Templates::default_results_layout()` /
+  `default_single_bike_layout()`, armados con los helpers `container()`,
+  `column()`, `widget()` y `element_id()`.
+  - **Se siembra con Containers, no con `section`/`column` legado.** Elementor
+    4.2.4 todavía entiende los dos, pero el `elType: 'section'` es el formato
+    viejo: el editor lo marca como tal y las opciones de flexbox modernas no
+    aplican. Un Container (`elType: 'container'`) es lo que crea Elementor hoy,
+    así que la plantilla sembrada se ve y se edita igual que una que el usuario
+    hubiera hecho a mano. `column()` es azúcar sobre `container()`:
+    `content_width => 'full'` + `width` en % + `flex_direction => 'column'` (el
+    `width` solo aplica cuando el ancho es `full`, por eso van juntos).
+  - **La siembra solo corre cuando `_elementor_data` NO existe.** Nunca pisa un
+    diseño: si alguien ya abrió la plantilla en Elementor y la guardó (aunque
+    sea sin cambiarla), esa meta está y la siembra no hace nada. Junto con el
+    "`ensure_template()` nunca pisa una plantilla existente" de arriba, son dos
+    guardas independientes.
+  - `post_content` se sigue escribiendo con el mismo layout en **bloques**
+    (`core/columns` + `core/shortcode`, ver `default_*_content()` y el helper
+    `shortcode_block()`) — es el respaldo legible si algún día Elementor no está
+    activo, y lo que se ve en el editor de bloques. Con Elementor activo y
+    `_elementor_edit_mode = 'builder'`, quien manda al renderizar es
+    `_elementor_data`.
 - **`public => true` no es un descuido.** El CPT usa exactamente los flags del
   `elementor_library` del propio Elementor: `public => true` + `rewrite => false`
   + fuera de búsquedas y de menús. Con `public => false` la plantilla no es
@@ -653,6 +673,80 @@ a un campo que no esté envuelto en una pieza — para eso hay que agregar el wi
   propia. `Citykleta_Templates::migrate_legacy_bikes_page()` la mueve al CPT una
   sola vez, copiando también la meta `_elementor*` (ahí vive el diseño, no en
   `post_content`) y mandando la Page vieja a la **papelera**, no borrándola.
+
+### Congelar un diseño de Elementor como el default del plugin
+
+El árbol que arman `default_results_layout()` / `default_single_bike_layout()` a
+mano en PHP es solo un punto de partida. **El diseño de verdad se hace en
+Elementor y se congela desde ahí**: en la lista de plantillas (Bicicletas →
+Templates) cada fila tiene dos acciones, `Mark as ready` y `Reset to default`
+(`Citykleta_Template_Defaults`, `includes/front/class-citykleta-template-defaults.php`).
+
+- **`Mark as ready`** copia el `_elementor_data` de esa plantilla a
+  `includes/front/layouts/{vista}.json` (`results.json` / `single-bike.json`).
+  Desde ese momento `default_*_layout()` devuelve **ese** archivo y el árbol de
+  PHP queda solo como fallback para un checkout que todavía no tenga captura.
+  El archivo lleva envoltorio: `captured_at`, `plugin_version` y `elements`.
+- **`Mark as ready` también está como acción masiva** en el desplegable de la
+  lista, para capturar varias plantillas de una vez. Las que no se puedan
+  capturar (sin vista asignada, o sin diseño de Elementor todavía) se cuentan
+  como *skipped* y no cortan la corrida — una plantilla a medias no tiene por
+  qué impedir que se guarden las demás. El aviso final resume
+  *"Saved N of M selected templates"*. El nonce del masivo lo pone el core; el
+  entorno y la capacidad se revalidan igual dentro del handler.
+- **`Reset to default`** tira el diseño actual y vuelve a sembrar la plantilla
+  desde lo que el plugin trae hoy. Es lo único que permite comprobar que una
+  captura quedó bien sin borrar y recrear la plantilla. **A propósito NO existe
+  en masivo**: tirar varios diseños de un desplegable es demasiado fácil por
+  accidente, y a diferencia de una captura eso no se recupera con git.
+- Escribe en tu copia de trabajo, así que el cambio aparece en `git status` y
+  **lo commiteas tú**. El plugin no se actualiza a sí mismo, y no debe poder
+  hacerlo.
+- Una columna **"Ready"** en esa misma lista dice en qué estado está cada
+  plantilla, con tres valores: `Not captured` (esa vista todavía no tiene
+  archivo), la **fecha** de la última captura, o la fecha más *"Edited since"*
+  en ámbar — o sea, el diseño en Elementor ya no es el que está en el repo y
+  hay que volver a apretar el botón. Ese tercer estado se calcula comparando
+  `_elementor_data` contra el `elements` del archivo, ambos decodificados y
+  vueltos a codificar, así que compara estructura y no cómo esté escrito el
+  JSON. La columna la agrega `Citykleta_Template_Defaults`, no el post type,
+  para que toda esta funcionalidad desaparezca junta en producción.
+
+**La puerta es `wp_get_environment_type()`**, que tiene que decir `local` o
+`development` (`staging` no: no tiene por qué editar lo que el plugin trae).
+Vale la pena saber por qué esa función y no otra cosa: **el core la dejó sin
+filtro a propósito**, no hay ajuste en wp-admin para ella, y cachea su valor de
+forma estática por petición — o sea que ningún plugin ni tema puede cambiar el
+entorno en caliente. Además, cuando nada declara la constante, WordPress cae a
+`production`: la puerta **falla cerrada**. En este LocalWP la línea
+`define( 'WP_ENVIRONMENT_TYPE', 'local' )` de `wp-config.php` la puso el propio
+Local, no nosotros.
+
+Se consideró añadir una segunda señal (que el host terminara en `.local`) por si
+un `wp-config.php` de desarrollo terminaba copiado a un servidor real. **Se
+descartó**: a producción solo viaja el plugin, nunca la configuración, así que
+ese escenario no existe aquí.
+
+Dos decisiones de seguridad que conviene no deshacer:
+
+- **Se guarda JSON, nunca PHP generado.** El archivo capturado se lee con
+  `json_decode()`, así que no puede ejecutar nada pase lo que pase. Generar PHP
+  sí sería un vector real.
+- El nombre del archivo sale de validar la vista contra
+  `Citykleta_Template_Post_Type::TYPES`, no de sanear una cadena — nada fuera de
+  esa lista fija puede nombrar un archivo.
+
+**Lo que NO viaja a otra instalación**, y hay que tenerlo en cuenta al diseñar:
+imágenes de la Media Library (quedan como ID de adjunto + URL del sitio de
+desarrollo), colores y fuentes globales propios del kit (los del kit por defecto
+sí resuelven), y widgets de Elementor Pro. Las piezas del plugin viajan
+perfecto — son lo único que resuelve la bici solo.
+
+**Ojo con el CSS al resetear:** `seed_elementor_layout()` borra la **meta**
+`_elementor_css` para que Elementor regenere el CSS de ese post. Nunca se borra
+el **archivo** `post-{id}.css` generado — eso deja la página apuntando a una
+hoja de estilos que da 404. Si tras un reset el estilo se ve viejo, se regenera
+desde Elementor → Tools.
 
 ### Piezas de la ficha de una bici
 

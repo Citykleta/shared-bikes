@@ -126,6 +126,10 @@ class Citykleta_Templates {
 			'results',
 			'Bike results',
 			self::default_results_content(),
+			array(
+				'[citykleta_bikes]',
+				"[citykleta_search]\n[citykleta_map filters=\"url\" map_height=\"450\"]\n[citykleta_grid filters=\"url\"]",
+			),
 			self::default_results_layout()
 		);
 	}
@@ -140,96 +144,13 @@ class Citykleta_Templates {
 			'single_bike',
 			'Single bike',
 			self::default_single_bike_content(),
+			array(
+				'<div class="citykleta-bike-single"><div class="citykleta-bike-single__layout">'
+					. '<div class="citykleta-bike-single__content">[citykleta_bike_gallery][citykleta_bike_header]'
+					. '[citykleta_bike_owner][citykleta_bike_description][citykleta_bike_specs]'
+					. '[citykleta_bike_location]</div>[citykleta_bike_request]</div></div>',
+			),
 			self::default_single_bike_layout()
-		);
-	}
-
-	/**
-	 * The results layout as real Elementor elements: three full-width
-	 * sections, one per piece. Opening this in Elementor shows three widgets
-	 * you can drag, restyle and reorder — not a block of shortcode text.
-	 *
-	 * @return array
-	 */
-	public static function default_results_layout() {
-		$t = 'Citykleta_Template_Post_Type';
-
-		return array(
-			$t::el_section( array( $t::el_column( 100, array( $t::el_widget( 'citykleta_search' ) ) ) ) ),
-			$t::el_section(
-				array(
-					$t::el_column(
-						100,
-						array(
-							$t::el_widget(
-								'citykleta_map',
-								array(
-									'use_url_filters' => 'yes',
-									'map_height'      => array(
-										'unit'  => 'px',
-										'size'  => 450,
-										'sizes' => array(),
-									),
-								)
-							),
-						)
-					),
-				)
-			),
-			$t::el_section(
-				array(
-					$t::el_column(
-						100,
-						array(
-							$t::el_widget(
-								'citykleta_bikes',
-								array(
-									'use_url_filters' => 'yes',
-									'posts_per_page'  => 10,
-									'columns'         => '4',
-								)
-							),
-						)
-					),
-				)
-			),
-		);
-	}
-
-	/**
-	 * The single-bike layout as real Elementor elements: the same two-column
-	 * design the old fixed template had — content on the left, price/request
-	 * card on the right — but every piece is now its own widget on the
-	 * canvas.
-	 *
-	 * @return array
-	 */
-	public static function default_single_bike_layout() {
-		$t = 'Citykleta_Template_Post_Type';
-
-		return array(
-			$t::el_section(
-				array(
-					$t::el_column(
-						66,
-						array(
-							$t::el_widget( 'citykleta_bike_gallery' ),
-							$t::el_widget( 'citykleta_bike_header' ),
-							$t::el_widget( 'citykleta_bike_owner' ),
-							$t::el_widget( 'citykleta_bike_description' ),
-							$t::el_widget( 'citykleta_bike_specs' ),
-							$t::el_widget( 'citykleta_bike_location' ),
-						)
-					),
-					$t::el_column(
-						34,
-						array(
-							$t::el_widget( 'citykleta_bike_request' ),
-						)
-					),
-				),
-				array( 'gap' => 'extended' )
-			),
 		);
 	}
 
@@ -296,7 +217,140 @@ class Citykleta_Templates {
 	 * @return string
 	 */
 	public static function default_results_content() {
-		return "[citykleta_search]\n[citykleta_map filters=\"url\" map_height=\"450\"]\n[citykleta_grid filters=\"url\"]";
+		return self::shortcode_block( '[citykleta_search]' ) . "\n\n"
+			. self::shortcode_block( '[citykleta_map filters="url" map_height="450"]' ) . "\n\n"
+			. self::shortcode_block( '[citykleta_grid filters="url"]' );
+	}
+
+	/**
+	 * The default layout for a view: whatever was captured with "Mark as
+	 * ready", else the plain starting point built below.
+	 *
+	 * @param string $type A key of Citykleta_Template_Post_Type::TYPES.
+	 * @return array
+	 */
+	public static function default_layout( $type ) {
+		switch ( $type ) {
+			case 'results':
+				return self::default_results_layout();
+			case 'single_bike':
+				return self::default_single_bike_layout();
+		}
+
+		return array();
+	}
+
+	/**
+	 * The results layout as Elementor Containers: three stacked containers,
+	 * one per piece, so the template opens on a working design that can be
+	 * dragged, restyled and reordered.
+	 *
+	 * Once a design has been marked ready (see Citykleta_Template_Defaults),
+	 * THAT is what the plugin ships with and the tree below is only the
+	 * fallback for a checkout that has no captured layout yet.
+	 *
+	 * @return array
+	 */
+	public static function default_results_layout() {
+		$captured = Citykleta_Template_Defaults::layout( 'results' );
+
+		if ( $captured ) {
+			return $captured;
+		}
+
+		$t = 'Citykleta_Template_Post_Type';
+
+		return array(
+			$t::container( array( $t::widget( 'citykleta_search' ) ) ),
+			$t::container(
+				array(
+					$t::widget(
+						'citykleta_map',
+						array(
+							'use_url_filters' => 'yes',
+							'map_height'      => array(
+								'unit'  => 'px',
+								'size'  => 450,
+								'sizes' => array(),
+							),
+						)
+					),
+				)
+			),
+			$t::container(
+				array(
+					$t::widget(
+						'citykleta_bikes',
+						array(
+							'use_url_filters' => 'yes',
+							'posts_per_page'  => 10,
+							'columns'         => '4',
+						)
+					),
+				)
+			),
+		);
+	}
+
+	/**
+	 * The single-bike layout as Elementor Containers: the same two-column
+	 * design the old fixed template had — content left, price/request card
+	 * right — with every piece now its own widget on the canvas.
+	 *
+	 * Superseded by a captured design once one has been marked ready, same as
+	 * default_results_layout().
+	 *
+	 * @return array
+	 */
+	public static function default_single_bike_layout() {
+		$captured = Citykleta_Template_Defaults::layout( 'single_bike' );
+
+		if ( $captured ) {
+			return $captured;
+		}
+
+		$t = 'Citykleta_Template_Post_Type';
+
+		return array(
+			$t::container(
+				array(
+					$t::column(
+						66,
+						array(
+							$t::widget( 'citykleta_bike_gallery' ),
+							$t::widget( 'citykleta_bike_header' ),
+							$t::widget( 'citykleta_bike_owner' ),
+							$t::widget( 'citykleta_bike_description' ),
+							$t::widget( 'citykleta_bike_specs' ),
+							$t::widget( 'citykleta_bike_location' ),
+						)
+					),
+					$t::column(
+						34,
+						array(
+							$t::widget( 'citykleta_bike_request' ),
+						)
+					),
+				),
+				array( 'flex_direction' => 'row' )
+			),
+		);
+	}
+
+	/**
+	 * One piece as a WordPress "Shortcode" block.
+	 *
+	 * The default layouts are written as real block markup, not as loose
+	 * shortcode text, so the templates open in the block editor as an actual
+	 * arrangement of blocks — movable, with blocks addable around them —
+	 * the same as editing a page. Loose text would technically render the
+	 * same on the front end while giving nothing to edit.
+	 *
+	 * @param string $shortcode The shortcode, brackets included.
+	 * @return string
+	 */
+	private static function shortcode_block( $shortcode ) {
+		return "<!-- wp:shortcode -->\n" . $shortcode . "\n<!-- /wp:shortcode -->";
 	}
 
 	/**
@@ -309,19 +363,37 @@ class Citykleta_Templates {
 	 * @return string
 	 */
 	public static function default_single_bike_content() {
-		return '<div class="citykleta-bike-single">' .
-			'<div class="citykleta-bike-single__layout">' .
-			'<div class="citykleta-bike-single__content">' .
-			'[citykleta_bike_gallery]' .
-			'[citykleta_bike_header]' .
-			'[citykleta_bike_owner]' .
-			'[citykleta_bike_description]' .
-			'[citykleta_bike_specs]' .
-			'[citykleta_bike_location]' .
-			'</div>' .
-			'[citykleta_bike_request]' .
-			'</div>' .
-			'</div>';
+		$left = implode(
+			"\n\n",
+			array(
+				self::shortcode_block( '[citykleta_bike_gallery]' ),
+				self::shortcode_block( '[citykleta_bike_header]' ),
+				self::shortcode_block( '[citykleta_bike_owner]' ),
+				self::shortcode_block( '[citykleta_bike_description]' ),
+				self::shortcode_block( '[citykleta_bike_specs]' ),
+				self::shortcode_block( '[citykleta_bike_location]' ),
+			)
+		);
+
+		$right = self::shortcode_block( '[citykleta_bike_request]' );
+
+		// A real Columns block, so the two-column design opens in the editor
+		// as two columns you can drag pieces between — not as markup the
+		// editor can only show as raw HTML.
+		return "<!-- wp:columns -->\n"
+			. '<div class="wp-block-columns">' . "\n"
+			. "<!-- wp:column {\"width\":\"66%\"} -->\n"
+			. '<div class="wp-block-column" style="flex-basis:66%">' . "\n"
+			. $left . "\n"
+			. "</div>\n"
+			. "<!-- /wp:column -->\n\n"
+			. "<!-- wp:column {\"width\":\"34%\"} -->\n"
+			. '<div class="wp-block-column" style="flex-basis:34%">' . "\n"
+			. $right . "\n"
+			. "</div>\n"
+			. "<!-- /wp:column -->\n"
+			. "</div>\n"
+			. '<!-- /wp:columns -->';
 	}
 
 	/**

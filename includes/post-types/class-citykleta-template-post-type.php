@@ -114,8 +114,12 @@ class Citykleta_Template_Post_Type {
 				'has_archive'         => false,
 				'show_ui'             => true,
 				'show_in_menu'        => 'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE,
-				// 'elementor' is what makes the "Edit with Elementor" button
-				// appear — see the class docblock.
+				// show_in_rest => the normal WordPress block editor works
+				// here, like on any other post type. 'elementor' only adds
+				// the "Edit with Elementor" button as an OPTION — the
+				// plugin never turns a template into an Elementor document
+				// on its own.
+				'show_in_rest'        => true,
 				'supports'            => array( 'title', 'editor', 'elementor' ),
 			)
 		);
@@ -264,26 +268,37 @@ class Citykleta_Template_Post_Type {
 	 * touches a template that already exists (so a redesign is never
 	 * overwritten).
 	 *
-	 * @param string     $type      A key of self::TYPES.
-	 * @param string     $title     Title for the template if it has to be created.
-	 * @param string     $content   Default layout as shortcodes — what renders
-	 *                              if Elementor is ever deactivated.
-	 * @param array|null $elementor Default layout as real Elementor elements,
-	 *                              so the editor opens on a working design
-	 *                              instead of a blank canvas.
+	 * @param string $type    A key of self::TYPES.
+	 * @param string $title   Title for the template if it has to be created.
+	 * @param string $content Default layout, as normal WordPress block markup.
+	 * @param array  $legacy  Older default layouts this one replaces. An
+	 *                        existing template still holding one of these
+	 *                        verbatim was never edited, so it's brought up to
+	 *                        date; anything else is somebody's work and is
+	 *                        left untouched.
+	 * @param array  $layout  Default layout as Elementor elements, so the
+	 *                        template opens on a working design instead of an
+	 *                        empty canvas. Only ever written to a template
+	 *                        that has no Elementor design yet.
 	 * @return WP_Post|null
 	 */
-	public static function ensure_template( $type, $title, $content, $elementor = null ) {
+	public static function ensure_template( $type, $title, $content, array $legacy = array(), array $layout = array() ) {
 		$existing = self::get_template( $type );
 
 		if ( $existing ) {
-			// Templates created before the Elementor layout existed came out
-			// holding only shortcode text, so Elementor opened on an empty
-			// canvas. Seed them — but ONLY while untouched: the moment
-			// _elementor_data exists, that's the user's design and nothing
-			// here may overwrite it.
-			if ( $elementor && ! get_post_meta( $existing->ID, '_elementor_data', true ) ) {
-				self::seed_elementor_layout( $existing->ID, $elementor );
+			if ( $layout && ! get_post_meta( $existing->ID, '_elementor_data', true ) ) {
+				self::seed_elementor_layout( $existing->ID, $layout );
+			}
+
+			if ( $legacy && in_array( trim( $existing->post_content ), array_map( 'trim', $legacy ), true ) ) {
+				wp_update_post(
+					array(
+						'ID'           => $existing->ID,
+						'post_content' => $content,
+					)
+				);
+
+				$existing = get_post( $existing->ID );
 			}
 
 			return $existing;
@@ -305,28 +320,41 @@ class Citykleta_Template_Post_Type {
 
 		update_post_meta( $post_id, self::META_TYPE, $type );
 
-		if ( $elementor ) {
-			self::seed_elementor_layout( $post_id, $elementor );
+		if ( $layout ) {
+			self::seed_elementor_layout( $post_id, $layout );
 		}
 
 		return get_post( $post_id );
 	}
 
 	/**
-	 * Writes an Elementor design onto a template, the same way Elementor
-	 * itself stores one (see its Core\Base\Document meta keys).
+	 * Writes an Elementor design onto a template, the way Elementor itself
+	 * stores one (its Core\Base\Document meta keys).
 	 *
 	 * `_elementor_data` is a JSON *string*, and update_post_meta() unslashes
-	 * whatever it's given — hence wp_slash(), same as Elementor's own
+	 * whatever it's handed — hence wp_slash(), same as Elementor's own
 	 * Document::update_json_meta().
+	 *
+	 * Seeding only ever happens on a template with no design yet (see
+	 * ensure_template()): from then on the layout belongs to whoever edited
+	 * it. The one other caller is the explicit "Reset to default" action in
+	 * Citykleta_Template_Defaults, which is a deliberate throw-away.
 	 *
 	 * @param int   $post_id  Template ID.
 	 * @param array $elements Elementor element tree.
 	 */
-	private static function seed_elementor_layout( $post_id, array $elements ) {
+	public static function seed_elementor_layout( $post_id, array $elements ) {
 		update_post_meta( $post_id, '_elementor_edit_mode', 'builder' );
 		update_post_meta( $post_id, '_elementor_template_type', 'wp-post' );
 		update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+
+		/*
+		 * Elementor caches the CSS it generates for a post and decides whether
+		 * to rebuild it from this meta. Dropping the META is the supported way
+		 * to force a rebuild — never delete the generated .css FILE, which
+		 * leaves the page pointing at a stylesheet that 404s.
+		 */
+		delete_post_meta( $post_id, '_elementor_css' );
 
 		if ( defined( 'ELEMENTOR_VERSION' ) ) {
 			update_post_meta( $post_id, '_elementor_version', ELEMENTOR_VERSION );
@@ -334,39 +362,54 @@ class Citykleta_Template_Post_Type {
 	}
 
 	/**
-	 * One Elementor section wrapping the given columns.
+	 * One Elementor Container.
 	 *
-	 * @param array $columns  Column elements.
-	 * @param array $settings Section settings.
+	 * Container — not the old Section/Column pair. Elementor 3.16 made
+	 * containers the way layouts are built, and section.php only survives so
+	 * existing content keeps rendering; seeding sections would hand a brand
+	 * new template a deprecated structure on day one.
+	 *
+	 * The settings that matter (from includes/elements/container.php):
+	 * `content_width` is 'boxed' or 'full'; the `width` slider only applies
+	 * while it's 'full'; direction comes from the flex group, so the key is
+	 * `flex_direction` ('row' / 'column').
+	 *
+	 * @param array $children Widgets or nested containers.
+	 * @param array $settings Container settings.
+	 * @param bool  $inner    True for a container nested inside another.
 	 * @return array
 	 */
-	public static function el_section( array $columns, array $settings = array() ) {
+	public static function container( array $children, array $settings = array(), $inner = false ) {
 		return array(
-			'id'       => self::el_id(),
-			'elType'   => 'section',
+			'id'       => self::element_id(),
+			'elType'   => 'container',
 			'settings' => (object) $settings,
-			'elements' => $columns,
-			'isInner'  => false,
+			'elements' => $children,
+			'isInner'  => (bool) $inner,
 		);
 	}
 
 	/**
-	 * One Elementor column.
+	 * A container acting as a column: fixed share of the row's width.
 	 *
-	 * @param int   $width    Percentage of the row this column takes.
-	 * @param array $widgets  Widget elements inside it.
+	 * @param int   $percent  Share of the row, in per cent.
+	 * @param array $widgets  Widgets inside it.
 	 * @return array
 	 */
-	public static function el_column( $width, array $widgets ) {
-		return array(
-			'id'       => self::el_id(),
-			'elType'   => 'column',
-			'settings' => (object) array(
-				'_column_size' => (int) $width,
-				'_inline_size' => (int) $width,
+	public static function column( $percent, array $widgets ) {
+		return self::container(
+			$widgets,
+			array(
+				// 'full' because the width below only applies in that mode —
+				// 'boxed' would re-box the column inside the already-boxed row.
+				'content_width'  => 'full',
+				'width'          => array(
+					'unit' => '%',
+					'size' => (int) $percent,
+				),
+				'flex_direction' => 'column',
 			),
-			'elements' => $widgets,
-			'isInner'  => false,
+			true
 		);
 	}
 
@@ -377,9 +420,9 @@ class Citykleta_Template_Post_Type {
 	 * @param array  $settings    Any non-default settings.
 	 * @return array
 	 */
-	public static function el_widget( $widget_type, array $settings = array() ) {
+	public static function widget( $widget_type, array $settings = array() ) {
 		return array(
-			'id'         => self::el_id(),
+			'id'         => self::element_id(),
 			'elType'     => 'widget',
 			'widgetType' => $widget_type,
 			'settings'   => (object) $settings,
@@ -392,7 +435,7 @@ class Citykleta_Template_Post_Type {
 	 *
 	 * @return string
 	 */
-	private static function el_id() {
+	private static function element_id() {
 		return substr( md5( uniqid( '', true ) ), 0, 7 );
 	}
 

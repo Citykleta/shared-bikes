@@ -38,6 +38,7 @@ require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-settings.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-list-columns.php';
 require_once CITYKLETA_PATH . 'includes/map/class-citykleta-bike-map-data.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-admin-map.php';
+require_once CITYKLETA_PATH . 'includes/front/class-citykleta-template-defaults.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-templates.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-bike-router.php';
 require_once CITYKLETA_PATH . 'includes/stats/class-citykleta-view-stats.php';
@@ -104,6 +105,12 @@ function citykleta_init() {
 	// Citykleta_Templates::ensure_results_template() /
 	// ensure_single_bike_template()), no un diseño fijo.
 	( new Citykleta_Templates() )->register();
+
+	// "Mark as ready" / "Reset to default" en la lista de plantillas: congela
+	// un diseño hecho en Elementor como el layout que trae el plugin. Solo se
+	// engancha en un entorno de desarrollo (wp_get_environment_type()), porque
+	// escribe dentro de la propia carpeta del plugin.
+	( new Citykleta_Template_Defaults() )->register();
 
 	// [citykleta_search] / [citykleta_grid] / [citykleta_map]: los mismos
 	// widgets de Elementor (Search/Bike/Map), usables como piezas sueltas en
