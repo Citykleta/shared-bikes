@@ -7,23 +7,10 @@
  * sans-serif del sistema.
  */
 
-.citykleta-bike-archive {
-	max-width: 1200px;
-	margin: 0 auto;
-	padding: 2rem 1rem;
-}
-
-.citykleta-bike-archive__title {
-	font-family: 'Poppins', sans-serif;
-	font-weight: 600;
-	color: #151b1d;
-	margin-bottom: 1.5rem;
-}
-
 .citykleta-bike-archive__search-note {
 	font-size: 0.9rem;
 	color: #5a5250;
-	margin: -1rem 0 1.5rem;
+	margin: 1rem 1.5rem;
 }
 
 .citykleta-bike-grid {
@@ -259,180 +246,73 @@
 }
 
 /* -------------------------------------------------------------------------
- * Layout de resultados: "showroom" en modo APP-SHELL — la página llena la
- * ventana (alto = viewport) en vez de scrollear a nivel documento. Arriba, la
- * barra de filtros (futuros) + el botón que alterna vista; debajo, la vista
- * activa (tarjetas o mapa) llena el resto hasta los bordes izquierdo, derecho
- * e inferior. Solo una vista a la vez. Solo aplica en archive-bike.php.
+ * Página de resultados — search + mapa + grilla como tres piezas
+ * independientes ([citykleta_search]/[citykleta_grid]/[citykleta_map],
+ * Citykleta_Widget_Shortcodes) dentro de una Page normal que el usuario
+ * diseña con Elementor (Citykleta_Templates::ensure_bikes_page()). Sin panel
+ * compartido ni botón para alternar tarjetas/mapa — el mapa queda siempre
+ * visible, cada pieza se estila por su cuenta.
  * ------------------------------------------------------------------------- */
 
-/* La página entera es una columna flex del alto del viewport: el header queda
-   arriba con su alto natural (sin número mágico) y main toma el resto. Scoped
-   al body de esta página para no afectar el resto del sitio. overflow:hidden
-   quita el scroll del documento — la vista de tarjetas scrollea por dentro. */
-body.post-type-archive-bike {
+/*
+ * Paginación (anterior/siguiente + números) — enlaces normales armados por
+ * Citykleta_Templates::pagination_links(), sin JS. El marcado que imprime
+ * esa función es una <ul class="page-numbers"> con un
+ * <li> por elemento; cada uno lleva un <a> (o <span> para la página
+ * actual/los puntos suspensivos "…") con su propia clase "page-numbers".
+ */
+.citykleta-pagination {
 	display: flex;
-	flex-direction: column;
-	height: 100vh;
-	height: 100dvh;
-	margin: 0;
-	overflow: hidden;
+	justify-content: center;
+	padding: 2rem 1.5rem 1rem;
 }
 
-/* Con la barra de admin (usuario logueado) WordPress empuja el contenido
-   32/46px; se descuenta para que el borde inferior no quede cortado. */
-body.post-type-archive-bike.admin-bar {
-	height: calc(100vh - 32px);
-	height: calc(100dvh - 32px);
-}
-
-@media screen and (max-width: 782px) {
-	body.post-type-archive-bike.admin-bar {
-		height: calc(100vh - 46px);
-		height: calc(100dvh - 46px);
-	}
-}
-
-/* main llena el espacio bajo el header y es a su vez columna flex (barra +
-   vista). Sin max-width ni padding: el mapa llega a los bordes. */
-.citykleta-bike-archive {
-	flex: 1;
-	min-height: 0;
-	max-width: none;
-	margin: 0;
-	padding: 0;
+.citykleta-pagination ul.page-numbers {
 	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-}
-
-/* Barra superior reservada para los filtros futuros. Ya no necesita sticky:
-   en app-shell main no scrollea, así que esta barra siempre está visible
-   arriba por sí sola. */
-.citykleta-filters-bar {
-	display: flex;
-	align-items: center;
-	gap: 1rem;
-	min-height: 52px;
-	padding: 0.5rem 1.5rem;
-	background: #fffbee;
-	border-bottom: 1px solid #e5e0d3;
-}
-
-.citykleta-filters-bar__placeholder {
-	color: #9a948a;
-	font-size: 0.85rem;
-	font-style: italic;
-}
-
-/* La sección de resultados llena el resto y es columna flex: la barra del
-   botón (alto natural) + la vista activa (llena). */
-.citykleta-results {
-	flex: 1;
-	min-height: 0;
-	display: flex;
-	flex-direction: column;
-}
-
-/* El botón de alternar vista se alinea a la derecha de la barra de filtros
-   (margin-left:auto lo empuja al extremo, quede lo que quede a su izquierda). */
-.citykleta-filters-bar .citykleta-view-toggle {
-	margin-left: auto;
-}
-
-.citykleta-view-toggle {
-	display: inline-flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 0.4rem;
-	padding: 0.5rem 1.1rem;
-	border: 1px solid #151b1d;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.citykleta-pagination .page-numbers {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25rem;
+	height: 2.25rem;
+	padding: 0 0.75rem;
 	border-radius: 999px;
-	background: #fed94c;
+	background: #fff;
+	border: 1px solid #e5e0d3;
 	color: #151b1d;
 	font-family: 'Poppins', sans-serif;
 	font-weight: 600;
 	font-size: 0.9rem;
-	line-height: 1;
-	cursor: pointer;
+	text-decoration: none;
 }
 
-.citykleta-view-toggle:hover,
-.citykleta-view-toggle:focus-visible {
+a.page-numbers:hover,
+a.page-numbers:focus-visible {
 	background: #151b1d;
+	border-color: #151b1d;
 	color: #fed94c;
 }
 
-/* La vista activa llena el área bajo la barra del botón. Solo una a la vez:
-   el atributo hidden saca la otra del flujo. */
-.citykleta-view {
-	flex: 1;
-	min-height: 0;
+.citykleta-pagination .page-numbers.current {
+	background: #fed94c;
+	border-color: #fed94c;
 }
 
-.citykleta-view[hidden] {
-	display: none;
-}
-
-/* Vista mapa: llena su área hasta los bordes (izquierdo, derecho, inferior),
-   sin márgenes ni esquinas redondeadas. Se usa flex (el mapa como flex:1 con
-   stretch) en vez de height:100%, porque en cadena flex el porcentaje a veces
-   no resuelve y Leaflet mediría 0px. */
-.citykleta-view--map {
-	display: flex;
-	overflow: hidden;
-}
-
-.citykleta-view--map .citykleta-map {
-	flex: 1;
-	min-width: 0;
-	border-radius: 0;
-}
-
-/* La vista de tarjetas scrollea por dentro (main no scrollea en app-shell). */
-.citykleta-view--grid {
-	overflow-y: auto;
-	padding: 1.5rem;
-}
-
-/* Grid de tarjetas compacto (preferencia: tarjetas pequeñas). El display:grid
-   base viene de .citykleta-bike-grid; aquí solo se ajusta tamaño y espaciado
-   para esta vista, sin tocar el grid del widget de Elementor. */
-.citykleta-view--grid .citykleta-bike-grid {
-	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-	gap: 1rem;
-}
-
-.citykleta-view--grid .citykleta-bike-card__body {
-	padding: 0.75rem;
-}
-
-.citykleta-view--grid .citykleta-bike-card__title {
-	font-size: 0.9rem;
-}
-
-.citykleta-view--grid .citykleta-bike-card__location {
-	font-size: 0.78rem;
-}
-
-.citykleta-view--grid .citykleta-bike-card__price {
-	font-size: 0.85rem;
-}
-
-.citykleta-view--grid .citykleta-bike-card__badge {
-	font-size: 0.68rem;
-	padding: 0.15rem 0.5rem;
-}
-
-/* "Sentinel" de la carga infinita: al final del grid, lo vigila el
-   IntersectionObserver (citykleta-infinite-scroll.js) para traer la página
-   siguiente. Muestra "Cargando…" mientras hace el fetch. */
-.citykleta-load-more {
-	min-height: 1px;
-	padding: 1rem;
-	text-align: center;
-}
-
-.citykleta-load-more__status {
+.citykleta-pagination .page-numbers.dots {
+	border-color: transparent;
+	background: transparent;
 	color: #9a948a;
-	font-size: 0.85rem;
+}
+
+.citykleta-pagination .page-numbers.prev,
+.citykleta-pagination .page-numbers.next {
+	padding: 0 1rem;
 }

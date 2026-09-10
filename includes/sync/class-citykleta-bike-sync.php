@@ -35,6 +35,14 @@ class Citykleta_Bike_Sync {
 	const RETIRE_SAFETY_RATIO = 0.5;
 
 	/**
+	 * WP_Error code for "this isn't a file type we store".
+	 *
+	 * Named so record_image_failure() can tell a known limitation apart from a
+	 * genuine fetch failure without matching on the message text.
+	 */
+	const IMAGE_TYPE_ERROR = 'citykleta_image_type';
+
+	/**
 	 * Status a bike is moved to once it stops coming from the API. Draft
 	 * rather than trash/delete so its accumulated view stats stay attached to
 	 * the post, and the next sync republishes it untouched if it comes back.
@@ -58,6 +66,30 @@ class Citykleta_Bike_Sync {
 	 * @var string[]
 	 */
 	private $warnings = array();
+
+	/**
+	 * Images that couldn't be fetched this run, split by cause:
+	 *
+	 * - 'unsupported' — the file isn't an image type this plugin stores (today
+	 *   that means SVG, which WordPress refuses by default because it's
+	 *   executable XML). A known limitation, not a malfunction, so it's
+	 *   reported as a warning.
+	 * - 'failed' — an actual failure: network error, 404, a broken download.
+	 *
+	 * Accumulated across the whole run and summarised once at the end. They
+	 * used to be written straight to citykleta_last_image_error inside the
+	 * loop, one update_option() per bike, each overwriting the last and every
+	 * success deleting it — so what wp-admin showed was not "an image failed"
+	 * but "whatever happened to the bike that happened to be processed last".
+	 * With 68 bikes failing you saw the 68th; had the last one succeeded you'd
+	 * have seen nothing at all.
+	 *
+	 * @var array<string,string[]>
+	 */
+	private $image_failures = array(
+		'unsupported' => array(),
+		'failed'      => array(),
+	);
 
 	/**
 	 * Connects the class to WordPress hooks.
@@ -169,7 +201,11 @@ class Citykleta_Bike_Sync {
 		// lag behind.
 		( new Citykleta_Map_Settings_Sync() )->run();
 
-		$this->warnings = array();
+		$this->warnings       = array();
+		$this->image_failures = array(
+			'unsupported' => array(),
+			'failed'      => array(),
+		);
 
 		$url = Citykleta_Settings::get_endpoint_url( 'bikes' );
 
@@ -219,6 +255,9 @@ class Citykleta_Bike_Sync {
 		update_option( 'citykleta_last_sync', current_time( 'mysql' ) );
 		update_option( 'citykleta_last_sync_count', $count );
 		update_option( 'citykleta_last_sync_retired', $retired );
+
+		// Before the warnings are written out: this may add one of its own.
+		$this->summarise_image_failures();
 
 		if ( $this->warnings ) {
 			update_option( 'citykleta_last_sync_warning', implode( ' ', $this->warnings ) );
@@ -849,7 +888,7 @@ class Citykleta_Bike_Sync {
 		$attachment_id = $this->sideload_image( $image_url, $post_id );
 
 		if ( is_wp_error( $attachment_id ) ) {
-			update_option( 'citykleta_last_image_error', $attachment_id->get_error_message() . ' (' . $image_url . ')' );
+			$this->record_image_failure( $attachment_id, $image_url );
 			return 0;
 		}
 
@@ -890,7 +929,7 @@ class Citykleta_Bike_Sync {
 			$attachment_id = $this->sideload_image( $image_url, $post_id );
 
 			if ( is_wp_error( $attachment_id ) ) {
-				update_option( 'citykleta_last_image_error', $attachment_id->get_error_message() . ' (' . $image_url . ')' );
+				$this->record_image_failure( $attachment_id, $image_url );
 				return;
 			}
 
@@ -899,7 +938,6 @@ class Citykleta_Bike_Sync {
 			update_post_meta( $attachment_id, self::IMAGE_SOURCE_META, $image_url );
 		}
 
-		delete_option( 'citykleta_last_image_error' );
 		set_post_thumbnail( $post_id, $attachment_id );
 		update_post_meta( $post_id, self::IMAGE_SOURCE_META, $image_url );
 	}
@@ -982,7 +1020,7 @@ class Citykleta_Bike_Sync {
 		$filename = $this->image_filename( $image_url, wp_remote_retrieve_header( $response, 'content-type' ) );
 
 		if ( ! $filename ) {
-			return new WP_Error( 'citykleta_image_type', 'Could not tell the image type from the URL or Content-Type.' );
+			return new WP_Error( self::IMAGE_TYPE_ERROR, 'Could not tell the image type from the URL or Content-Type.' );
 		}
 
 		$tmp = wp_tempnam( $filename );
@@ -1051,6 +1089,50 @@ class Citykleta_Bike_Sync {
 		$stem = $basename ? preg_replace( '/\.[^.]*$/', '', $basename ) : 'bike-image';
 
 		return sanitize_file_name( ( $stem ? $stem : 'bike-image' ) . '.' . $types[ $mime ] );
+	}
+
+	/**
+	 * Files an image failure under the right heading for the end-of-run
+	 * summary, instead of clobbering a single option per bike.
+	 *
+	 * @param WP_Error $error     What sideload_image() returned.
+	 * @param string   $image_url The image that couldn't be fetched.
+	 */
+	private function record_image_failure( WP_Error $error, $image_url ) {
+		$bucket = self::IMAGE_TYPE_ERROR === $error->get_error_code() ? 'unsupported' : 'failed';
+
+		$this->image_failures[ $bucket ][] = $image_url;
+	}
+
+	/**
+	 * Turns this run's image failures into what wp-admin shows.
+	 *
+	 * An unsupported type is a warning, not an error: the bikes themselves
+	 * synced fine and only their pictures are missing, so a red "Error" would
+	 * misreport a run that did its job. A real fetch failure stays an error.
+	 * Both report a count plus one example, since one URL out of dozens says
+	 * very little on its own.
+	 */
+	private function summarise_image_failures() {
+		$unsupported = $this->image_failures['unsupported'];
+		$failed      = $this->image_failures['failed'];
+
+		if ( $unsupported ) {
+			$this->warnings[] = sprintf(
+				'%d image(s) were skipped because their file type isn\'t supported (e.g. %s). The bikes synced fine; only their pictures are missing.',
+				count( $unsupported ),
+				$unsupported[0]
+			);
+		}
+
+		if ( $failed ) {
+			update_option(
+				'citykleta_last_image_error',
+				sprintf( '%d image(s) could not be fetched (e.g. %s).', count( $failed ), $failed[0] )
+			);
+		} else {
+			delete_option( 'citykleta_last_image_error' );
+		}
 	}
 
 	/**

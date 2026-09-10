@@ -247,12 +247,41 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'use_url_filters',
+			array(
+				'label'       => 'Filter From Page URL',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Yes',
+				'label_off'   => 'No',
+				'default'     => '',
+				'description' => 'For a results page: reads location/electric from the URL (the Bike Search widget/shortcode sends these) instead of the fixed settings below, and paginates for real instead of stopping at Bike Count.',
+			)
+		);
+
+		$this->add_control(
+			'posts_per_page',
+			array(
+				'label'     => 'Bikes Per Page',
+				'type'      => \Elementor\Controls_Manager::NUMBER,
+				'default'   => 10,
+				'min'       => 1,
+				'max'       => 50,
+				'condition' => array(
+					'use_url_filters' => 'yes',
+				),
+			)
+		);
+
+		$this->add_control(
 			'location_filter',
 			array(
 				'label'       => 'Location',
 				'type'        => \Elementor\Controls_Manager::TEXT,
 				'placeholder' => 'E.g. Vedado',
 				'description' => 'Leave empty to show bikes from any location. Matches partial text.',
+				'condition'   => array(
+					'use_url_filters!' => 'yes',
+				),
 			)
 		);
 
@@ -849,11 +878,12 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 	protected function render() {
 		$settings = $this->get_settings_for_display();
 
+		$use_url_filters = 'yes' === $settings['use_url_filters'];
+
 		$args = array(
-			'post_type'      => Citykleta_Bike_Post_Type::POST_TYPE,
-			'post_status'    => 'publish',
-			'posts_per_page' => (int) $settings['count'],
-			'order'          => 'DESC' === $settings['order'] ? 'DESC' : 'ASC',
+			'post_type'   => Citykleta_Bike_Post_Type::POST_TYPE,
+			'post_status' => 'publish',
+			'order'       => 'DESC' === $settings['order'] ? 'DESC' : 'ASC',
 		);
 
 		if ( 'price' === $settings['orderby'] ) {
@@ -865,18 +895,31 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			$args['orderby'] = 'date';
 		}
 
-		$meta_query = array();
+		if ( $use_url_filters ) {
+			// Página de resultados: los mismos filtros que ya usan la grilla
+			// y el mapa del archivo (Citykleta_Templates::request_filters()),
+			// leídos de la URL en vez de un valor fijo del panel — así el
+			// widget Bike Search y este pueden vivir en la misma página sin
+			// estar acoplados directamente entre sí.
+			$paged   = max( 1, (int) get_query_var( 'page' ), (int) get_query_var( 'paged' ) );
+			$filters = Citykleta_Templates::request_filters();
 
-		if ( ! empty( $settings['location_filter'] ) ) {
-			$meta_query[] = array(
-				'key'     => 'location',
-				'value'   => sanitize_text_field( $settings['location_filter'] ),
-				'compare' => 'LIKE',
-			);
-		}
+			$args['posts_per_page'] = (int) $settings['posts_per_page'];
+			$args['paged']          = $paged;
+			$args['meta_query']     = $filters['meta_query']; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			$args['tax_query']      = $filters['tax_query']; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+		} else {
+			$args['posts_per_page'] = (int) $settings['count'];
 
-		if ( $meta_query ) {
-			$args['meta_query'] = $meta_query; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			if ( ! empty( $settings['location_filter'] ) ) {
+				$args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					array(
+						'key'     => 'location',
+						'value'   => sanitize_text_field( $settings['location_filter'] ),
+						'compare' => 'LIKE',
+					),
+				);
+			}
 		}
 
 		$query = new WP_Query( $args );
@@ -938,6 +981,10 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		}
 
 		echo '</div>';
+
+		if ( $use_url_filters ) {
+			echo Citykleta_Templates::pagination_links( $query, $args['paged'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped inside.
+		}
 
 		wp_reset_postdata();
 	}

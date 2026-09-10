@@ -107,6 +107,127 @@ class Citykleta_Templates {
 	}
 
 	/**
+	 * Option holding the ID of the editable Page whose content is shown at
+	 * the bikes archive URL. See ensure_bikes_page().
+	 */
+	const BIKES_PAGE_OPTION = 'citykleta_bikes_page_id';
+
+	/**
+	 * Returns the ID of the Page that holds the results shortcodes, creating
+	 * it the first time it's needed. Same trick WooCommerce uses for its
+	 * "Shop" page: a normal, freely editable Page (no Elementor Pro required
+	 * — this isn't a content-type template) whose content is shown at the
+	 * archive URL by load_archive_template()/templates/archive-bike.php,
+	 * instead of a fixed template. The Page's own permalink is never visited
+	 * directly by a visitor; only its content is pulled.
+	 *
+	 * Idempotent and cheap on the common path: one get_option() read, no
+	 * query, unless the page has never been created or was trashed/deleted.
+	 *
+	 * @return int Page ID, or 0 if creation somehow failed.
+	 */
+	public static function ensure_bikes_page() {
+		$page_id = (int) get_option( self::BIKES_PAGE_OPTION );
+		$page    = $page_id ? get_post( $page_id ) : null;
+
+		if ( $page && 'trash' !== $page->post_status ) {
+			// One-time upgrade: an earlier version of this page shipped with
+			// the now-retired [citykleta_bikes] all-in-one shortcode as its
+			// content. Only touches the page if it still has EXACTLY that
+			// untouched default — anyone who already edited the page (in
+			// Elementor or otherwise) keeps whatever they built.
+			if ( '[citykleta_bikes]' === trim( $page->post_content ) ) {
+				wp_update_post(
+					array(
+						'ID'           => $page_id,
+						'post_content' => self::default_bikes_page_content(),
+					)
+				);
+			}
+
+			return $page_id;
+		}
+
+		$page_id = wp_insert_post(
+			array(
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_title'   => 'Bicicletas (resultados)',
+				'post_name'    => 'citykleta-bikes-results',
+				// A shortcode alone on its own line renders cleanly (WordPress
+				// unwraps the stray <p> wpautop would otherwise add around a
+				// lone block-level shortcode) — see shortcode_unautop().
+				'post_content' => self::default_bikes_page_content(),
+			),
+			true
+		);
+
+		if ( is_wp_error( $page_id ) || ! $page_id ) {
+			return 0;
+		}
+
+		update_option( self::BIKES_PAGE_OPTION, $page_id );
+
+		return (int) $page_id;
+	}
+
+	/**
+	 * Default content for the auto-created results page: search, map, then
+	 * the grid, as three independent pieces (Citykleta_Search_Widget,
+	 * Citykleta_Map_Widget, Citykleta_Bike_Widget — via their shortcode
+	 * wrappers, see includes/elementor/class-citykleta-widget-shortcodes.php)
+	 * instead of one bundled block. The map and grid both read the URL's
+	 * search filters (`filters="url"`) and the map has no show/hide toggle
+	 * anymore — it's just always there, a plain starting point meant to be
+	 * redesigned in Elementor, not a fixed "showroom" experience.
+	 *
+	 * @return string
+	 */
+	private static function default_bikes_page_content() {
+		return "[citykleta_search]\n[citykleta_map filters=\"url\" map_height=\"450\"]\n[citykleta_grid filters=\"url\"]";
+	}
+
+	/**
+	 * Prints prev/next + numbered page links for a custom WP_Query, no JS.
+	 * Shared by anything that paginates a bikes query outside the main
+	 * query (Citykleta_Bike_Widget's grid in "Filter From Page URL" mode).
+	 *
+	 * Uses the documented paginate_links() pattern for a custom query: ask
+	 * for the link to an "impossible" page number — get_pagenum_link()
+	 * already builds the current URL's pretty-permalink form, querystring
+	 * (search filters) included — and turn that into the base template.
+	 *
+	 * @param WP_Query $query Already-run, paginated query.
+	 * @param int      $paged Current page number.
+	 * @return string HTML, or '' when there's only one page.
+	 */
+	public static function pagination_links( WP_Query $query, $paged ) {
+		if ( $query->max_num_pages <= 1 ) {
+			return '';
+		}
+
+		$big = 999999999;
+
+		$links = paginate_links(
+			array(
+				'base'      => str_replace( $big, '%#%', esc_url( get_pagenum_link( $big ) ) ),
+				'format'    => '?paged=%#%',
+				'current'   => max( 1, (int) $paged ),
+				'total'     => $query->max_num_pages,
+				'prev_text' => '&lsaquo; Anterior',
+				'next_text' => 'Siguiente &rsaquo;',
+				'type'      => 'list',
+			)
+		);
+
+		if ( ! $links ) {
+			return '';
+		}
+
+		return '<nav class="citykleta-pagination" aria-label="Paginación de resultados">' . $links . '</nav>';
+	}
+
+	/**
 	 * Translates a "usage type" (a `bike_usage` taxonomy term, managed from
 	 * wp-admin → Shared Bikes → Usage types) into the group of `bike_type`
 	 * IDs it corresponds to — the relationship is declared by the admin by
@@ -217,36 +338,57 @@ class Citykleta_Templates {
 
 			$this->enqueue_map_assets();
 
-			// Alterna entre la vista de tarjetas y la de mapa (un botón). No
-			// declara dependencia dura de citykleta-map: si Leaflet no está,
-			// el toggle igual funciona (comprueba window.CityKletaMap antes de
-			// tocar el mapa) y solo se pierde el dibujado del mapa.
-			wp_enqueue_script(
-				'citykleta-view-toggle',
-				CITYKLETA_URL . 'assets/js/citykleta-view-toggle.js',
-				array(),
-				$this->asset_version( 'assets/js/citykleta-view-toggle.js' ),
-				true
-			);
-
-			// Carga infinita del grid: reemplaza la paginación clásica,
-			// trayendo la página siguiente por fetch al acercarse el final.
-			wp_enqueue_script(
-				'citykleta-infinite-scroll',
-				CITYKLETA_URL . 'assets/js/citykleta-infinite-scroll.js',
-				array(),
-				$this->asset_version( 'assets/js/citykleta-infinite-scroll.js' ),
-				true
-			);
+			// El mapa ya no tiene botón para esconderlo (queda siempre
+			// visible en la página de resultados) y la paginación
+			// (Citykleta_Templates::pagination_links()) es enlaces normales
+			// — ninguno de los dos necesita JS propio acá.
 		}
 
 		if ( is_singular( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
+			// Splide (photo carousel) — vendor, doesn't ship with the plugin
+			// (see CLAUDE.md). file_exists() so a fresh checkout without it
+			// still shows the bike's photo, just without the slide mechanics
+			// — same graceful-degradation pattern as Flatpickr/Leaflet below.
+			if ( file_exists( CITYKLETA_PATH . 'assets/js/splide.min.js' ) ) {
+				wp_enqueue_style(
+					'splide',
+					CITYKLETA_URL . 'assets/css/splide.min.css',
+					array(),
+					CITYKLETA_VERSION
+				);
+
+				wp_enqueue_script(
+					'splide',
+					CITYKLETA_URL . 'assets/js/splide.min.js',
+					array(),
+					CITYKLETA_VERSION,
+					true
+				);
+			}
+
 			wp_enqueue_style(
 				'citykleta-single-bike',
 				CITYKLETA_URL . 'assets/css/single-bike.css',
-				array(),
+				array( 'splide' ),
 				$this->asset_version( 'assets/css/single-bike.css' )
 			);
+
+			// Wires our own arrow/dot buttons to Splide's API — no-ops if
+			// Splide didn't load (window.Splide undefined) or the bike has a
+			// single photo (today's real case): the template doesn't print
+			// those buttons at all in that case, nothing to wire up.
+			wp_enqueue_script(
+				'citykleta-bike-gallery',
+				CITYKLETA_URL . 'assets/js/citykleta-bike-gallery.js',
+				array( 'splide' ),
+				$this->asset_version( 'assets/js/citykleta-bike-gallery.js' ),
+				true
+			);
+
+			// "Dónde recogerla" mini-map (Citykleta_Bike_Map_Data::for_bike()
+			// in the template) — same Leaflet setup the archive's results map
+			// uses; no-op if the vendor files aren't installed (see CLAUDE.md).
+			$this->enqueue_map_assets();
 		}
 
 		if ( is_singular( Citykleta_Destination_Post_Type::POST_TYPE ) ) {

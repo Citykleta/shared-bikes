@@ -28,6 +28,7 @@ require_once CITYKLETA_PATH . 'includes/post-types/class-citykleta-destination-p
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-usage-taxonomy.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-bike-meta.php';
+require_once CITYKLETA_PATH . 'includes/meta/class-citykleta-owner-contact.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-type-sync.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-map-settings-sync.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-destination-matcher.php';
@@ -43,7 +44,12 @@ require_once CITYKLETA_PATH . 'includes/stats/class-citykleta-search-stats.php';
 require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber.php';
 require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber-rest.php';
 require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-app-cta.php';
+require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request.php';
+require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-rest.php';
+require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-form.php';
+require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-notifier.php';
 require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-elementor.php';
+require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-widget-shortcodes.php';
 
 /**
  * Arranca el plugin.
@@ -68,6 +74,11 @@ function citykleta_init() {
 	// Registra los campos personalizados (modelo, ubicación, precio, etc.).
 	( new Citykleta_Bike_Meta() )->register();
 
+	// Contacto del propietario: el único campo de la bici que NO se sincroniza
+	// (el catálogo público de la app no trae PII del dueño), se escribe a mano
+	// en wp-admin para poder hacerle llegar una solicitud.
+	( new Citykleta_Owner_Contact() )->register();
+
 	// Sincroniza las bicicletas desde la API configurada.
 	( new Citykleta_Bike_Sync() )->register();
 
@@ -82,8 +93,17 @@ function citykleta_init() {
 	// y colores del mapa.
 	( new Citykleta_Settings() )->register();
 
-	// Plantilla del archivo de bicis (grid de tarjetas de vista previa).
+	// Plantilla del archivo de bicis: sirve el contenido de una Page
+	// editable (ver Citykleta_Templates::ensure_bikes_page()), armada por
+	// defecto con los shortcodes de abajo — no una grilla fija.
 	( new Citykleta_Templates() )->register();
+
+	// [citykleta_search] / [citykleta_grid] / [citykleta_map]: los mismos
+	// widgets de Elementor (Search/Bike/Map), usables como piezas sueltas en
+	// cualquier Page — mismo patrón que WooCommerce con su página "Shop",
+	// solo que en 3 elementos independientes en vez de uno solo. No-op si
+	// Elementor no está activo (ver la propia clase).
+	( new Citykleta_Widget_Shortcodes() )->register();
 
 	// Permalinks individuales /bikes/{external_id}/{slug}/.
 	( new Citykleta_Bike_Router() )->register();
@@ -105,6 +125,14 @@ function citykleta_init() {
 
 	// Muro de descarga de la app (shortcode [citykleta_app_download]).
 	( new Citykleta_App_Cta() )->register();
+
+	// Solicitudes de alquiler: CPT privado + endpoint REST + formulario en la
+	// página de la bici + los correos de aviso. Es una SOLICITUD, no una
+	// reserva — la app es la fuente de verdad y su /reservations es de staff.
+	( new Citykleta_Bike_Request() )->register();
+	( new Citykleta_Bike_Request_Rest() )->register();
+	( new Citykleta_Bike_Request_Form() )->register();
+	( new Citykleta_Bike_Request_Notifier() )->register();
 
 	// Widget de Elementor (no hace nada si Elementor no está activo).
 	( new Citykleta_Elementor() )->register();

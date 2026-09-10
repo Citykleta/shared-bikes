@@ -33,6 +33,15 @@ includes/
                                         asignación directa por bici (se deriva de bike_type).
   meta/
     class-bike-meta.php              → Campos personalizados + caja de edición + guardado + REST API.
+    class-citykleta-owner-contact.php → El ÚNICO campo de la bici que no se sincroniza: el contacto del
+                                        dueño (correo o teléfono), escrito a mano en su propia caja.
+                                        Ver "Solicitudes de bicicleta" más abajo.
+  requests/
+    class-citykleta-bike-request.php  → CPT privado "citykleta_bike_req": una solicitud de alquiler
+                                        (bici, fechas, contacto, estado). Calcado de Citykleta_Subscriber.
+    class-citykleta-bike-request-rest.php → POST /citykleta/v1/bike-requests, público, valida el payload.
+    class-citykleta-bike-request-form.php → El formulario de la página individual + sus assets.
+    class-citykleta-bike-request-notifier.php → Los correos (a Citykleta y, si se puede, al dueño).
   sync/
     class-citykleta-bike-type-sync.php → Trae /bike-types y crea/actualiza los términos de la
                                         taxonomía bike_type. Corre primero, dentro de
@@ -113,16 +122,19 @@ includes/
     class-citykleta-map-widget.php    → Widget "Bikes Map": consulta bicis con WP_Query (mismo patrón que
                                          el widget de grid) y se las pasa como JSON a citykleta-map.js, que
                                          las dibuja en un mapa Leaflet agrupadas en clusters.
+    class-citykleta-widget-shortcodes.php → [citykleta_search]/[citykleta_grid]/[citykleta_map]: los tres
+                                         widgets de arriba, también como shortcodes (reusan su render()
+                                         real, ver la sección "Archivo de bicis" más abajo).
 templates/
-  archive-bike.php                   → Grid de tarjetas de vista previa en /bikes/ (imagen, título,
-                                        ubicación, precio, disponibilidad). Enlaza a la página individual.
-                                        Muestra un aviso "Mostrando resultados para: X" cuando llega
-                                        ?location= en la URL (desde el widget de búsqueda).
+  archive-bike.php                   → Ya no arma el grid a mano: imprime el contenido de una Page
+                                        editable con Elementor (ver "Archivo de bicis" más abajo), armada
+                                        por defecto con los tres shortcodes de arriba.
   single-destination.php             → Página de un Destino (/destination/{slug}/): bicis asignadas por
                                         geocerca, precio promedio, artículos relacionados, FAQ. Ver
                                         sección "Destinos" más abajo.
 assets/css/
   bike-cards.css                     → Estilos del grid de tarjetas (archivo + widget de bicis).
+  bike-request.css                   → Formulario de solicitud dentro de la tarjeta de precio.
   destination.css                    → Encabezado/artículos/FAQ de la página de Destino (el grid de
                                         bicis reusa bike-cards.css tal cual).
   search-bar.css                     → Estilos base de la barra de búsqueda (la mayoría sobreescribible
@@ -137,6 +149,7 @@ assets/images/
   marker-bike.svg                    → Glyph de bici del marcador por defecto (ver sección "Mapa de bicis").
                                         NO está en el repo — hay que poner un SVG propio ahí a mano.
 assets/js/
+  citykleta-bike-request.js          → Botón → formulario → confirmación de la solicitud (POST por REST).
   citykleta-search-widget.js         → Inicializa Flatpickr en modo rango sobre el campo de fechas.
   flatpickr.min.js / flatpickr-es.js → Vendor (Flatpickr + locale es), NO están en el repo, hay que
                                         descargarlos a mano (ver sección "Widget de búsqueda").
@@ -179,7 +192,7 @@ languages/                           → Traducciones (vacío por ahora).
 | is_electric        | boolean | ¿Es eléctrica?              | Convencional vs. eléctrica  |
 | owner_name         | string  | Nombre del propietario      | Solo nombre, sin perfil completo todavía |
 | owner_photo        | string  | Foto del propietario (URL)  | URL directa, no se descarga a la biblioteca de medios (a diferencia de la imagen de la bici) |
-| owner_phone        | string  | Teléfono del propietario (WhatsApp) | Viene de `owner.phone` en la API. Usado por el botón "Contactar por WhatsApp" de la página individual (ver `single-bike.php` + pestaña Communication de Settings). |
+| owner_phone        | string  | Teléfono del propietario (WhatsApp) | **Siempre vacío en la práctica.** El sync lo lee de `owner.phone`, pero `/bikesPublic/sync` es un catálogo sin PII y sólo manda `owner: { name, verified }`, así que ese `if` no se cumple nunca. Para contactar al dueño se usa `Citykleta_Owner_Contact` (meta aparte, escrito a mano) — ver "Solicitudes de bicicleta". |
 
 ## Arquitectura: WordPress sincroniza desde la app, no es la fuente de verdad
 
@@ -491,24 +504,36 @@ lista de IDs de adjunto en el meta `_citykleta_gallery_ids`
 una foto borrada en la app tiene que desaparecer del sitio, no quedarse de un sync anterior.
 
 Para leerlas, `Citykleta_Bike_Meta::gallery_ids( $post_id )` devuelve la lista completa
-(destacada primero), deduplicada y recortada a `MAX_IMAGES` — es lo que usa el mosaico de
+(destacada primero), deduplicada y recortada a `MAX_IMAGES` — es lo que usa el carrusel de
 `templates/single-bike.php`. El tope se aplica **una sola vez, al entrar**: sin él, una bici
 con muchas fotos convertiría un sync en decenas de descargas más sus juegos de miniaturas,
 el mismo problema de costo que motivó el adjunto compartido de más abajo.
 
 Ojo: hoy la API real manda **una sola foto por bici** (`images` con un elemento), así que el
-caso de 1 foto es el único que se ve en desarrollo — el mosaico de 2 a 5 está construido y
-verificado, pero contra datos inyectados a mano, no contra el backend.
+caso de 1 foto es el único que se ve en producción — el carrusel de 2+ está construido y
+probado de punta a punta (Splide montado, flechas/puntos, ida y vuelta completa) escribiendo a
+mano `_citykleta_gallery_ids` de una bici de prueba con adjuntos reales ya en la Media
+Library, no contra un payload real de `/bikesPublic/sync` con varias fotos — eso solo se va a
+poder probar el día que el backend mande más de una.
 
 **Un adjunto por URL de origen, compartido entre bicis.** El meta
 `_citykleta_image_source_url` (`Citykleta_Bike_Sync::IMAGE_SOURCE_META`) se escribe en los
 **dos** lados: en la bici, para no volver a descargar una imagen que no cambió; y en el
 **adjunto**, que es lo que permite a `find_attachment_by_source()` reutilizarlo cuando otra
-bici apunta a la misma URL. No es un detalle menor: en el catálogo real las 68 bicis de
-prueba comparten un mismo `bike-placeholder.jpg`, y descargarlo una vez por bici significaba
-68 descargas más 68 juegos de miniaturas — una primera sincronización que **no terminaba en
-15 minutos**. Con el adjunto compartido, esa misma corrida tarda ~98 s y crea **1** adjunto.
-WordPress no tiene problema en que un adjunto sea la imagen destacada de varios posts.
+bici apunta a la misma URL. No es un detalle menor: cuando las 68 bicis de prueba compartían
+un mismo `bike-placeholder.jpg`, descargarlo una vez por bici significaba 68 descargas más 68
+juegos de miniaturas — una primera sincronización que **no terminaba en 15 minutos**. Con el
+adjunto compartido, esa misma corrida tardaba ~98 s y creaba **1** adjunto. WordPress no tiene
+problema en que un adjunto sea la imagen destacada de varios posts.
+
+**Ojo: desde 2026-09 el catálogo ya no comparte imagen.** Cada bici tiene su propia foto
+(`citykleta-bicicleta-{marca}-{modelo}-…jpg`, fotos reales de Wikimedia Commons puestas por
+`scripts/fetch-bike-photos.ts` en `citykleta-sharing-api`), así que la deduplicación ya no
+ahorra nada aquí y la **primera** sincronización sí hace 68 descargas (~6 MB) más sus
+miniaturas: va a tardar varios minutos y eso es lo esperado, no un cuelgue. Las siguientes
+corridas no vuelven a descargar nada mientras la URL de origen no cambie, que es para lo que
+sirve el meta. Antes de eso el catálogo sirvió 68 **SVG** durante un tiempo, que el sync
+rechazaba entero — ver la nota sobre SVG más arriba.
 
 **Gotcha grande — por qué el sync NO usa `media_sideload_image()`:** esa función (vía
 `download_url()` → `wp_safe_remote_get()`) pasa la URL por `wp_http_validate_url()`, que
@@ -542,14 +567,129 @@ solo por la **extensión de la URL**, así que una URL sin extensión (ej.
 la respuesta (soporta jpg/png/gif/webp/avif y descarta lo que no sea imagen), así que ese
 caso ya funciona.
 
-### Archivo de bicis (grid de tarjetas)
+**SVG no está en esa lista y no debe estarlo.** Es XML ejecutable (admite `<script>`,
+`onload=`, `<foreignObject>`), y WordPress no permite subirlo por defecto justo por eso —
+aceptarlo aquí metería en la biblioteca de medios, servido desde el propio dominio, un
+archivo que viene de un endpoint público sin autenticación. Además WP no genera miniaturas
+de SVG, así que `wp_get_attachment_image()` saldría sin dimensiones en las tarjetas. En
+2026-09 el catálogo de desarrollo servía las 68 imágenes como `.svg`
+(`Content-Type: image/svg+xml`, diagramas generados, no fotos): eso fue un **error al
+generar los datos de prueba** — el plan es servir imágenes reales — y el rechazo del plugin
+era el comportamiento correcto, no un bug.
 
-`/bikes/` muestra el grid con `templates/archive-bike.php`, cargado vía el filtro
-`template_include` (así el tema activo lo puede sobreescribir con su propio
-`archive-bike.php`, patrón usado por WooCommerce y otros). Cada tarjeta es solo
-vista previa: imagen, título, ubicación, precio y disponibilidad — el resto de los
-datos van en la página individual de cada bici (pendiente de construir, con el
-"muro" de registro descrito en la sección de producto).
+**Cómo se reportan los fallos de imagen** (`record_image_failure()` +
+`summarise_image_failures()`): se acumulan durante toda la corrida y se resumen **una vez al
+final**, separados en dos:
+
+- **Tipo no soportado** → va a `citykleta_last_sync_warning` ("Heads up"). Las bicis se
+  sincronizaron bien y solo faltan sus fotos; pintarlo en rojo describiría mal una corrida
+  que hizo su trabajo.
+- **Fallo real** (red, 404, descarga rota) → sigue en `citykleta_last_image_error`.
+
+Los dos dan un **conteo** más un ejemplo. Antes cada fallo hacía su propio
+`update_option( 'citykleta_last_image_error', … )` *dentro* del loop y cada éxito hacía
+`delete_option()`, así que lo que mostraba wp-admin no era "falló una imagen" sino **lo que
+le pasó a la última bici procesada**: con 68 fallos se veía el 68º, y si la última hubiera
+funcionado no se habría visto ninguno. El código de error se compara contra
+`Citykleta_Bike_Sync::IMAGE_TYPE_ERROR`, no contra el texto del mensaje.
+
+### Archivo de bicis (grid de tarjetas) — editable como la página "Shop" de WooCommerce
+
+`/bikes/` sigue siendo la URL del archivo del CPT `bike` (nada cambió en el rewrite),
+pero **lo que se ve ya no es una plantilla fija**: `templates/archive-bike.php`
+(cargado vía `template_include`, mismo patrón de siempre — el tema activo lo puede
+sobreescribir con su propio `archive-bike.php`) ahora solo imprime el contenido de
+una **Page normal de WordPress**, la que devuelve
+`Citykleta_Templates::ensure_bikes_page()` (se crea sola la primera vez que hace
+falta, título "Bicicletas (resultados)", su ID vive en la opción
+`citykleta_bikes_page_id`; su propia URL nunca la visita nadie, solo se usa su
+contenido). Esa Page se edita con **Elementor gratis** — no hace falta Pro, porque
+es una Page cualquiera, no una plantilla de tipo de contenido. Exactamente el mismo
+mecanismo que usa WooCommerce con su página "Shop": la URL sigue siendo la del tipo
+de contenido, pero el contenido que se ve es el de una Page editable.
+
+**La parte dinámica son tres piezas independientes, no un bloque único:**
+búsqueda, mapa y grilla — cada una es a la vez un widget de Elementor (ya
+existían: `Citykleta_Search_Widget`, `Citykleta_Map_Widget`, `Citykleta_Bike_Widget`)
+y un shortcode (`[citykleta_search]`, `[citykleta_map]`, `[citykleta_grid]`,
+`Citykleta_Widget_Shortcodes`, `includes/elementor/class-citykleta-widget-shortcodes.php`).
+El usuario las mueve, envuelve o reordena por separado en Elementor — se
+abandonó a propósito el shortcode combinado que había antes (`[citykleta_bikes]`,
+un solo panel con tarjetas/mapa alternables por un botón): ahora el mapa queda
+**siempre visible**, sin ese botón, y la grilla es su propia pieza con su propia
+paginación.
+
+`Citykleta_Templates::ensure_bikes_page()` pone por defecto:
+```
+[citykleta_search]
+[citykleta_map filters="url" map_height="450"]
+[citykleta_grid filters="url"]
+```
+(migra sola una Page vieja que todavía tuviera el `[citykleta_bikes]` original
+sin tocar, ver el propio método — si el usuario ya editó la página, no la toca).
+
+**Cómo un shortcode reusa el `render()` real del widget, sin reimplementarlo:**
+`Citykleta_Widget_Shortcodes::render_widget()` instancia la clase del widget
+directamente (`new Citykleta_Bike_Widget( ['id' => ..., 'settings' => $atts], [] )`)
+y llama a su método público `render_content()` — el mismo que usa el propio
+Elementor para pintar un widget guardado de verdad. Cualquier setting que el
+shortcode no pase cae al *default* de ese control (igual que un widget guardado
+con solo algunos campos personalizados), así que agregar o cambiar un control del
+widget funciona automáticamente en su shortcode, sin nada que mantener sincronizado
+a mano. **Gotcha de Elementor, no obvio:** `Widget_Base::__construct()` tira una
+`Exception` si el segundo argumento (`$args`) es `null` y el primero (`$data`) no
+está vacío — hay que pasar `array()`, no `null`, aunque no se use para nada en ese
+caso (`Element_Base::__construct()`, `elementor/includes/base/element-base.php`).
+Verificado en vivo: sin este arreglo, la página entera daba **Fatal error**.
+
+**Limitación real, no un bug:** los controles de la pestaña **Style** (y en
+general cualquier control con `selectors`, esté en Style o no) generan CSS a
+través del archivo que Elementor escribe **por página** cuando se guarda en el
+editor — eso no existe para un widget instanciado por un shortcode, así que esa
+personalización no llega. No importa para esta página (ya usaba el CSS por
+defecto del plugin antes de este cambio), pero si alguien usa estos shortcodes en
+otro lado esperando ver los colores/tipografía que configuró en un widget
+Elementor ya guardado, no los va a ver — solo el look base de
+`bike-cards.css`/`search-bar.css`/`citykleta-map.css`. La única excepción que sí
+se resolvió: la altura del mapa (`map_height`) se imprime también como
+`style="height:...px"` inline en `Citykleta_Map_Widget::render()`, porque sin
+altura explícita Leaflet no dibuja nada (0px) — ver el gotcha de siempre en la
+sección "Mapa de bicis".
+
+**Grilla y mapa saben responder al filtro de la página** (`filters="url"` en el
+shortcode, o el switcher "Filter From Page URL" en el panel de Elementor):
+en vez de su ubicación/cantidad fija de siempre, leen
+`Citykleta_Templates::request_filters()` — el mismo helper que ya compartían
+antes — directo de la URL (`?location=`/`?electric=`), y la grilla además pagina
+de verdad (`posts_per_page` propio + `Citykleta_Templates::pagination_links()`,
+ver abajo) en vez de pararse en un conteo fijo. Verificado en vivo con
+`?location=Vedado`: grilla y mapa mostraron las mismas 8 bicis, ninguna otra.
+
+**Paginación clásica (anterior/siguiente + números), sin JS** — reemplazó la
+carga infinita que había antes (`citykleta-infinite-scroll.js`, borrado).
+`Citykleta_Templates::pagination_links()` arma esto con `paginate_links()`
+usando el patrón documentado para paginar una `WP_Query` propia en vez de la
+principal: pide el enlace a una página "imposible"
+(`get_pagenum_link( 999999999 )`, que ya arma la URL bonita conservando el
+querystring de filtros actual — probado con `?location=Havana`, sigue en cada
+número de página) y la convierte en plantilla.
+
+**Se abandonó el diseño anterior de "app-shell"** (la página llenaba la ventana
+entera, sin scroll de documento, sin pie de página, con un botón para alternar
+tarjetas/mapa — pensada como un showroom a pantalla completa). Ya no tenía
+sentido forzarlo desde el plugin: el usuario ahora controla el diseño completo
+de esta página, footer incluido, y el mapa siempre visible no necesita ese
+botón (`citykleta-view-toggle.js`, borrado). Las reglas de
+`assets/css/bike-cards.css` que dependían de esa altura fija se quitaron.
+
+Cada tarjeta sigue siendo solo vista previa: imagen, título, ubicación, precio y
+disponibilidad — el resto de los datos van en la página individual de cada bici.
+
+**Pendiente, a propósito, para después:** un cuarto elemento — filtros (marca,
+tipo, altura del ciclista, orden…) — también como widget y shortcode. La
+barra "Filtros (próximamente)" que había en el shortcode combinado viejo
+desapareció junto con él; hoy `Citykleta_Search_Widget` sigue siendo solo
+ubicación + fechas + eléctricas, sin más filtros todavía en ningún lado.
 
 **Gotcha:** después de cambiar el `rewrite slug` de un CPT (como pasó al renombrar
 `bicicleta` → `bike`), la URL del archivo (`/bikes/`) puede dar 404 hasta que se
@@ -798,11 +938,19 @@ Para descargar los archivos que faltan:
 
 ## Muro de descarga de la app (Subscribers → HubSpot)
 
-La conversión del sitio es: **muro de sign-up (correo + nombre + consentimiento) →
-botón de descarga de la app**. Reemplaza el viejo "Contactar por WhatsApp" (el botón
-ya se quitó de `single-bike.php`; la pestaña Communication de Settings se conserva).
-De qué bici salió una descarga **no** se rastrea a propósito — las inscripciones y
-descargas son globales, solo las *vistas* son por bici (ver `Citykleta_View_Stats`).
+Una de las dos conversiones del sitio es: **muro de sign-up (correo + nombre +
+consentimiento) → botón de descarga de la app**. Reemplazó al viejo "Contactar por
+WhatsApp" (el botón ya se quitó de `single-bike.php`; la pestaña Communication de
+Settings se conserva). De qué bici salió una descarga **no** se rastrea a propósito —
+las inscripciones y descargas son globales, solo las *vistas* son por bici (ver
+`Citykleta_View_Stats`).
+
+**La otra conversión es la solicitud de una bici concreta** (ver "Solicitudes de
+bicicleta" más abajo), y las dos compiten por el mismo visitante: quien solicita por
+web ya no necesita instalar la app. Fue una decisión consciente, no un accidente —
+pero conviene mirar los dos números juntos antes de empujar más una que la otra. A
+diferencia de la descarga, la solicitud **sí** es por bici, y su consentimiento de
+marketing es opcional y aparte.
 
 `Citykleta_App_Cta` registra el shortcode `[citykleta_app_download]` (colócalo donde
 sea — página, widget, Elementor). Las URLs de tienda van por atributos, así no hace
@@ -857,6 +1005,118 @@ un visitante anónimo no puede firmar un nonce, así que se valida el payload):
 descarta el honeypot) y `POST /wp-json/citykleta/v1/subscribers/{id}/download` (marca
 `downloaded_at` una sola vez). El abuso máximo es inflar un lead basura o el conteo de
 descargas — agregar rate-limit por IP si algún día importa.
+
+## Solicitudes de bicicleta
+
+La página individual tiene un formulario **"Solicitar esta bicicleta"** (nombre, correo **o**
+teléfono, fechas opcionales, mensaje). Reemplazó la nota *"La reserva se hace desde la app"* que
+había en `single-bike.php`.
+
+**Es una SOLICITUD, no una reserva, y la distinción es dura, no un matiz de redacción:**
+
+- `/reservations` y `/orders` de `citykleta-sharing-api` están detrás del `verifyAuth` global y
+  responden **401** sin sesión de staff (verificado). WordPress **no puede crear una reserva** en la
+  fuente de verdad. Lo único público sigue siendo `/bikesPublic/sync` y `/map-settings`.
+- **No existe disponibilidad por fecha en ningún lado.** El meta `available` es un booleano suelto
+  derivado de `status === 'active'`. Dos personas pueden solicitar la misma bici el mismo día: ambas
+  solicitudes entran y una persona resuelve. Inventar un sistema de reservas encima de datos que no
+  lo soportan sería peor que no tenerlo.
+- **No hay, ni va a haber, pago procesado por esta plataforma.** Citykleta no cobra pagos
+  internacionales ni locales — decisión explícita del producto, no una limitación técnica temporal. El
+  MVP termina en la solicitud: le llega al dueño y **él** coordina el resto, cobro en efectivo incluido,
+  por su cuenta. Por eso el formulario **no** tiene talla/cantidad, hora de recogida/entrega, monto de
+  seña, ni logos de método de pago (PayPal/Zelle/etc.) — aunque una referencia de diseño los muestre,
+  no corresponden a como funciona (ni va a funcionar) el producto.
+
+Por eso WP hace de **staging**, el mismo papel que ya juega con los leads (ver `Citykleta_Subscriber`,
+del que este CPT está calcado): captura la intención, guarda el registro, y alguien confirma a mano.
+
+**Diseño de la página (patrón ListNRide)** — dos columnas desde arriba: a la izquierda, la
+galería (un carrusel de una foto a la vez, deslizable — motor **Splide**, ver más abajo;
+flechas y puntos propios solo se imprimen con más de una foto, ver la sección "Imágenes" más
+abajo) seguida del título, ficha técnica y "Dónde recogerla" (mini-mapa con la ubicación real
+de la bici, mismo módulo que el widget Bikes Map — ver `Citykleta_Bike_Map_Data::for_bike()`);
+a la derecha, la tarjeta de solicitud, pegada al borde superior de la galería y pegajosa al
+hacer scroll. Colapsa a una columna en pantallas angostas. Ver `templates/single-bike.php` y
+`assets/css/single-bike.css`.
+
+**La galería usa Splide** (`assets/js/splide.min.js` + `assets/css/splide.min.css`), no un
+carrusel hecho a mano — mismo criterio que Flatpickr/Leaflet en el resto del plugin: la
+librería resuelve el mecanismo real (touch, drag, transiciones), y solo se hace a mano lo que
+es decisión de diseño propia. `assets/js/citykleta-bike-gallery.js` monta Splide con
+`arrows: false, pagination: false` y conecta los botones/puntos **propios** del plugin (los
+`<button>` que imprime `templates/single-bike.php`, con el look de esta marca) a su API
+(`splide.go()`) — Splide no dibuja los suyos. La estructura del HTML es la que Splide exige
+para "static HTML" (`.splide > .splide__track > .splide__list > .splide__slide*`), así que sin
+JS igual se ve la foto (una etiqueta `<img>` normal dentro de una lista), solo no desliza.
+**No viene con el plugin** (mismo criterio de vendor que Flatpickr/Leaflet — no está pensado
+para vivir en el repo, ver la nota de conexión cara/intermitente en Cuba al principio de este
+documento): `Citykleta_Templates::enqueue_styles()` la encola con `file_exists()`, así que un
+checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para descargar:
+`https://cdn.jsdelivr.net/npm/@splidejs/splide@4/dist/js/splide.min.js` → `assets/js/splide.min.js`,
+`https://cdn.jsdelivr.net/npm/@splidejs/splide@4/dist/css/splide.min.css` → `assets/css/splide.min.css`.
+
+- **`Citykleta_Bike_Request`** — CPT privado `citykleta_bike_req` (no público, sin front-end, sin REST:
+  el contacto del solicitante es dato personal). Guarda la bici (post ID **y** `external_id`, más el
+  título como *snapshot* — el sync puede cambiarlo y la solicitud debe seguir diciendo qué pidió la
+  persona), contacto, fechas, mensaje y un estado editable (`new` → `contacted` → `confirmed`/`closed`).
+  **Nunca deduplica**: la misma persona pidiendo dos veces son dos solicitudes reales, a diferencia de
+  un sign-up repetido que sí hace upsert.
+- **`Citykleta_Bike_Request_Rest`** — `POST /citykleta/v1/bike-requests`, público con el mismo criterio
+  que el muro y el contador de vistas (un visitante anónimo no puede firmar un nonce, así que se valida
+  el payload). Honeypot `website`. La bici tiene que ser un post `bike` **publicado** — el id viaja en
+  el HTML y nada impide mandar un número cualquiera.
+- **Un solo campo para correo o teléfono**, a propósito: en La Habana mucha gente tiene WhatsApp y no
+  un correo que revise, y pedir los dos costaría solicitudes. `parse_contact()` decide cuál es
+  (`is_email()`, si no ≥8 dígitos = teléfono, el largo de un móvil cubano).
+- **El consentimiento de marketing es opcional y va aparte.** Solicitar una bici **no** es consentir
+  marketing — son bases legales distintas — y `Citykleta_Subscriber::upsert()` estampa
+  `META_CONSENT = '1'` incondicionalmente. Si esa llamada se hiciera siempre, cada solicitud entraría
+  en la cola `pending` y el conector la empujaría a HubSpot como contacto de marketing sin
+  consentimiento. Por eso `maybe_capture_lead()` sólo crea el Subscriber cuando la persona marcó la
+  casilla **y** dejó un correo; sin marcar, la dirección vive sólo en la solicitud.
+- **`citykleta_bike_request_captured`** (`$post_id`, `$bike_id`, `$data`) es el punto de acoplamiento,
+  igual que `citykleta_subscriber_captured` lo es para HubSpot. `Citykleta_Bike_Request_Notifier` se
+  engancha ahí para los correos, y es donde entraría el push de la Fase 2.
+
+### El contacto del dueño no viene de la API (y no debe venir)
+
+`GET /bikesPublic/sync` manda el dueño como **`{ name, verified }`** y nada más — sin teléfono, sin
+correo, sin foto (comprobado en las 68 bicis del catálogo real). No es un olvido: ese endpoint es
+público y sin autenticación, y CLAUDE.md ya lo describía como *"el catálogo sin PII"*. Publicar ahí los
+teléfonos de los dueños los haría raspables en bloque.
+
+**Ojo con esto al leer el código:** `Citykleta_Bike_Sync::upsert_bike()` lee `$item['owner']['phone']`
+y `['photo']`, pero esas claves **nunca llegan**, así que `owner_phone` y `owner_photo` están vacíos en
+todas las bicis. (Es la razón por la que el botón de WhatsApp se quitó de `single-bike.php`: no tenía
+número al que apuntar.)
+
+Por eso existe **`Citykleta_Owner_Contact`**: una caja aparte en la pantalla de la bici donde se escribe
+a mano un correo o teléfono del dueño. Va en su **propio meta** (`_citykleta_owner_contact`), **no** en
+`owner_phone` — ese es un campo sincronizado y, aunque hoy el `if` del sync no se cumpla nunca, el día
+que la API mande `phone` pisaría en silencio lo escrito a mano. Su aviso dice lo contrario que el de la
+caja "Bike data" de arriba (que avisa que todo se sobrescribe), así que es explícito a propósito.
+
+Con un **correo** el dueño recibe aviso automático; con un **teléfono** no hay nada que mandar solo
+(WhatsApp no da API de envío a este plugin), así que la ficha de la solicitud ofrece un enlace `wa.me`
+prellenado con la plantilla de Settings → Communication, para que una persona lo apriete.
+
+### Correos
+
+`Citykleta_Bike_Request_Notifier` manda dos: uno a Citykleta (`citykleta_request_notify_email`, nueva
+sección de la pestaña **Communication**; si está vacío cae al `admin_email`) y otro al dueño cuando su
+contacto es un correo. **El correo es best-effort**: `wp_mail()` desde LocalWP o desde un host cubano
+falla a menudo, así que la solicitud se guarda **antes** de intentar nada, y `META_OWNER_NOTIFIED_AT`
+sólo se estampa si `wp_mail()` devolvió `true` — la pantalla de wp-admin no puede decir "se le avisó al
+dueño" cuando no salió nada del servidor. El canal fiable es wp-admin; el correo es la comodidad encima.
+
+### Fase 2 (pendiente, necesita el backend)
+
+Un `POST /bikesPublic/requests` público en `citykleta-sharing-api` (mismo criterio que
+`/bikesPublic/sync`) que reciba la solicitud y **notifique al dueño desde el backend**, que sí conoce su
+contacto. WP pasaría de dueño del dato a proxy, y `citykleta_bike_req` quedaría como staging con su
+estado de sync — exactamente el patrón Subscriber → HubSpot. Mientras tanto, el contacto manual de
+`Citykleta_Owner_Contact` es el puente.
 
 ## Destinos
 
@@ -928,14 +1188,17 @@ un destino sin trucos), no como término de taxonomía.
 
 ## Ideas / próximos pasos posibles
 
-- Página individual de bici (`single-bike.php`, mismo patrón de `template_include` que
-  el archivo) con el "muro" de registro: solo algunos datos visibles, el resto detrás
-  de un botón de sign up, como los artículos pagados de periódicos.
+- **Muro de registro sobre la ficha de la bici** — la idea original era enseñar sólo algunos
+  datos y esconder el resto tras un sign up, como los periódicos de pago. No se hizo así:
+  `single-bike.php` ya existe y muestra la ficha **completa**, y el muro terminó siendo global
+  (el de descarga de la app, ver esa sección). Queda como decisión abierta si conviene volver
+  a esconder algo, ahora que la conversión también puede ser una solicitud.
 - Endpoint REST propio (ej. `/wp-json/citykleta/v1/bikes`) con formato limpio
   para el móvil, en lugar del endpoint genérico.
 - Relación bicicleta ↔ propietario completa (perfil, reputación, más bicis del mismo
-  dueño). Por ahora solo existe `owner_name`/`owner_photo` como campos sueltos en la
-  bici (ver tabla de campos), sin CPT ni perfil propio — nombres de ejemplo: Laura,
+  dueño). Por ahora solo existe `owner_name` como campo suelto en la bici — `owner_photo`
+  y `owner_phone` existen en el código pero llegan siempre vacíos (ver tabla de campos),
+  sin CPT ni perfil propio — nombres de ejemplo: Laura,
   John, María, Alfonso, Gustavo.
 - Taxonomía de tipo de bici (montaña, ciudad, paseo, eléctrica).
 - Lightbox / ampliar foto en la página individual — el mosaico muestra hasta 5 fotos pero
@@ -944,6 +1207,12 @@ un destino sin trucos), no como término de taxonomía.
   widget de búsqueda (`Citykleta_Search_Widget`) filtren resultados de verdad; hoy
   solo viajan en la URL sin usarse. También calendario personalizado en vez del
   `<input type="date">` nativo, si se quiere un look más parecido a apps de reservas.
+  Es lo mismo que impide que una solicitud sea una reserva de verdad (ver "Solicitudes
+  de bicicleta"): sin ocupación por fecha, dos personas pueden pedir la misma bici el
+  mismo día y nadie lo detecta hasta que un humano lo mira.
+- Embudo de solicitudes en el widget "Citykleta Stats" del dashboard — `Citykleta_Bike_Request`
+  ya expone `count()`, `count( $status )` y `requests_by_day()` para eso, pero
+  `Citykleta_Search_Stats` todavía no los pinta.
 
 ## Cómo probar
 
@@ -966,6 +1235,10 @@ un destino sin trucos), no como término de taxonomía.
    hoy el disparo manual es el botón "Sync now".
 8. Ver el grid de tarjetas en: `http://<tu-sitio-local>/bikes/`
    Si da 404, hacer flush de rewrite rules (ver gotcha en la sección de arquitectura).
+   Lo que se ve es el contenido de la Page "Bicicletas (resultados)" (se crea sola
+   la primera vez — ver "Archivo de bicis" más arriba); para redecorar esta
+   página, editar esa Page con Elementor (gratis, no hace falta Pro) en vez de
+   tocar `templates/archive-bike.php`.
 9. Con Elementor activo, crear/editar cualquier página con Elementor y buscar el
     widget "Bicicletas" en el panel — se puede arrastrar donde sea.
 10. Buscar el widget "Bike Search" y arrastrarlo también. El campo de fechas necesita
@@ -976,7 +1249,23 @@ un destino sin trucos), no como término de taxonomía.
     (b) que las bicis tengan `lat`/`lng` — solo las sincronizadas *después* de este
     cambio los van a tener, así que puede hacer falta un "Sincronizar ahora" (paso 6)
     antes de ver algo en el mapa.
-12. En wp-admin, ir a Bicicletas → "All Bikes": arriba de la lista debe verse el mismo
+12. Abrir la página de una bici y probar **"Solicitar esta bicicleta"**. Debe aparecer en
+    Bicicletas → **Requests**. Para probar el aviso al dueño hay que escribirle un correo
+    en la caja "Owner contact (WordPress only)" de esa bici — no viene de la API a propósito
+    (ver "Solicitudes de bicicleta"). El correo puede no salir desde LocalWP; la solicitud se
+    guarda igual, y la columna "Owner told" queda vacía si el envío falló.
+    La galería de fotos necesita los archivos de **Splide** descargados a mano (ver sección
+    "Diseño de la página" más arriba) para deslizar; sin ellos la foto se ve igual, solo sin
+    el carrusel. Y como hoy toda bici real trae una sola foto, no vas a ver flechas ni puntos
+    en ninguna — es el comportamiento correcto, no falta nada.
+    Por `curl`, sin pasar por el formulario:
+    ```
+    curl -X POST http://<tu-sitio-local>/wp-json/citykleta/v1/bike-requests \
+      -H "Content-Type: application/json" \
+      -d '{"bike_id":<ID del post>,"name":"Ana","contact":"ana@example.com","from":"2026-09-20","to":"2026-09-23"}'
+    ```
+    Devuelve `201` con `{"ok":true}` si se guardó, `400` con un mensaje si el payload no vale.
+13. En wp-admin, ir a Bicicletas → "All Bikes": arriba de la lista debe verse el mismo
     mapa pero con **todas** las bicis con coordenadas (sin filtros), pensado para
     revisar la cobertura desde el propio admin. Si aparece el aviso de bicis sin
     coordenadas, es la misma causa del paso 11: hace falta un "Sincronizar ahora". Si

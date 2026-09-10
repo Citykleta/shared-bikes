@@ -9,9 +9,9 @@
 	display: flex;
 	align-items: stretch;
 	background: #fff;
-	border-radius: 999px;
-	box-shadow: 0 2px 10px rgba(21, 27, 29, 0.12);
-	padding: 10px;
+	border-radius: 4px;
+	box-shadow: 0 0 6px rgba(21, 27, 29, 0.16);
+	padding: 10px 10px 10px 28px;
 	gap: 0;
 	max-width: 100%;
 	font-family: 'Inter', sans-serif;
@@ -22,9 +22,13 @@
 	align-items: center;
 	flex: 1 1 0;
 	min-width: 0;
-	padding: 0.4rem 1rem;
+	padding: 0.5rem 1.5rem;
 	gap: 0.5rem;
 	box-sizing: border-box;
+}
+
+.citykleta-search-bar__field:first-child {
+	padding-left: 0;
 }
 
 .citykleta-search-bar__field--usage {
@@ -44,15 +48,15 @@
 }
 
 .citykleta-search-bar__checkbox {
-	width: 16px;
-	height: 16px;
+	width: 20px;
+	height: 20px;
 	accent-color: #fed94c;
 	cursor: pointer;
 	flex-shrink: 0;
 }
 
 .citykleta-search-bar__checkbox-text {
-	font-size: 0.85rem;
+	font-size: 0.95rem;
 	color: #282120;
 }
 
@@ -111,10 +115,10 @@
 }
 
 .citykleta-search-bar__label {
-	font-size: 0.72rem;
+	font-size: 0.8rem;
 	font-weight: 600;
 	color: #151b1d;
-	margin-bottom: 0.15rem;
+	margin-bottom: 0.25rem;
 	white-space: nowrap;
 }
 
@@ -133,7 +137,7 @@
 	outline: none;
 	background: transparent;
 	font-family: inherit;
-	font-size: 0.95rem;
+	font-size: 1.05rem;
 	color: #282120;
 	width: 100%;
 	min-width: 0;
@@ -141,7 +145,7 @@
 }
 
 .citykleta-search-bar__input::placeholder {
-	color: #9c948f;
+	color: #948c85;
 }
 
 .citykleta-search-bar__input::-webkit-calendar-picker-indicator {
@@ -151,12 +155,27 @@
 .citykleta-search-bar__divider {
 	width: 1px;
 	align-self: center;
-	height: 2rem;
+	height: 2.25rem;
 	background: #e5e0d3;
 	flex-shrink: 0;
 }
 
-.citykleta-search-bar__button {
+/*
+ * Colores invertidos respecto al resto del sitio a propósito (fondo oscuro,
+ * ícono/texto amarillo, en vez del amarillo sólido que usan los demás
+ * botones) — así se distingue como LA acción de la barra, no un botón más
+ * entre los campos. Más grande que el alto normal del campo (64px, contra
+ * el padding chico de la tarjeta) a propósito, para que se note como el
+ * elemento principal de la barra.
+ *
+ * Gotcha (mismo patrón que search-bar__input más arriba): el Kit global de
+ * Elementor trae su propia regla para CUALQUIER <button> del sitio
+ * (".elementor-kit-N button { border-radius: 5px; ... }"), con un elemento
+ * + una clase (0,1,1) — más específico que ".citykleta-search-bar__button"
+ * sola (0,1,0), así que le ganaba y el botón nunca llegaba a verse redondo.
+ * Encadenar ".citykleta-search-bar" adelante sube a (0,2,0), que sí gana.
+ */
+.citykleta-search-bar .citykleta-search-bar__button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -164,8 +183,8 @@
 	flex-shrink: 0;
 	border: none;
 	cursor: pointer;
-	background: #fed94c;
-	color: #151b1d;
+	background: #151b1d;
+	color: #fed94c;
 	transition: background-color 0.15s ease;
 }
 
@@ -173,23 +192,24 @@
 	fill: currentColor;
 }
 
-.citykleta-search-bar__button--icon {
-	width: 52px;
-	height: 52px;
+.citykleta-search-bar .citykleta-search-bar__button--icon {
+	width: 64px;
+	height: 64px;
 	border-radius: 999px;
+	font-size: 1.35rem;
 }
 
-.citykleta-search-bar__button--text {
+.citykleta-search-bar .citykleta-search-bar__button--text {
 	padding: 0 1.75rem;
 	border-radius: 999px;
 	font-family: 'Poppins', sans-serif;
 	font-weight: 600;
 	font-size: 0.95rem;
-	height: 52px;
+	height: 64px;
 }
 
-.citykleta-search-bar__button:hover {
-	background: #f5cc2e;
+.citykleta-search-bar .citykleta-search-bar__button:hover {
+	background: #2a3236;
 }
 
 /*
@@ -204,12 +224,21 @@
 		flex-direction: column;
 		align-items: stretch;
 		border-radius: 20px;
+		/* En fila, el padding-left de la tarjeta es asimétrico a propósito
+		   (ver .citykleta-search-bar__field:first-child) — apilada, cada
+		   campo ya trae su propio padding simétrico, así que la tarjeta
+		   vuelve a un padding parejo. */
+		padding: 10px;
 	}
 
 	.citykleta-search-bar__field {
 		flex: 0 0 auto;
 		width: 100%;
 		padding: 0.6rem 0.75rem;
+	}
+
+	.citykleta-search-bar__field:first-child {
+		padding-left: 0.75rem;
 	}
 
 	/*

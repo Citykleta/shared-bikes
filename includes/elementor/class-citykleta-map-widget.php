@@ -89,6 +89,9 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'max'         => 200,
 				'placeholder' => 'All',
 				'description' => 'Leave empty for no limit.',
+				'condition'   => array(
+					'use_url_filters!' => 'yes',
+				),
 			)
 		);
 
@@ -102,12 +105,27 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'use_url_filters',
+			array(
+				'label'       => 'Filter From Page URL',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Yes',
+				'label_off'   => 'No',
+				'default'     => '',
+				'description' => 'For a results page: reads location/electric from the URL (the Bike Search widget/shortcode sends these) instead of the fixed location below, and always shows every match instead of Bike Count.',
+			)
+		);
+
+		$this->add_control(
 			'location_filter',
 			array(
 				'label'       => 'Location',
 				'type'        => \Elementor\Controls_Manager::TEXT,
 				'placeholder' => 'E.g. Vedado',
 				'description' => 'Partial match. Leave empty for any location.',
+				'condition'   => array(
+					'use_url_filters!' => 'yes',
+				),
 			)
 		);
 
@@ -231,14 +249,30 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 	protected function render() {
 		$settings = $this->get_settings_for_display();
 
-		$count = is_numeric( $settings['count'] ) ? (int) $settings['count'] : -1;
+		if ( 'yes' === $settings['use_url_filters'] ) {
+			// Página de resultados: mismos filtros que la grilla, leídos de
+			// la URL (Citykleta_Templates::request_filters()) en vez de la
+			// ubicación fija del panel — y sin tope, se muestran todas las
+			// bicis que matcheen, no solo Bike Count.
+			$filters = Citykleta_Templates::request_filters();
 
-		$bikes = Citykleta_Bike_Map_Data::query(
-			array(
-				'count'    => $count,
-				'location' => $settings['location_filter'],
-			)
-		);
+			$bikes = Citykleta_Bike_Map_Data::query(
+				array(
+					'count'      => -1,
+					'extra_meta' => $filters['meta_query'],
+					'tax_query'  => $filters['tax_query'],
+				)
+			);
+		} else {
+			$count = is_numeric( $settings['count'] ) ? (int) $settings['count'] : -1;
+
+			$bikes = Citykleta_Bike_Map_Data::query(
+				array(
+					'count'    => $count,
+					'location' => $settings['location_filter'],
+				)
+			);
+		}
 
 		// Every bike gets the same default marker color here, whatever its
 		// availability today: a visitor planning to rent a month from now
@@ -273,11 +307,24 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		$options['iconSize']    = Citykleta_Settings::marker_icon_size();
 		$options['interactive'] = 'yes' === $settings['interactive'];
 
+		// Height as an inline style, not just the "map_height" control's own
+		// `selectors` rule: that rule only becomes real CSS when Elementor
+		// generates the page's stylesheet, which never happens for a widget
+		// rendered through [citykleta_map] (Citykleta_Widget_Shortcodes) —
+		// there's no "page" to generate it against. Without an explicit
+		// height Leaflet draws nothing at all (0px container), so this has
+		// to work unconditionally, the same way map_color_style_attr()
+		// already does for the cluster colors below.
+		$height_size  = isset( $settings['map_height']['size'] ) ? $settings['map_height']['size'] : '';
+		$height_unit  = ! empty( $settings['map_height']['unit'] ) ? $settings['map_height']['unit'] : 'px';
+		$height_style = is_numeric( $height_size ) ? 'height:' . $height_size . $height_unit . ';' : '';
+
 		printf(
-			'<div id="citykleta-map-%1$s" class="citykleta-map" style="%4$s" data-bikes="%2$s" data-options="%3$s"></div>',
+			'<div id="citykleta-map-%1$s" class="citykleta-map" style="%4$s%5$s" data-bikes="%2$s" data-options="%3$s"></div>',
 			esc_attr( $this->get_id() ),
 			esc_attr( wp_json_encode( $bikes ) ),
 			esc_attr( wp_json_encode( $options ) ),
+			esc_attr( $height_style ),
 			esc_attr( Citykleta_Settings::map_color_style_attr() )
 		);
 	}

@@ -126,6 +126,43 @@ class Citykleta_Bike_Map_Data {
 	}
 
 	/**
+	 * Same shape as query(), for exactly one bike — used by the single-bike
+	 * page's "Dónde recogerla" mini-map (a single marker, not a whole
+	 * WP_Query) instead of duplicating the field list there.
+	 *
+	 * @param int $post_id Bike post ID.
+	 * @return array|null The bike's map data, or null when it has no
+	 *                     coordinates yet (see the lat/lng note in query()).
+	 */
+	public static function for_bike( $post_id ) {
+		$lat = get_post_meta( $post_id, 'lat', true );
+		$lng = get_post_meta( $post_id, 'lng', true );
+
+		if ( '' === $lat || '' === $lng ) {
+			return null;
+		}
+
+		$price     = Citykleta_Bike_Meta::price_html( $post_id );
+		$location  = get_post_meta( $post_id, 'location', true );
+		$available = get_post_meta( $post_id, 'available', true );
+
+		return array(
+			'id'        => $post_id,
+			'lat'       => (float) $lat,
+			'lng'       => (float) $lng,
+			'title'     => get_the_title( $post_id ),
+			'location'  => $location,
+			'price'     => $price,
+			'price_tag' => $price,
+			'available' => '1' === (string) $available,
+			// No 'url': the visitor is already on this bike's page — a "Ver
+			// bici" link back to itself in the popup would be dead weight.
+			'url'       => '',
+			'image'     => has_post_thumbnail( $post_id ) ? get_the_post_thumbnail_url( $post_id, 'medium' ) : '',
+		);
+	}
+
+	/**
 	 * Total published bikes, regardless of whether they have coordinates —
 	 * used to tell the admin how many are missing lat/lng (e.g. synced
 	 * before this field existed, or whose source item had no coordinates).

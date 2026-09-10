@@ -5,9 +5,11 @@
  * no se encolan aquí a propósito: en producción (Elementor) ya vienen del
  * tema, y si no están, cae en la sans-serif del sistema.
  *
- * Orden vertical: encabezado (título + ubicación) → mosaico de fotos a todo
- * el ancho → dos columnas (contenido | tarjeta de precio pegajosa), que
- * colapsan a una sola en pantallas angostas.
+ * Dos columnas desde arriba, patrón ListNRide: a la izquierda, la galería
+ * (un carrusel de una foto a la vez, deslizable) seguida del título, ficha
+ * técnica y el resto del contenido; a la derecha, la tarjeta de solicitud
+ * pegajosa, alineada con el borde superior de la galería. Colapsa a una
+ * columna en pantallas angostas.
  */
 
 .citykleta-bike-single {
@@ -31,11 +33,13 @@
 }
 
 /* -------------------------------------------------------------------------
- * Encabezado
+ * Encabezado — va DESPUÉS de la galería (dentro de .content), no antes: la
+ * foto es lo primero que se ve.
  * ------------------------------------------------------------------------- */
 
 .citykleta-bike-single__header {
-	margin-bottom: 1.25rem;
+	margin-top: 1.5rem;
+	margin-bottom: 1.5rem;
 }
 
 .citykleta-bike-single__title {
@@ -79,36 +83,37 @@
 }
 
 /* -------------------------------------------------------------------------
- * Mosaico de fotos
- *
- * Rejilla fija de 4 columnas × 2 filas: la primera foto ocupa siempre la
- * mitad izquierda y las demás se reparten la derecha. Cada cantidad (1 a 5,
- * ver Citykleta_Bike_Meta::MAX_IMAGES) tiene su propio reparto en vez de
- * dejarlo al auto-placement, que con 3 o 4 fotos deja huecos.
+ * Galería — carrusel de una foto a la vez, deslizable (patrón ListNRide),
+ * motor Splide (assets/js/splide.min.js — vendor, no en el repo, ver
+ * CLAUDE.md). Splide trae su propia hoja (splide.min.css, encolada antes que
+ * esta) para el mecanismo de la pista (.splide__track/.splide__list); acá
+ * solo se completa lo que le falta (alto al 100%, el object-fit de la foto)
+ * y se pintan los botones/puntos PROPIOS — Splide no dibuja los suyos
+ * (arrows:false, pagination:false en citykleta-bike-gallery.js). Con una
+ * sola foto (el caso real hoy — ver Citykleta_Bike_Meta::MAX_IMAGES) esos
+ * botones ni siquiera se imprimen (ver templates/single-bike.php): no hay a
+ * dónde ir, así que no tiene sentido mostrar controles muertos.
+ * Vive dentro de .content, no a todo el ancho de la página — la tarjeta de
+ * solicitud queda a su derecha, alineada con su borde superior.
  * ------------------------------------------------------------------------- */
 
 .citykleta-bike-single__gallery {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	grid-template-rows: repeat(2, 1fr);
-	gap: 0.5rem;
-	aspect-ratio: 2 / 1;
-	/* width explícito + max-height: el ancho queda "definido" y la proporción
-	   solo calcula el alto, que el tope recorta. Sin el width, limitar el alto
-	   encoge también el ancho (la proporción se mantiene por los dos lados) y
-	   el mosaico deja de llegar al borde del contenido. */
-	width: 100%;
-	max-height: 68vh;
-	margin-bottom: 2.5rem;
+	position: relative;
+	aspect-ratio: 4 / 3;
 	border-radius: 6px;
 	overflow: hidden;
+	background: #f0ece0;
+}
+
+.citykleta-bike-single__gallery.splide,
+.citykleta-bike-single__gallery .splide__track,
+.citykleta-bike-single__gallery .splide__list,
+.citykleta-bike-single__gallery .splide__slide {
+	height: 100%;
 }
 
 .citykleta-bike-single__shot {
-	position: relative;
 	margin: 0;
-	background: #f0ece0;
-	overflow: hidden;
 }
 
 .citykleta-bike-single__shot img {
@@ -118,85 +123,64 @@
 	display: block;
 }
 
-/* La primera foto siempre manda: mitad izquierda, alto completo. */
-.citykleta-bike-single__shot:first-child {
-	grid-column: span 2;
-	grid-row: span 2;
+.citykleta-bike-single__gallery-nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.9);
+	color: #151b1d;
+	font-size: 1.3rem;
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba(21, 27, 29, 0.2);
 }
 
-/* Una sola foto: ocupa todo, y con una proporción más cómoda que 2/1. */
-.citykleta-bike-single__gallery--count-1 {
-	aspect-ratio: 3 / 2;
+.citykleta-bike-single__gallery-nav:hover {
+	background: #fff;
 }
 
-.citykleta-bike-single__gallery--count-1 .citykleta-bike-single__shot:first-child {
-	grid-column: span 4;
+.citykleta-bike-single__gallery-nav[disabled] {
+	opacity: 0.35;
+	cursor: default;
 }
 
-/* Dos: mitad y mitad. */
-.citykleta-bike-single__gallery--count-2 .citykleta-bike-single__shot:nth-child(2) {
-	grid-column: span 2;
-	grid-row: span 2;
+.citykleta-bike-single__gallery-nav--prev {
+	left: 0.75rem;
 }
 
-/* Tres: la grande más dos apiladas a la derecha. */
-.citykleta-bike-single__gallery--count-3 .citykleta-bike-single__shot:nth-child(2),
-.citykleta-bike-single__gallery--count-3 .citykleta-bike-single__shot:nth-child(3) {
-	grid-column: span 2;
+.citykleta-bike-single__gallery-nav--next {
+	right: 0.75rem;
 }
 
-/* Cuatro: la grande, dos chicas arriba y una ancha abajo. */
-.citykleta-bike-single__gallery--count-4 .citykleta-bike-single__shot:nth-child(4) {
-	grid-column: span 2;
+.citykleta-bike-single__gallery-dots {
+	position: absolute;
+	bottom: 0.75rem;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	gap: 0.4rem;
 }
 
-/* Cinco: la grande más una cuadrícula 2×2 a la derecha (sin reglas extra —
-   cada foto ocupa una celda, que es el reparto por defecto). */
+.citykleta-bike-single__gallery-dot {
+	width: 7px;
+	height: 7px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.6);
+	cursor: pointer;
+}
 
-/*
- * En móvil el mosaico no se sostiene (cinco fotos en media pantalla no se
- * ven): pasa a carrusel horizontal con scroll-snap, sin JS.
- */
-@media (max-width: 700px) {
-	.citykleta-bike-single__gallery,
-	.citykleta-bike-single__gallery--count-1 {
-		display: flex;
-		aspect-ratio: auto;
-		gap: 0.5rem;
-		overflow-x: auto;
-		scroll-snap-type: x mandatory;
-		border-radius: 0;
-		margin-bottom: 2rem;
-		/* Sangrado a los bordes de la pantalla: el carrusel se ve "cortado"
-		   por el borde, que es lo que insinúa que hay más fotos al lado. */
-		margin-left: -1.25rem;
-		margin-right: -1.25rem;
-		padding: 0 1.25rem;
-		scroll-padding: 0 1.25rem;
-		-webkit-overflow-scrolling: touch;
-	}
-
-	.citykleta-bike-single__shot,
-	.citykleta-bike-single__shot:first-child {
-		flex: 0 0 85%;
-		aspect-ratio: 3 / 2;
-		scroll-snap-align: start;
-		border-radius: 6px;
-	}
-
-	/*
-	 * Con una sola foto no hay nada que deslizar: se quita el sangrado del
-	 * carrusel, que si no la dejaría más angosta que el texto de abajo.
-	 */
-	.citykleta-bike-single__gallery--count-1 {
-		margin-left: 0;
-		margin-right: 0;
-		padding: 0;
-	}
-
-	.citykleta-bike-single__gallery--count-1 .citykleta-bike-single__shot {
-		flex-basis: 100%;
-	}
+.citykleta-bike-single__gallery-dot[aria-current='true'] {
+	background: #fff;
+	transform: scale(1.3);
 }
 
 /* -------------------------------------------------------------------------
@@ -279,7 +263,9 @@
 .citykleta-bike-single__specs {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	gap: 0.75rem 2rem;
+	/* Sin gap: las celdas se tocan para que sus bordes formen una sola
+	   rejilla (verticales incluidas), no cajas sueltas con aire alrededor. */
+	gap: 0;
 	margin: 0;
 }
 
@@ -287,8 +273,8 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.1rem;
-	padding-bottom: 0.75rem;
-	border-bottom: 1px solid #f0ece0;
+	padding: 0.65rem 1rem;
+	border: 1px solid #e5e0d3;
 }
 
 .citykleta-bike-single__spec dt {
@@ -300,6 +286,25 @@
 	margin: 0;
 	font-weight: 600;
 	color: #151b1d;
+}
+
+/*
+ * "Dónde recogerla" — mini-mapa con la ubicación real de la bici (mismo
+ * módulo que el widget Bikes Map y el mapa de wp-admin, ver
+ * Citykleta_Bike_Map_Data::for_bike()). Solo se imprime si la bici tiene
+ * lat/lng; sin coordenadas, la sección entera se omite (ver
+ * templates/single-bike.php) en vez de mostrar un mapa vacío.
+ */
+.citykleta-bike-single__location-map {
+	height: 220px;
+	border-radius: 6px;
+	margin-bottom: 0.75rem;
+}
+
+.citykleta-bike-single__location-caption {
+	margin: 0;
+	font-size: 0.85rem;
+	color: #5a5250;
 }
 
 /* Tarjeta de precio */
@@ -329,26 +334,7 @@
 	font-weight: 600;
 	font-size: 1.5rem;
 	color: #151b1d;
-	margin: 0 0 0.75rem;
-}
-
-.citykleta-bike-single__status {
-	display: inline-block;
 	margin: 0 0 1rem;
-	padding: 0.25rem 0.75rem;
-	border-radius: 999px;
-	font-size: 0.85rem;
-	font-weight: 500;
-}
-
-.citykleta-bike-single__status--available {
-	background: #fed94c;
-	color: #151b1d;
-}
-
-.citykleta-bike-single__status--unavailable {
-	background: #f0ece0;
-	color: #5a5250;
 }
 
 .citykleta-bike-single__note {

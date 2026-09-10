@@ -7,15 +7,36 @@
 
 .citykleta-search-bar__field--usage .ts-wrapper {
 	width: 100%;
+	position: relative;
+}
+
+/*
+ * Flecha propia, dibujada en CSS (sin librería de íconos): Tom Select no
+ * imprime ninguna en su tema base. Un cuadrado rotado 45° mostrando solo
+ * su borde inferior y derecho dibuja una "v" — el truco clásico de
+ * flecha-sin-imagen.
+ */
+.citykleta-search-bar__field--usage .ts-wrapper::after {
+	content: '';
+	position: absolute;
+	top: 45%;
+	right: 2px;
+	width: 7px;
+	height: 7px;
+	border-right: 2px solid #151b1d;
+	border-bottom: 2px solid #151b1d;
+	transform: translateY(-50%) rotate(45deg);
+	pointer-events: none;
 }
 
 .citykleta-search-bar__field--usage .ts-control {
 	border: none;
 	box-shadow: none;
 	padding: 0;
+	padding-right: 1.1rem;
 	background: transparent;
 	font-family: 'Inter', sans-serif;
-	font-size: 0.95rem;
+	font-size: 1.05rem;
 	color: #282120;
 	min-height: 0;
 	/*

@@ -242,7 +242,7 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'       => 'Label',
 				'type'        => \Elementor\Controls_Manager::TEXT,
-				'default'     => 'Incluir bicicletas eléctricas',
+				'default'     => 'Eléctricas',
 				'description' => 'Also used as the icon\'s accessible label when "Icon only" is selected above.',
 				'condition'   => array(
 					'show_electric_filter' => 'yes',
@@ -305,7 +305,7 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'     => 'Label',
 				'type'      => \Elementor\Controls_Manager::TEXT,
-				'default'   => 'Tipo de uso',
+				'default'   => 'Categoría',
 				'condition' => array(
 					'show_usage_filter' => 'yes',
 					'show_labels'       => 'yes',
@@ -359,7 +359,7 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 				'label'     => 'Button icon',
 				'type'      => \Elementor\Controls_Manager::ICONS,
 				'default'   => array(
-					'value'   => 'fas fa-arrow-right',
+					'value'   => 'fas fa-search',
 					'library' => 'fa-solid',
 				),
 				'condition' => array(

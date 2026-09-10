@@ -47,10 +47,11 @@ class Citykleta_Settings {
 	 * Tabs shown on the settings page, in order.
 	 */
 	const TABS = array(
-		'sync' => 'Sync',
-		'maps' => 'Maps',
-		'comm' => 'Communication',
-		'dest' => 'Destinations',
+		'sync'     => 'Sync',
+		'maps'     => 'Maps',
+		'comm'     => 'Communication',
+		'dest'     => 'Destinations',
+		'frontend' => 'Frontend',
 	);
 
 	/**
@@ -732,6 +733,35 @@ class Citykleta_Settings {
 		);
 
 		register_setting(
+			self::OPTION_GROUP_COMM,
+			'citykleta_request_notify_email',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_notify_email' ),
+				'default'           => '',
+			)
+		);
+
+		add_settings_section(
+			'citykleta_requests_section',
+			'Bike requests',
+			function () {
+				echo '<p>Where to send an email when a visitor asks to rent a bike. Requests are always stored under ';
+				echo '<strong>Bicicletas → Requests</strong> — this is the heads-up on top, not the record itself, so a ';
+				echo 'failed send never loses a request.</p>';
+			},
+			self::PAGE_SLUG . '-comm'
+		);
+
+		add_settings_field(
+			'citykleta_request_notify_email',
+			'Notification email',
+			array( $this, 'render_notify_email_field' ),
+			self::PAGE_SLUG . '-comm',
+			'citykleta_requests_section'
+		);
+
+		register_setting(
 			self::OPTION_GROUP_DEST,
 			'citykleta_destination_slug',
 			array(
@@ -1038,6 +1068,47 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * Renders the bike-request notification email field.
+	 */
+	public function render_notify_email_field() {
+		$value = (string) get_option( 'citykleta_request_notify_email', '' );
+
+		echo '<input type="email" name="citykleta_request_notify_email" value="' . esc_attr( $value ) . '" class="regular-text" placeholder="' . esc_attr( (string) get_option( 'admin_email' ) ) . '" />';
+		echo '<p class="description">Leave empty to use the site admin address (' . esc_html( (string) get_option( 'admin_email' ) ) . ').</p>';
+	}
+
+	/**
+	 * Keeps only a valid address, so a typo silently falls back to the admin
+	 * email (see self::request_notify_email()) instead of sending nowhere.
+	 *
+	 * @param string $value Raw submitted value.
+	 * @return string
+	 */
+	public function sanitize_notify_email( $value ) {
+		$value = sanitize_email( (string) $value );
+
+		return is_email( $value ) ? $value : '';
+	}
+
+	/**
+	 * Where bike-request notifications go: the configured address, falling
+	 * back to the site admin's.
+	 *
+	 * @return string Address, or '' when even the admin email is unusable.
+	 */
+	public static function request_notify_email() {
+		$value = (string) get_option( 'citykleta_request_notify_email', '' );
+
+		if ( is_email( $value ) ) {
+			return $value;
+		}
+
+		$admin = (string) get_option( 'admin_email' );
+
+		return is_email( $admin ) ? $admin : '';
+	}
+
+	/**
 	 * Renders the default destination FAQ field: a plain textarea, one
 	 * "Question :: Answer" pair per line — same format (and same reasoning:
 	 * a JS repeater is overkill here) as Citykleta_Destination_Post_Type's
@@ -1184,6 +1255,8 @@ class Citykleta_Settings {
 					submit_button( 'Save changes' );
 					?>
 				</form>
+			<?php elseif ( 'frontend' === $active_tab ) : ?>
+				<?php $this->render_frontend_tab(); ?>
 			<?php elseif ( 'sync' === $active_tab ) : ?>
 				<?php if ( isset( $_GET['citykleta_synced'] ) ) : ?>
 					<div class="notice notice-success"><p>Sync completed.</p></div>
@@ -1217,6 +1290,95 @@ class Citykleta_Settings {
 				do_action( 'citykleta_settings_render_tab_' . $active_tab );
 				?>
 			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Reference list of the shortcodes the plugin registers — read-only, no
+	 * form to save. Exists purely so these aren't only written down in a
+	 * chat transcript: each one is also an Elementor widget (Citykleta_Search_Widget,
+	 * Citykleta_Bike_Widget, Citykleta_Map_Widget, grouped under the "Shared
+	 * Bikes" category in the widgets panel), registered as a shortcode too
+	 * by Citykleta_Widget_Shortcodes so they also work outside Elementor, or
+	 * loose in a page's content.
+	 */
+	private function render_frontend_tab() {
+		// Row data kept separate from markup so each row is one clean line
+		// of intent — one shortcode, one plain-English sentence — instead of
+		// packing every variant/attribute into a single dense paragraph.
+		$rows = array(
+			array(
+				'code'    => '[citykleta_search]',
+				'summary' => 'Search bar — location, dates, electric-only.',
+				'detail'  => 'Submits a GET request to the bikes archive, or wherever <code>results_url</code> points.',
+			),
+			array(
+				'code'    => '[citykleta_grid]',
+				'summary' => 'Fixed bike grid — a curated set, not tied to any search.',
+				'detail'  => 'Attributes match the widget\'s own Content/Query controls: <code>columns</code>, <code>count</code>, <code>masonry</code>, <code>orderby</code>, <code>order</code>, <code>location_filter</code>…',
+			),
+			array(
+				'code'    => '[citykleta_grid filters="url"]',
+				'summary' => 'Same grid, but follows the page\'s search instead.',
+				'detail'  => 'Reads location/electric from whatever <code>[citykleta_search]</code> put in the URL, and paginates for real (<code>posts_per_page</code>, default 10) instead of stopping at a fixed count.',
+			),
+			array(
+				'code'    => '[citykleta_map]',
+				'summary' => 'Bikes map, fixed height.',
+				'detail'  => '<code>map_height</code> sets the height in pixels (default 400) — the one setting that always takes effect even from a shortcode, since Leaflet draws nothing without an explicit height.',
+			),
+			array(
+				'code'    => '[citykleta_map filters="url"]',
+				'summary' => 'Same map, but follows the page\'s search too.',
+				'detail'  => 'Same <code>filters="url"</code> as the grid — put both on the same page and they stay in sync.',
+			),
+		);
+		?>
+		<style>
+			.citykleta-frontend-ref { max-width: 820px; }
+			.citykleta-frontend-ref > p { font-size: 14px; line-height: 1.7; color: #3c434a; }
+			.citykleta-frontend-ref table { border-collapse: collapse; width: 100%; margin: 1.5em 0; background: #fff; }
+			.citykleta-frontend-ref th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #646970; padding: 0 0 10px; }
+			.citykleta-frontend-ref td { padding: 18px 24px 18px 0; border-top: 1px solid #e5e0d3; vertical-align: top; }
+			.citykleta-frontend-ref tr:first-child td { border-top: 1px solid #dcdcde; }
+			.citykleta-frontend-ref td.citykleta-frontend-ref__code { width: 300px; padding-right: 20px; }
+			.citykleta-frontend-ref code { display: inline-block; background: #f0ece0; border: 1px solid #e5e0d3; border-radius: 4px; padding: 4px 8px; font-size: 13px; line-height: 1.4; }
+			.citykleta-frontend-ref__summary { display: block; font-size: 14px; font-weight: 600; color: #1d2327; margin-bottom: 6px; }
+			.citykleta-frontend-ref__detail { display: block; font-size: 13px; line-height: 1.6; color: #646970; }
+			.citykleta-frontend-ref__detail code { padding: 2px 5px; font-size: 12px; }
+		</style>
+
+		<div class="citykleta-frontend-ref">
+			<p>Every shortcode below is also an Elementor widget under the "Shared Bikes" category.
+			One thing doesn't carry over: Style-tab customization set on a saved widget instance —
+			a shortcode always renders with the plugin's own default look
+			(<code>bike-cards.css</code> / <code>search-bar.css</code> / <code>citykleta-map.css</code>).</p>
+
+			<table>
+				<thead>
+					<tr>
+						<th>Shortcode</th>
+						<th>What it does</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $rows as $row ) : ?>
+						<tr>
+							<td class="citykleta-frontend-ref__code"><code><?php echo esc_html( $row['code'] ); ?></code></td>
+							<td>
+								<span class="citykleta-frontend-ref__summary"><?php echo esc_html( $row['summary'] ); ?></span>
+								<span class="citykleta-frontend-ref__detail"><?php echo wp_kses( $row['detail'], array( 'code' => array() ) ); ?></span>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<p>This is exactly how the bikes results page ("Bicicletas (resultados)", shown at
+			<code>/bikes/</code>) is put together by default — see
+			<a href="<?php echo esc_url( admin_url( 'edit.php?post_type=page' ) ); ?>">Pages</a> to open
+			and redesign it in Elementor.</p>
 		</div>
 		<?php
 	}
@@ -1258,8 +1420,13 @@ class Citykleta_Settings {
 			echo '<p><strong>Heads up:</strong> ' . esc_html( $warning ) . '</p>';
 		}
 
+		// Only genuine fetch failures reach this now. An unsupported file type
+		// (SVG, say) is reported as a "Heads up" above instead: the bikes sync
+		// fine and only their pictures are missing, so it isn't an error.
+		// Both carry a count — Citykleta_Bike_Sync summarises the whole run
+		// rather than reporting whatever happened to the last bike.
 		if ( $image_error ) {
-			echo '<p><strong>Error fetching an image:</strong> ' . esc_html( $image_error ) . '</p>';
+			echo '<p><strong>Error fetching images:</strong> ' . esc_html( $image_error ) . '</p>';
 		}
 	}
 }
