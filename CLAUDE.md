@@ -617,16 +617,29 @@ piezas que trae el plugin*, mezcladas con cualquier elemento normal de Elementor
 a un campo que no esté envuelto en una pieza — para eso hay que agregar el widget.
 
 - Cada plantilla declara qué dibuja con la meta `_citykleta_template_type`
-  (`Citykleta_Template_Post_Type::TYPES`: `results` / `single_bike`), elegible en
+  (`Citykleta_Template_Post_Type::TYPES`: `results` / `single_bike` / `destination`), elegible en
   la caja "Draws" y visible como columna en la lista. Solo cuenta una plantilla
   **publicada**, así que un borrador es un lugar seguro para probar un rediseño.
 - `ensure_template()` la crea la primera vez que hace falta y **nunca pisa** una
   que ya exista. Los layouts por defecto están en
   `Citykleta_Templates::default_results_content()` /
   `default_single_bike_content()`.
-- `render_template()` cambia el `$post` global a la plantilla mientras la imprime
-  (para que Elementor renderice ESE layout). **Ojo:** dentro de una pieza,
-  `get_the_ID()` devolvería la plantilla, no la bici — siempre `bike_id()`.
+- `render_template()` le pide el diseño a Elementor **directamente**, con
+  `get_builder_content_for_display( $id, true )`. Pasarlo por
+  `apply_filters( 'the_content', … )` NO sirve: Elementor solo sustituye el
+  contenido del post que está en la query principal, y ahí está la *bici*,
+  nunca la plantilla — así que el filtro devolvía el `post_content` crudo (el
+  respaldo en bloques). Las piezas salían igual y la página se veía bien,
+  mientras el diseño hecho en Elementor se ignoraba en silencio; el único
+  síntoma era que los `data-id` de la página no eran los de `_elementor_data`.
+- **Y esa llamada NO puede hacerse con el `$post` global apuntando a la
+  plantilla.** Elementor lee "el post que se está renderizando es el documento
+  que me pediste" como recursión y devuelve cadena vacía, otra vez sin avisar:
+  el llamador cae al respaldo y todo sigue viéndose casi bien. Por eso
+  `render_template()` solo cambia el `$post` global en la rama del respaldo.
+  Las piezas tampoco lo necesitan — resuelven su bici desde la query. **Ojo:**
+  dentro de una pieza, `get_the_ID()` devolvería la plantilla, no la bici —
+  siempre `bike_id()`.
 - **El layout por defecto se siembra como documento de Elementor.** Elementor es
   una dependencia asumida de este plugin (decisión del usuario: el sitio real se
   arma con Elementor, y el gratis alcanza — ver arriba), así que una plantilla
@@ -679,7 +692,7 @@ a un campo que no esté envuelto en una pieza — para eso hay que agregar el wi
 El árbol que arman `default_results_layout()` / `default_single_bike_layout()` a
 mano en PHP es solo un punto de partida. **El diseño de verdad se hace en
 Elementor y se congela desde ahí**: en la lista de plantillas (Bicicletas →
-Templates) cada fila tiene dos acciones, `Mark as ready` y `Reset to default`
+Templates) cada fila tiene dos acciones, `Mark as ready` y `Reset`
 (`Citykleta_Template_Defaults`, `includes/front/class-citykleta-template-defaults.php`).
 
 - **`Mark as ready`** copia el `_elementor_data` de esa plantilla a
@@ -694,7 +707,7 @@ Templates) cada fila tiene dos acciones, `Mark as ready` y `Reset to default`
   qué impedir que se guarden las demás. El aviso final resume
   *"Saved N of M selected templates"*. El nonce del masivo lo pone el core; el
   entorno y la capacidad se revalidan igual dentro del handler.
-- **`Reset to default`** tira el diseño actual y vuelve a sembrar la plantilla
+- **`Reset`** tira el diseño actual y vuelve a sembrar la plantilla
   desde lo que el plugin trae hoy. Es lo único que permite comprobar que una
   captura quedó bien sin borrar y recrear la plantilla. **A propósito NO existe
   en masivo**: tirar varios diseños de un desplegable es demasiado fácil por
@@ -742,11 +755,24 @@ desarrollo), colores y fuentes globales propios del kit (los del kit por defecto
 sí resuelven), y widgets de Elementor Pro. Las piezas del plugin viajan
 perfecto — son lo único que resuelve la bici solo.
 
-**Ojo con el CSS al resetear:** `seed_elementor_layout()` borra la **meta**
-`_elementor_css` para que Elementor regenere el CSS de ese post. Nunca se borra
-el **archivo** `post-{id}.css` generado — eso deja la página apuntando a una
-hoja de estilos que da 404. Si tras un reset el estilo se ve viejo, se regenera
-desde Elementor → Tools.
+**Escribir `_elementor_data` a mano obliga a invalidar lo que Elementor deriva
+de ahí.** Cuando el cambio entra por su propio editor, Elementor limpia solo;
+un `update_post_meta()` directo como el nuestro, no. Por eso
+`seed_elementor_layout()` borra **tres** metas:
+
+- **`_elementor_element_cache`** — la peor de las tres, porque cachea **HTML ya
+  renderizado**. Si se queda, la página muestra el layout **viejo** mientras el
+  CSS recién generado describe el **nuevo**: el diseño se ve obsoleto sin
+  ninguna razón visible, y el único indicio es que los `data-id` de la página
+  no coinciden con los de `_elementor_data`. Costó un rato encontrarlo.
+- **`_elementor_css`** — para que regenere la hoja de estilos del post. Ojo:
+  se borra la **meta**, nunca el **archivo** `post-{id}.css`, que dejaría la
+  página apuntando a un stylesheet que da 404.
+- **`_elementor_page_assets`** — la lista de assets que la página declara
+  necesitar, igual de derivada del dato viejo.
+
+Si aun así tras un reset el estilo se ve viejo, se regenera desde
+Elementor → Tools.
 
 ### Piezas de la ficha de una bici
 
@@ -756,6 +782,47 @@ extendiendo `Citykleta_Bike_Part_Widget`: galería (`[citykleta_bike_gallery]`),
 título/ubicación (`[citykleta_bike_header]`), propietario, descripción, ficha
 técnica, precio+solicitud y mapa de recogida. Van todos en un archivo a propósito:
 son ~40 líneas cada uno y solo tienen sentido como conjunto.
+
+**Un widget por trabajo, con un control de origen — no dos widgets parecidos.**
+El mapa de recogida de la ficha era `Citykleta_Bike_Location_Widget`, una clase
+aparte, y esa duplicación ya había costado algo real: armaba su `data-options`
+a mano, así que nunca pasaba por `Citykleta_Settings::tile_layer()` /
+`cluster_options()` / `marker_icon_size()` y **ignoraba en silencio la
+configuración de mapas que sincroniza Back Office**, mientras el resto de los
+mapas del sitio sí la respetaba. Hoy es `Citykleta_Map_Widget` con un control
+**Source**: `Query` (bicis que matcheen) o `Bike Data` (la bici de esta página).
+Lo mismo pasó con las bicis de un destino: son `Citykleta_Bike_Widget` con
+`Source = Destination Bikes`, no una grilla nueva — así el markup de tarjeta y
+toda su pestaña Style se comparten en vez de copiarse.
+
+Los shortcodes viejos siguen funcionando: `[citykleta_bike_location]` y
+`[citykleta_destination_bikes]` apuntan a esos widgets con el origen ya puesto
+(ver `Citykleta_Widget_Shortcodes`).
+
+**Ojo al construir un layout por defecto:** ahí se escribe el literal
+(`'source' => 'bike'`), no la constante de la clase del widget. `default_*_layout()`
+se alcanza desde `ensure_*_template()` en cualquier petición, incluidas las que
+corren antes de que Elementor cargue sus clases de widget — referenciar la
+constante ahí es un fatal error, verificado.
+
+**Las piezas NO imprimen el título de su sección.** "Sobre esta bicicleta",
+"Ficha técnica" y "Dónde recogerla" son texto **estático** — no cambian de una
+bici a otra — así que no tienen por qué vivir dentro de un widget nuestro,
+editables solo a través de un control que hubo que escribir. Son **Headings
+nativos de Elementor** que el layout por defecto pone delante de la pieza que
+les toca (`Citykleta_Template_Post_Type::heading()`, y `heading_block()` para el
+respaldo en bloques). Así se estilan, se mueven, se renombran o se borran como
+cualquier otro elemento del lienzo.
+
+La regla general que sale de ahí, para cualquier pieza nueva: **el widget del
+plugin solo debe resolver lo que es dinámico**. Todo lo que sea texto fijo,
+espaciado o decoración es de Elementor. Cuanto menos posea el plugin, más
+control tiene quien diseña.
+
+Como consecuencia, `.citykleta-bike-single__section-title` ya no lo imprime
+nadie y su regla se borró de `single-bike.css`. Los títulos toman el estilo que
+les dé el tema hasta que se estilen en Elementor — es el precio de haber cedido
+ese control, no un descuido.
 
 Dos detalles que se repiten del resto del plugin: la altura del mapa se imprime
 **inline** (el CSS de `selectors` no existe para un shortcode, y sin altura
@@ -1349,12 +1416,29 @@ un destino sin trucos), no como término de taxonomía.
   propio textarea en el mismo formato — apagado por defecto (usa el genérico), encendido reemplaza la
   lista **entera** (nunca se mezclan las dos). `Citykleta_Destination_Post_Type::faq_for( $post_id )`
   resuelve cuál mostrar.
-- **Plantilla** `templates/single-destination.php`, cargada vía `template_include` igual que
-  `archive-bike.php`/`single-bike.php` (el tema activo puede sobreescribirla con su propio
-  `single-destination.php`) — hookea `is_singular( 'destination' )`, no `is_tax()`. Con footer normal
-  (mismo patrón de `single-bike.php`, no el "sin footer" de `archive-bike.php`) — es más una página de
-  contenido que un showroom. Reusa `.citykleta-bike-card` de `bike-cards.css` para el grid; estilos
-  propios del encabezado/artículos/FAQ en `assets/css/destination.css`.
+- **El CPT es idéntico a una Página, a propósito.** `supports` no es una lista escrita a mano:
+  sale de `array_keys( get_all_post_type_supports( 'page' ) )` más `'elementor'` (ver
+  `Citykleta_Destination_Post_Type::page_supports()`). Así hereda lo que una página tenga en
+  *esta* instalación —revisiones, extracto, atributos de página, autor, comentarios, lo que
+  un tema o plugin le haya añadido— sin que nadie tenga que acordarse de actualizar el
+  array cuando el core o un plugin cambien. Es seguro leerlo ahí: el core registra `page` en
+  `init` con prioridad 0 y el plugin arranca en la 10. También es `hierarchical => true`,
+  como las páginas, así que tiene padre y orden.
+- **Plantilla editable**, igual que la ficha de una bici: `templates/single-destination.php`
+  ya no arma el diseño, imprime la plantilla de tipo `destination`
+  (`Citykleta_Templates::ensure_destination_template()`). Las piezas viven en
+  `includes/elementor/class-citykleta-destination-part-widgets.php` — encabezado
+  (título + imagen destacada), descripción, precio promedio, artículos y FAQ — y cada una
+  resuelve el destino sola desde la query, igual que las piezas de bici. **Las bicis del
+  destino no son una pieza propia**: son `Citykleta_Bike_Widget` con
+  `Source = Destination Bikes` (ver la nota sobre un widget por trabajo, más arriba). Los
+  títulos de sección ("Artículos relacionados", "Preguntas frecuentes") son Headings nativos
+  de Elementor puestos por el layout por defecto, no algo que imprima un widget.
+  `Citykleta_Destination_Part_Widget::bikes_query_args()` es dueño de la forma de esa
+  consulta, para que la grilla y el precio promedio no puedan discrepar sobre qué son "las
+  bicis de aquí". Sigue cargándose vía `template_include`, así que el tema activo la puede
+  sobreescribir con su propio `single-destination.php`. Estilos en
+  `assets/css/destination.css` y `.citykleta-bike-card` de `bike-cards.css`.
 
 ## Ideas / próximos pasos posibles
 

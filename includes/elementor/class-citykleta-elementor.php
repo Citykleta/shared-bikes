@@ -292,6 +292,18 @@ class Citykleta_Elementor {
 		$widgets_manager->register( new Citykleta_Bike_Description_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Specs_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Request_Widget() );
-		$widgets_manager->register( new Citykleta_Bike_Location_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Directions_Widget() );
+
+		// Same idea for a Destination's page: each piece resolves the
+		// destination from the query, so one template serves every
+		// destination. The bikes of a destination are NOT here — that's the
+		// grid widget's "Destination Bikes" source, so the card markup and
+		// its Style tab stay in one place.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-destination-part-widgets.php';
+		$widgets_manager->register( new Citykleta_Destination_Header_Widget() );
+		$widgets_manager->register( new Citykleta_Destination_Description_Widget() );
+		$widgets_manager->register( new Citykleta_Destination_Price_Widget() );
+		$widgets_manager->register( new Citykleta_Destination_Articles_Widget() );
+		$widgets_manager->register( new Citykleta_Destination_Faq_Widget() );
 	}
 }

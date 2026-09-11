@@ -19,6 +19,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 
 	/**
+	 * Where the cards come from: a bike query, or the bikes the geofence
+	 * assigned to the destination whose page this is.
+	 */
+	const SOURCE_QUERY       = 'query';
+	const SOURCE_DESTINATION = 'destination';
+
+	/**
 	 * Internal widget name.
 	 *
 	 * @return string
@@ -227,6 +234,20 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'source',
+			array(
+				'label'       => 'Source',
+				'type'        => \Elementor\Controls_Manager::SELECT,
+				'default'     => self::SOURCE_QUERY,
+				'options'     => array(
+					self::SOURCE_QUERY       => 'Query',
+					self::SOURCE_DESTINATION => 'Destination Bikes',
+				),
+				'description' => 'Destination Bikes shows the bikes the geofence assigned to the destination whose page this is, ignoring the query settings below.',
+			)
+		);
+
+		$this->add_control(
 			'count',
 			array(
 				'label'   => 'Bike Count',
@@ -242,7 +263,8 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		$this->start_controls_section(
 			'section_filters',
 			array(
-				'label' => 'Query',
+				'label'     => 'Query',
+				'condition' => array( 'source' => self::SOURCE_QUERY ),
 			)
 		);
 
@@ -878,7 +900,8 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 	protected function render() {
 		$settings = $this->get_settings_for_display();
 
-		$use_url_filters = 'yes' === $settings['use_url_filters'];
+		$source          = isset( $settings['source'] ) ? $settings['source'] : self::SOURCE_QUERY;
+		$use_url_filters = self::SOURCE_QUERY === $source && 'yes' === $settings['use_url_filters'];
 
 		$args = array(
 			'post_type'   => Citykleta_Bike_Post_Type::POST_TYPE,
@@ -895,7 +918,25 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			$args['orderby'] = 'date';
 		}
 
-		if ( $use_url_filters ) {
+		if ( self::SOURCE_DESTINATION === $source ) {
+			/*
+			 * A destination page. The assignment lives as post meta on each
+			 * BIKE (written by Citykleta_Destination_Matcher from the
+			 * geofence), so this is a meta_query, not a taxonomy lookup — and
+			 * the shape of it belongs to
+			 * Citykleta_Destination_Part_Widget::bikes_query_args(), so the
+			 * grid and the average-price widget can never disagree about what
+			 * "the bikes here" means.
+			 */
+			$destination_id = Citykleta_Destination_Part_Widget::current_destination_id();
+
+			if ( ! $destination_id ) {
+				return;
+			}
+
+			$args                   = array_merge( $args, Citykleta_Destination_Part_Widget::bikes_query_args( $destination_id ) );
+			$args['posts_per_page'] = (int) $settings['count'];
+		} elseif ( $use_url_filters ) {
 			// Página de resultados: los mismos filtros que ya usan la grilla
 			// y el mapa del archivo (Citykleta_Templates::request_filters()),
 			// leídos de la URL en vez de un valor fijo del panel — así el

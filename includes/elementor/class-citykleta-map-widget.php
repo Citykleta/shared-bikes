@@ -24,6 +24,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 	/**
+	 * The two things this widget can draw: the result of a bike query, or the
+	 * one bike whose page it is being rendered on.
+	 */
+	const SOURCE_QUERY = 'query';
+	const SOURCE_BIKE  = 'bike';
+
+	/**
 	 * Internal widget name. Also the AJAX re-render hook name that
 	 * citykleta-map.js listens on ("frontend/element_ready/{name}.default").
 	 *
@@ -81,6 +88,20 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'source',
+			array(
+				'label'       => 'Source',
+				'type'        => \Elementor\Controls_Manager::SELECT,
+				'default'     => self::SOURCE_QUERY,
+				'options'     => array(
+					self::SOURCE_QUERY => 'Query',
+					self::SOURCE_BIKE  => 'Bike Data',
+				),
+				'description' => 'Query draws every bike matching the settings below. Bike Data draws the single bike whose page this is — the "where to pick it up" map.',
+			)
+		);
+
+		$this->add_control(
 			'count',
 			array(
 				'label'       => 'Bike Count',
@@ -91,16 +112,22 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'description' => 'Leave empty for no limit.',
 				'condition'   => array(
 					'use_url_filters!' => 'yes',
+					'source'           => self::SOURCE_QUERY,
 				),
 			)
 		);
+
+		// No location text here: the map draws the map. The address is its own
+		// piece now (Citykleta_Bike_Directions_Widget), so it can be placed,
+		// styled and removed on its own instead of riding along with this one.
 
 		$this->end_controls_section();
 
 		$this->start_controls_section(
 			'section_query',
 			array(
-				'label' => 'Query',
+				'label'     => 'Query',
+				'condition' => array( 'source' => self::SOURCE_QUERY ),
 			)
 		);
 
@@ -199,6 +226,9 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'label_off'   => 'No',
 				'default'     => 'yes',
 				'description' => 'Centers on the visitor with a "you are here" marker. If denied, falls back to the coordinates below, or to fitting all bikes.',
+				'condition'   => array(
+					'source' => self::SOURCE_QUERY,
+				),
 			)
 		);
 
@@ -211,6 +241,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'description' => 'Optional, needs both fields. Leave empty to fit the bikes instead.',
 				'condition'   => array(
 					'center_on_user' => 'yes',
+					'source'         => self::SOURCE_QUERY,
 				),
 			)
 		);
@@ -223,6 +254,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 				'placeholder' => 'e.g. -82.3589',
 				'condition'   => array(
 					'center_on_user' => 'yes',
+					'source'         => self::SOURCE_QUERY,
 				),
 			)
 		);
@@ -248,8 +280,29 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 	 */
 	protected function render() {
 		$settings = $this->get_settings_for_display();
+		$source   = isset( $settings['source'] ) ? $settings['source'] : self::SOURCE_QUERY;
 
-		if ( 'yes' === $settings['use_url_filters'] ) {
+		if ( self::SOURCE_BIKE === $source ) {
+			/*
+			 * "Where to pick it up": the one bike whose page this is. It used
+			 * to be a widget of its own (Citykleta_Bike_Location_Widget), and
+			 * that duplication cost something real — it built its data-options
+			 * by hand and so never passed through tile_layer() /
+			 * cluster_options() / marker_icon_size(), which meant the pickup
+			 * map silently ignored the map settings synced from Back Office
+			 * while every other map on the site honoured them. Sharing this
+			 * render is what keeps that from happening again.
+			 */
+			$bike_id  = Citykleta_Bike_Part_Widget::current_bike_id();
+			$map_bike = $bike_id ? Citykleta_Bike_Map_Data::for_bike( $bike_id ) : null;
+
+			if ( ! $map_bike ) {
+				return;
+			}
+
+			$bikes = array( $map_bike );
+
+		} elseif ( 'yes' === $settings['use_url_filters'] ) {
 			// Página de resultados: mismos filtros que la grilla, leídos de
 			// la URL (Citykleta_Templates::request_filters()) en vez de la
 			// ubicación fija del panel — y sin tope, se muestran todas las
@@ -288,7 +341,10 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		// prints even with zero matching bikes — an empty result should show
 		// an empty map, not make the whole widget disappear.
 		$options = array_merge(
-			array( 'centerOnUser' => 'yes' === $settings['center_on_user'] ),
+			// Never centre on the visitor for a single bike: the whole point
+			// of that map is where THE BIKE is, and re-centring would push it
+			// out of view for anyone not standing next to it.
+			array( 'centerOnUser' => self::SOURCE_BIKE !== $source && 'yes' === $settings['center_on_user'] ),
 			Citykleta_Settings::tile_layer(),
 			Citykleta_Settings::cluster_options()
 		);
@@ -320,12 +376,14 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		$height_style = is_numeric( $height_size ) ? 'height:' . $height_size . $height_unit . ';' : '';
 
 		printf(
-			'<div id="citykleta-map-%1$s" class="citykleta-map" style="%4$s%5$s" data-bikes="%2$s" data-options="%3$s"></div>',
+			'<div id="citykleta-map-%1$s" class="citykleta-map%6$s" style="%4$s%5$s" data-bikes="%2$s" data-options="%3$s"></div>',
 			esc_attr( $this->get_id() ),
 			esc_attr( wp_json_encode( $bikes ) ),
 			esc_attr( wp_json_encode( $options ) ),
 			esc_attr( $height_style ),
-			esc_attr( Citykleta_Settings::map_color_style_attr() )
+			esc_attr( Citykleta_Settings::map_color_style_attr() ),
+			self::SOURCE_BIKE === $source ? ' citykleta-bike-single__location-map' : ''
 		);
+
 	}
 }

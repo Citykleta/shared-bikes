@@ -91,11 +91,52 @@ class Citykleta_Destination_Post_Type {
 				'public'       => true,
 				'has_archive'  => false, // Each destination is its own page; no blanket index needed.
 				'show_in_menu' => 'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE,
-				'supports'     => array( 'title', 'editor', 'thumbnail', 'custom-fields' ),
+				/*
+				 * A destination is a content page in every way that matters, so
+				 * it gets exactly what a Page gets — parent/order, revisions,
+				 * excerpt, comments, author, whatever this install has added to
+				 * pages — instead of a hand-written list that slowly falls
+				 * behind. See self::page_supports().
+				 */
+				'hierarchical' => true,
+				'supports'     => self::page_supports(),
 				'show_in_rest' => true,
 				'rewrite'      => array( 'slug' => $slug ),
 			)
 		);
+	}
+
+	/**
+	 * Everything a Page supports on this install, plus Elementor.
+	 *
+	 * Asked of WordPress rather than copied from it: core's own list for
+	 * `page` has changed across versions, and themes/plugins add to it. Reading
+	 * it means a destination keeps matching a page without anyone remembering
+	 * to update this file.
+	 *
+	 * Safe at this point in the request: core registers `page` on `init` at
+	 * priority 0, and the plugin boots at the default priority 10.
+	 *
+	 * `custom-fields` matters beyond the meta box — without it a custom post
+	 * type's `meta` never appears in REST responses, however well the fields
+	 * are registered (the same gotcha already documented for bikes). It is
+	 * part of a page's own list, so it comes along on its own.
+	 *
+	 * @return array
+	 */
+	private static function page_supports() {
+		$supports = array_keys( get_all_post_type_supports( 'page' ) );
+
+		// Pages are Elementor-editable, so destinations are too.
+		$supports[] = 'elementor';
+
+		// Belt and braces: if `page` somehow is not registered yet, fall back
+		// to the list this type used to declare by hand.
+		if ( count( $supports ) < 3 ) {
+			$supports = array( 'title', 'editor', 'thumbnail', 'custom-fields', 'revisions', 'page-attributes', 'elementor' );
+		}
+
+		return array_values( array_unique( $supports ) );
 	}
 
 	/**

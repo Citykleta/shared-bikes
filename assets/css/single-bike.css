@@ -208,13 +208,13 @@
 	border-top: 1px solid #e5e0d3;
 }
 
-.citykleta-bike-single__section-title {
-	font-family: 'Poppins', sans-serif;
-	font-weight: 600;
-	font-size: 1.1rem;
-	color: #151b1d;
-	margin: 0 0 0.75rem;
-}
+/*
+ * The section titles used to be printed by the pieces themselves and styled
+ * here. They are plain Elementor Headings now (see
+ * Citykleta_Template_Post_Type::heading()), so their look belongs to the
+ * template, not to this file — nothing emits .citykleta-bike-single__section-title
+ * any more and the rule that styled it was removed rather than left dead.
+ */
 
 .citykleta-bike-single__description {
 	line-height: 1.65;
@@ -301,7 +301,7 @@
 	margin-bottom: 0.75rem;
 }
 
-.citykleta-bike-single__location-caption {
+.citykleta-bike-single__directions {
 	margin: 0;
 	font-size: 0.85rem;
 	color: #5a5250;

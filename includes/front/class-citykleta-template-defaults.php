@@ -189,7 +189,7 @@ class Citykleta_Template_Defaults {
 		$actions[ self::ACTION_RESET ] = self::action_link(
 			self::ACTION_RESET,
 			$post->ID,
-			'Reset to default',
+			'Reset',
 			'Discard this design and rebuild the template from the plugin default? This cannot be undone.'
 		);
 

@@ -68,6 +68,19 @@ abstract class Citykleta_Bike_Part_Widget extends \Elementor\Widget_Base {
 	 * @return int Bike post ID, or 0 when there's nothing to draw.
 	 */
 	protected function bike_id() {
+		return self::current_bike_id();
+	}
+
+	/**
+	 * The same resolution, reachable from outside this class hierarchy.
+	 *
+	 * Citykleta_Map_Widget needs it for its "Bike Data" source, and it is not
+	 * a bike part widget — rather than copy the rules (and let the two drift),
+	 * the rules live here once and everyone asks.
+	 *
+	 * @return int Bike post ID, or 0 when there is no bike in context.
+	 */
+	public static function current_bike_id() {
 		if ( is_singular( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
 			return (int) get_queried_object_id();
 		}
@@ -77,6 +90,21 @@ abstract class Citykleta_Bike_Part_Widget extends \Elementor\Widget_Base {
 		}
 
 		return 0;
+	}
+
+	/**
+	 * Whether what's on screen is a template being designed or previewed
+	 * rather than a real visitor's page — the two cases where a widget should
+	 * stand in real data so the layout can be judged, and where an editor-only
+	 * note is worth printing.
+	 *
+	 * Public because the destination widgets and the grid/map widgets need the
+	 * same answer and are not part of this class hierarchy.
+	 *
+	 * @return bool
+	 */
+	public static function is_design_context() {
+		return self::is_elementor_canvas() || self::is_template_preview();
 	}
 
 	/**
@@ -123,6 +151,150 @@ abstract class Citykleta_Bike_Part_Widget extends \Elementor\Widget_Base {
 		);
 
 		return $latest ? (int) $latest[0] : 0;
+	}
+
+	/**
+	 * A full Style tab for a widget that prints a block of text, matching what
+	 * Elementor's own Paragraph offers: type, color, alignment, text shadow,
+	 * background, border, radius, box shadow and spacing.
+	 *
+	 * **Why this is hand-rolled.** Elementor's Paragraph (`e-paragraph`) is a
+	 * V4 "atomic" widget: it declares a props schema and gets its style panel
+	 * from Atomic_Widget_Base, not from add_control()/selectors. Third-party
+	 * widgets can't inherit that panel without being rewritten onto that API,
+	 * which Elementor still ships as experimental. So the properties are
+	 * declared here in the classic way — same capabilities, declared instead
+	 * of inherited.
+	 *
+	 * @param string $selector Element the rules apply to, inside {{WRAPPER}}.
+	 * @param string $prefix   Unique prefix for the control IDs.
+	 * @param string $label    Section label in the panel.
+	 */
+	protected function register_text_style_section( $selector, $prefix = 'text', $label = 'Text' ) {
+		$target = '{{WRAPPER}} ' . $selector;
+
+		$this->start_controls_section(
+			$prefix . '_style',
+			array(
+				'label' => $label,
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			$prefix . '_color',
+			array(
+				'label'     => 'Text Color',
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array( $target => 'color: {{VALUE}};' ),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			array(
+				'name'     => $prefix . '_typography',
+				'selector' => $target,
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Text_Shadow::get_type(),
+			array(
+				'name'     => $prefix . '_text_shadow',
+				'selector' => $target,
+			)
+		);
+
+		$this->add_responsive_control(
+			$prefix . '_align',
+			array(
+				'label'     => 'Alignment',
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => array(
+					'left'    => array(
+						'title' => 'Left',
+						'icon'  => 'eicon-text-align-left',
+					),
+					'center'  => array(
+						'title' => 'Center',
+						'icon'  => 'eicon-text-align-center',
+					),
+					'right'   => array(
+						'title' => 'Right',
+						'icon'  => 'eicon-text-align-right',
+					),
+					'justify' => array(
+						'title' => 'Justified',
+						'icon'  => 'eicon-text-align-justify',
+					),
+				),
+				'selectors' => array( $target => 'text-align: {{VALUE}};' ),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Background::get_type(),
+			array(
+				'name'     => $prefix . '_background',
+				'types'    => array( 'classic', 'gradient' ),
+				'selector' => $target,
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			array(
+				'name'     => $prefix . '_border',
+				'selector' => $target,
+			)
+		);
+
+		$this->add_responsive_control(
+			$prefix . '_radius',
+			array(
+				'label'      => 'Border Radius',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%', 'em' ),
+				'selectors'  => array(
+					$target => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Box_Shadow::get_type(),
+			array(
+				'name'     => $prefix . '_box_shadow',
+				'selector' => $target,
+			)
+		);
+
+		$this->add_responsive_control(
+			$prefix . '_padding',
+			array(
+				'label'      => 'Padding',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					$target => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			$prefix . '_margin',
+			array(
+				'label'      => 'Margin',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					$target => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
 	}
 
 	/**
@@ -518,22 +690,17 @@ class Citykleta_Bike_Description_Widget extends Citykleta_Bike_Part_Widget {
 	}
 
 	/**
-	 * Controls shown in Elementor's left panel.
+	 * Prints the description, and nothing else.
+	 *
+	 * No section heading on purpose: that text is static, so it belongs to a
+	 * plain Elementor Heading the user owns — editable, movable, removable —
+	 * instead of a control of ours that only exists to print a fixed string.
+	 * The default layout puts one in front of this widget.
 	 */
 	protected function register_controls() {
-		$this->start_controls_section( 'section_content', array( 'label' => 'Content' ) );
-
-		$this->add_control(
-			'heading',
-			array(
-				'label'       => 'Heading',
-				'type'        => \Elementor\Controls_Manager::TEXT,
-				'default'     => 'Sobre esta bicicleta',
-				'description' => 'Leave empty for no heading.',
-			)
-		);
-
-		$this->end_controls_section();
+		// Everything Elementor's own Paragraph can style, minus its text field
+		// — the text here is the bike's description, which comes from the API.
+		$this->register_text_style_section( '.citykleta-bike-single__description', 'description', 'Paragraph' );
 	}
 
 	/**
@@ -547,13 +714,8 @@ class Citykleta_Bike_Description_Widget extends Citykleta_Bike_Part_Widget {
 			$this->render_editor_note( 'Bike Description: this bike has no description.' );
 			return;
 		}
-
-		$settings = $this->get_settings_for_display();
 		?>
 		<section class="citykleta-bike-single__section">
-			<?php if ( ! empty( $settings['heading'] ) ) : ?>
-				<h2 class="citykleta-bike-single__section-title"><?php echo esc_html( $settings['heading'] ); ?></h2>
-			<?php endif; ?>
 			<div class="citykleta-bike-single__description">
 				<?php
 				/*
@@ -612,12 +774,182 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 		$this->start_controls_section( 'section_content', array( 'label' => 'Content' ) );
 
 		$this->add_control(
-			'heading',
+			'show_taxonomies',
 			array(
-				'label'       => 'Heading',
-				'type'        => \Elementor\Controls_Manager::TEXT,
-				'default'     => 'Ficha técnica',
-				'description' => 'Leave empty for no heading.',
+				'label'       => 'Categories',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Show',
+				'label_off'   => 'Hide',
+				'default'     => 'yes',
+				'description' => 'Adds the bike\'s type and usage terms as rows.',
+			)
+		);
+
+		$this->add_responsive_control(
+			'columns',
+			array(
+				'label'          => 'Columns',
+				'type'           => \Elementor\Controls_Manager::SELECT,
+				'default'        => '2',
+				'tablet_default' => '2',
+				'mobile_default' => '1',
+				'options'        => array(
+					'1' => '1',
+					'2' => '2',
+					'3' => '3',
+					'4' => '4',
+				),
+				'selectors'      => array(
+					'{{WRAPPER}} .citykleta-bike-single__specs' => 'display: grid; grid-template-columns: repeat({{VALUE}}, minmax(0, 1fr));',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'gap',
+			array(
+				'label'      => 'Gap',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px', 'em' ),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 60 ) ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-bike-single__specs' => 'gap: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// Each row is its own box, so border/shadow/padding go on the row
+		// rather than on the grid — that's what makes a table read as a table.
+		$this->start_controls_section(
+			'section_box_style',
+			array(
+				'label' => 'Box',
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Background::get_type(),
+			array(
+				'name'     => 'spec_background',
+				'types'    => array( 'classic', 'gradient' ),
+				'selector' => '{{WRAPPER}} .citykleta-bike-single__spec',
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			array(
+				'name'     => 'spec_border',
+				'selector' => '{{WRAPPER}} .citykleta-bike-single__spec',
+			)
+		);
+
+		$this->add_responsive_control(
+			'spec_radius',
+			array(
+				'label'      => 'Border Radius',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-bike-single__spec' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Box_Shadow::get_type(),
+			array(
+				'name'     => 'spec_box_shadow',
+				'selector' => '{{WRAPPER}} .citykleta-bike-single__spec',
+			)
+		);
+
+		$this->add_responsive_control(
+			'spec_padding',
+			array(
+				'label'      => 'Padding',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-bike-single__spec' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		$this->register_cell_style_section( 'Label', 'label', '{{WRAPPER}} .citykleta-bike-single__spec dt' );
+		$this->register_cell_style_section( 'Value', 'value', '{{WRAPPER}} .citykleta-bike-single__spec dd' );
+	}
+
+	/**
+	 * Colour + typography for one side of a row.
+	 *
+	 * Label and value get the same set, declared once: a technical table needs
+	 * them styled apart (a muted label against a solid value), and having the
+	 * two definitions drift would be the easiest way to break that.
+	 *
+	 * @param string $label    Section label in the panel.
+	 * @param string $prefix   Unique prefix for the control IDs.
+	 * @param string $selector Full selector the rules apply to.
+	 */
+	private function register_cell_style_section( $label, $prefix, $selector ) {
+		$this->start_controls_section(
+			$prefix . '_style',
+			array(
+				'label' => $label,
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			$prefix . '_color',
+			array(
+				'label'     => 'Color',
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array( $selector => 'color: {{VALUE}};' ),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			array(
+				'name'     => $prefix . '_typography',
+				'selector' => $selector,
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Text_Shadow::get_type(),
+			array(
+				'name'     => $prefix . '_text_shadow',
+				'selector' => $selector,
+			)
+		);
+
+		$this->add_responsive_control(
+			$prefix . '_align',
+			array(
+				'label'     => 'Alignment',
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => array(
+					'left'   => array(
+						'title' => 'Left',
+						'icon'  => 'eicon-text-align-left',
+					),
+					'center' => array(
+						'title' => 'Center',
+						'icon'  => 'eicon-text-align-center',
+					),
+					'right'  => array(
+						'title' => 'Right',
+						'icon'  => 'eicon-text-align-right',
+					),
+				),
+				'selectors' => array( $selector => 'text-align: {{VALUE}};' ),
 			)
 		);
 
@@ -625,7 +957,8 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 	}
 
 	/**
-	 * Prints the spec grid.
+	 * Prints the spec grid, with no heading of its own — same reasoning as
+	 * Citykleta_Bike_Description_Widget::render().
 	 */
 	protected function render() {
 		$bike_id = $this->bike_id();
@@ -634,6 +967,8 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 			$this->render_editor_note( 'Bike Specs: shown on a bike\'s page.' );
 			return;
 		}
+
+		$settings = $this->get_settings_for_display();
 
 		// Only fields that actually have a value are listed.
 		$specs = array_filter(
@@ -645,17 +980,17 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 			)
 		);
 
+		if ( 'yes' === $settings['show_taxonomies'] ) {
+			$specs = array_merge( $specs, self::taxonomy_specs( $bike_id ) );
+		}
+
 		if ( ! $specs ) {
 			$this->render_editor_note( 'Bike Specs: this bike has no technical data filled in.' );
 			return;
 		}
 
-		$settings = $this->get_settings_for_display();
 		?>
 		<section class="citykleta-bike-single__section">
-			<?php if ( ! empty( $settings['heading'] ) ) : ?>
-				<h2 class="citykleta-bike-single__section-title"><?php echo esc_html( $settings['heading'] ); ?></h2>
-			<?php endif; ?>
 			<dl class="citykleta-bike-single__specs">
 				<?php foreach ( $specs as $label => $value ) : ?>
 					<div class="citykleta-bike-single__spec">
@@ -666,6 +1001,41 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 			</dl>
 		</section>
 		<?php
+	}
+
+	/**
+	 * The bike's classification, as rows: its type (synced from the app) and
+	 * its usage (declared by hand in wp-admin).
+	 *
+	 * Labels come from the taxonomy's own singular/plural, so a bike with two
+	 * usages reads "Tipos de uso" and one with a single type reads "Tipo de
+	 * bicicleta", without those strings being repeated here.
+	 *
+	 * @param int $bike_id Bike post ID.
+	 * @return array Label => comma-separated term names.
+	 */
+	private static function taxonomy_specs( $bike_id ) {
+		$rows = array();
+
+		foreach ( array( Citykleta_Bike_Type_Taxonomy::TAXONOMY, Citykleta_Bike_Usage_Taxonomy::TAXONOMY ) as $taxonomy ) {
+			$terms = get_the_terms( $bike_id, $taxonomy );
+
+			if ( ! $terms || is_wp_error( $terms ) ) {
+				continue;
+			}
+
+			$object = get_taxonomy( $taxonomy );
+
+			if ( ! $object ) {
+				continue;
+			}
+
+			$label = count( $terms ) > 1 ? $object->labels->name : $object->labels->singular_name;
+
+			$rows[ $label ] = implode( ', ', wp_list_pluck( $terms, 'name' ) );
+		}
+
+		return $rows;
 	}
 }
 
@@ -771,18 +1141,21 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 }
 
 /**
- * "Dónde recogerla" — the bike's own spot on a small map.
+ * The address the bike is at, as plain text.
+ *
+ * Split out of the pickup map on purpose: the map draws the map, and the
+ * address is a line of text that wants to be placed and styled on its own —
+ * above the map, below it, or in the request card.
  */
-class Citykleta_Bike_Location_Widget extends Citykleta_Bike_Part_Widget {
+class Citykleta_Bike_Directions_Widget extends Citykleta_Bike_Part_Widget {
 
 	/**
-	 * Internal widget name. Also the AJAX re-render hook name
-	 * citykleta-map.js listens on ("frontend/element_ready/{name}.default").
+	 * Internal widget name.
 	 *
 	 * @return string
 	 */
 	public function get_name() {
-		return 'citykleta_bike_location';
+		return 'citykleta_bike_directions';
 	}
 
 	/**
@@ -791,7 +1164,7 @@ class Citykleta_Bike_Location_Widget extends Citykleta_Bike_Part_Widget {
 	 * @return string
 	 */
 	public function get_title() {
-		return 'Bike Pickup Map';
+		return 'Bike Directions';
 	}
 
 	/**
@@ -800,7 +1173,7 @@ class Citykleta_Bike_Location_Widget extends Citykleta_Bike_Part_Widget {
 	 * @return string
 	 */
 	public function get_icon() {
-		return 'eicon-google-maps';
+		return 'eicon-map-pin';
 	}
 
 	/**
@@ -810,80 +1183,75 @@ class Citykleta_Bike_Location_Widget extends Citykleta_Bike_Part_Widget {
 		$this->start_controls_section( 'section_content', array( 'label' => 'Content' ) );
 
 		$this->add_control(
-			'heading',
+			'tag',
 			array(
-				'label'       => 'Heading',
-				'type'        => \Elementor\Controls_Manager::TEXT,
-				'default'     => 'Dónde recogerla',
-				'description' => 'Leave empty for no heading.',
+				'label'   => 'HTML Tag',
+				'type'    => \Elementor\Controls_Manager::SELECT,
+				'default' => 'p',
+				'options' => array(
+					'p'    => 'p',
+					'span' => 'span',
+					'div'  => 'div',
+					'h3'   => 'H3',
+					'h4'   => 'H4',
+				),
 			)
 		);
 
 		$this->add_control(
-			'show_caption',
+			'prefix',
 			array(
-				'label'     => 'Location Text',
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'  => 'Show',
-				'label_off' => 'Hide',
-				'default'   => 'yes',
-			)
-		);
-
-		$this->add_responsive_control(
-			'map_height',
-			array(
-				'label'      => 'Map Height',
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array( 'px' => array( 'min' => 150, 'max' => 700 ) ),
-				'default'    => array( 'size' => 220 ),
+				'label'       => 'Prefix',
+				'type'        => \Elementor\Controls_Manager::TEXT,
+				'placeholder' => 'E.g. Recogida en',
+				'description' => 'Optional text before the address.',
 			)
 		);
 
 		$this->end_controls_section();
+
+		// Same set Elementor's own Paragraph offers, minus its text field —
+		// the text here is the bike's address, which comes from the API.
+		$this->register_text_style_section( '.citykleta-bike-single__directions', 'directions', 'Paragraph' );
 	}
 
 	/**
-	 * Prints the mini map.
+	 * Prints the address.
 	 */
 	protected function render() {
-		$bike_id  = $this->bike_id();
-		$map_bike = $bike_id ? Citykleta_Bike_Map_Data::for_bike( $bike_id ) : null;
+		$bike_id = $this->bike_id();
+		$address = $bike_id ? trim( (string) get_post_meta( $bike_id, 'location', true ) ) : '';
 
-		if ( ! $map_bike ) {
-			$this->render_editor_note( 'Bike Pickup Map: this bike has no coordinates yet (run a sync).' );
+		if ( '' === $address ) {
+			$this->render_editor_note( 'Bike Directions: this bike has no address yet.' );
 			return;
 		}
 
 		$settings = $this->get_settings_for_display();
-		$location = get_post_meta( $bike_id, 'location', true );
+		$allowed  = array( 'p', 'span', 'div', 'h3', 'h4' );
+		$tag      = in_array( $settings['tag'], $allowed, true ) ? $settings['tag'] : 'p';
+		$prefix   = trim( (string) $settings['prefix'] );
+		$text     = '' !== $prefix ? $prefix . ' ' . $address : $address;
 
-		// Height inline rather than through the control's `selectors`: that
-		// only becomes CSS once Elementor writes the page's stylesheet, which
-		// never happens for the shortcode form of this widget — and with no
-		// explicit height Leaflet draws nothing at all. Same reasoning as
-		// Citykleta_Map_Widget::render().
-		$height = isset( $settings['map_height']['size'] ) && is_numeric( $settings['map_height']['size'] )
-			? (float) $settings['map_height']['size']
-			: 220;
-		?>
-		<section class="citykleta-bike-single__section">
-			<?php if ( ! empty( $settings['heading'] ) ) : ?>
-				<h2 class="citykleta-bike-single__section-title"><?php echo esc_html( $settings['heading'] ); ?></h2>
-			<?php endif; ?>
-
-			<div
-				class="citykleta-map citykleta-bike-single__location-map"
-				style="height:<?php echo esc_attr( $height ); ?>px;"
-				data-bikes="<?php echo esc_attr( wp_json_encode( array( $map_bike ) ) ); ?>"
-				data-options="<?php echo esc_attr( wp_json_encode( array( 'centerOnUser' => false ) ) ); ?>"
-			></div>
-
-			<?php if ( $location && 'yes' === $settings['show_caption'] ) : ?>
-				<p class="citykleta-bike-single__location-caption"><?php echo esc_html( $location ); ?></p>
-			<?php endif; ?>
-		</section>
-		<?php
+		printf(
+			'<%1$s class="citykleta-bike-single__directions">%2$s</%1$s>',
+			esc_html( $tag ),
+			esc_html( $text )
+		);
 	}
 }
+
+/*
+ * "Dónde recogerla" used to be Citykleta_Bike_Location_Widget, a seventh part
+ * widget that drew the bike's own spot on a small map. It is gone: the map
+ * widget (Citykleta_Map_Widget) now does it through its "Bike Data" source.
+ *
+ * Keeping two map widgets had already cost something real — the pickup map
+ * built its own data-options by hand and so never went through
+ * Citykleta_Settings::tile_layer() / cluster_options() / marker_icon_size(),
+ * which meant it silently ignored the map configuration synced from Back
+ * Office while every other map on the site honoured it.
+ *
+ * [citykleta_bike_location] still works: Citykleta_Widget_Shortcodes maps it
+ * onto the map widget with source=bike.
+ */

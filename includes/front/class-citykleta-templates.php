@@ -235,9 +235,110 @@ class Citykleta_Templates {
 				return self::default_results_layout();
 			case 'single_bike':
 				return self::default_single_bike_layout();
+			case 'destination':
+				return self::default_destination_layout();
 		}
 
 		return array();
+	}
+
+	/**
+	 * The template drawn on a destination's page, created on first need.
+	 *
+	 * @return WP_Post|null
+	 */
+	public static function ensure_destination_template() {
+		return Citykleta_Template_Post_Type::ensure_template(
+			'destination',
+			'Destination',
+			self::default_destination_content(),
+			array(),
+			self::default_destination_layout()
+		);
+	}
+
+	/**
+	 * The destination layout as Elementor Containers: header, description and
+	 * average price, then the bikes assigned to it, then related articles and
+	 * the FAQ — the same reading order the fixed template had, with every part
+	 * now movable.
+	 *
+	 * The section titles are native Elementor Headings, not something a widget
+	 * prints: they are static text, so they belong to whoever is designing.
+	 *
+	 * @return array
+	 */
+	public static function default_destination_layout() {
+		$captured = Citykleta_Template_Defaults::layout( 'destination' );
+
+		if ( $captured ) {
+			return $captured;
+		}
+
+		$t = 'Citykleta_Template_Post_Type';
+
+		return array(
+			$t::container(
+				array(
+					$t::widget( 'citykleta_destination_header' ),
+					$t::widget( 'citykleta_destination_description' ),
+					$t::widget( 'citykleta_destination_price' ),
+				)
+			),
+			$t::container(
+				array(
+					$t::heading( 'Bicicletas disponibles aquí' ),
+					// The grid widget, not a destination widget of its own —
+					// see its "Destination Bikes" source. 'destination' is
+					// spelled out rather than using the class constant for the
+					// same reason as the bike layout: this runs on requests
+					// where Elementor's widget classes are not loaded yet.
+					$t::widget(
+						'citykleta_bikes',
+						array(
+							'source'  => 'destination',
+							'count'   => 24,
+							'columns' => '3',
+						)
+					),
+				)
+			),
+			$t::container(
+				array(
+					$t::heading( 'Artículos relacionados' ),
+					$t::widget( 'citykleta_destination_articles' ),
+				)
+			),
+			$t::container(
+				array(
+					$t::heading( 'Preguntas frecuentes' ),
+					$t::widget( 'citykleta_destination_faq' ),
+				)
+			),
+		);
+	}
+
+	/**
+	 * The same destination layout as WordPress blocks — the readable fallback
+	 * when Elementor is not what is rendering.
+	 *
+	 * @return string
+	 */
+	public static function default_destination_content() {
+		return implode(
+			"\n\n",
+			array(
+				self::shortcode_block( '[citykleta_destination_header]' ),
+				self::shortcode_block( '[citykleta_destination_description]' ),
+				self::shortcode_block( '[citykleta_destination_price]' ),
+				self::heading_block( 'Bicicletas disponibles aquí' ),
+				self::shortcode_block( '[citykleta_destination_bikes]' ),
+				self::heading_block( 'Artículos relacionados' ),
+				self::shortcode_block( '[citykleta_destination_articles]' ),
+				self::heading_block( 'Preguntas frecuentes' ),
+				self::shortcode_block( '[citykleta_destination_faq]' ),
+			)
+		);
 	}
 
 	/**
@@ -320,9 +421,37 @@ class Citykleta_Templates {
 							$t::widget( 'citykleta_bike_gallery' ),
 							$t::widget( 'citykleta_bike_header' ),
 							$t::widget( 'citykleta_bike_owner' ),
+							// The section titles are plain Elementor Headings,
+							// not something the pieces print — see
+							// Citykleta_Template_Post_Type::heading().
+							$t::heading( 'Sobre esta bicicleta' ),
 							$t::widget( 'citykleta_bike_description' ),
+							$t::heading( 'Ficha técnica' ),
 							$t::widget( 'citykleta_bike_specs' ),
-							$t::widget( 'citykleta_bike_location' ),
+							$t::heading( 'Dónde recogerla' ),
+							/*
+							 * The map widget in "Bike Data" mode — the pickup
+							 * map is no longer a widget of its own.
+							 *
+							 * 'bike' spelled out rather than
+							 * Citykleta_Map_Widget::SOURCE_BIKE on purpose:
+							 * this method is reached from
+							 * ensure_single_bike_template() on any request,
+							 * including ones that run before Elementor has
+							 * loaded its widget classes — referencing the
+							 * constant there is a fatal error.
+							 */
+							$t::widget(
+								'citykleta_map',
+								array(
+									'source'     => 'bike',
+									'map_height' => array(
+										'unit'  => 'px',
+										'size'  => 220,
+										'sizes' => array(),
+									),
+								)
+							),
 						)
 					),
 					$t::column(
@@ -354,6 +483,18 @@ class Citykleta_Templates {
 	}
 
 	/**
+	 * One static section title as a WordPress "Heading" block.
+	 *
+	 * @param string $text Title text.
+	 * @return string
+	 */
+	private static function heading_block( $text ) {
+		return "<!-- wp:heading -->\n"
+			. '<h2 class="wp-block-heading">' . esc_html( $text ) . '</h2>' . "\n"
+			. '<!-- /wp:heading -->';
+	}
+
+	/**
 	 * Default single-bike layout — the same two-column design the old fixed
 	 * template had (content left, price/request card sticky at the right),
 	 * rebuilt out of the individual pieces so every part of it can now be
@@ -369,8 +510,14 @@ class Citykleta_Templates {
 				self::shortcode_block( '[citykleta_bike_gallery]' ),
 				self::shortcode_block( '[citykleta_bike_header]' ),
 				self::shortcode_block( '[citykleta_bike_owner]' ),
+				// Section titles as real Heading blocks, for the same reason
+				// the Elementor layout uses Heading widgets: the text is
+				// static, so it belongs to the person editing the template.
+				self::heading_block( 'Sobre esta bicicleta' ),
 				self::shortcode_block( '[citykleta_bike_description]' ),
+				self::heading_block( 'Ficha técnica' ),
 				self::shortcode_block( '[citykleta_bike_specs]' ),
+				self::heading_block( 'Dónde recogerla' ),
 				self::shortcode_block( '[citykleta_bike_location]' ),
 			)
 		);

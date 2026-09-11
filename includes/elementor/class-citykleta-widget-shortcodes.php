@@ -55,6 +55,43 @@ class Citykleta_Widget_Shortcodes {
 				}
 			);
 		}
+
+		foreach ( self::DESTINATION_PART_SHORTCODES as $tag => $class ) {
+			add_shortcode(
+				$tag,
+				function ( $atts ) use ( $class ) {
+					return self::render_widget( $class, (array) $atts );
+				}
+			);
+		}
+
+		// Not in the loops above: this one is no longer a part widget of its
+		// own, it is the map widget in "Bike Data" mode. The tag stays so
+		// existing content keeps working.
+		add_shortcode( 'citykleta_bike_location', array( $this, 'render_bike_location' ) );
+
+		// Likewise, a destination's bikes are the grid widget with its
+		// "Destination Bikes" source, not a widget of their own.
+		add_shortcode( 'citykleta_destination_bikes', array( $this, 'render_destination_bikes' ) );
+	}
+
+	/**
+	 * [citykleta_destination_bikes] — the bikes the geofence assigned to the
+	 * destination whose page this is, drawn by the normal grid.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function render_destination_bikes( $atts ) {
+		$atts = (array) $atts;
+
+		$atts['source'] = Citykleta_Bike_Widget::SOURCE_DESTINATION;
+
+		if ( ! isset( $atts['count'] ) ) {
+			$atts['count'] = 24;
+		}
+
+		return self::render_widget( 'Citykleta_Bike_Widget', $atts );
 	}
 
 	/**
@@ -67,7 +104,18 @@ class Citykleta_Widget_Shortcodes {
 		'citykleta_bike_description' => 'Citykleta_Bike_Description_Widget',
 		'citykleta_bike_specs'       => 'Citykleta_Bike_Specs_Widget',
 		'citykleta_bike_request'     => 'Citykleta_Bike_Request_Widget',
-		'citykleta_bike_location'    => 'Citykleta_Bike_Location_Widget',
+		'citykleta_bike_directions'  => 'Citykleta_Bike_Directions_Widget',
+	);
+
+	/**
+	 * Shortcode tag => widget class, for the destination pieces.
+	 */
+	const DESTINATION_PART_SHORTCODES = array(
+		'citykleta_destination_header'      => 'Citykleta_Destination_Header_Widget',
+		'citykleta_destination_description' => 'Citykleta_Destination_Description_Widget',
+		'citykleta_destination_price'       => 'Citykleta_Destination_Price_Widget',
+		'citykleta_destination_articles'    => 'Citykleta_Destination_Articles_Widget',
+		'citykleta_destination_faq'         => 'Citykleta_Destination_Faq_Widget',
 	);
 
 	/**
@@ -115,6 +163,30 @@ class Citykleta_Widget_Shortcodes {
 		}
 
 		return self::render_widget( 'Citykleta_Map_Widget', $atts );
+	}
+
+	/**
+	 * [citykleta_bike_location] — the same map widget, locked to the bike
+	 * whose page it is on ("where to pick it up").
+	 *
+	 * Kept as its own tag because that is what existing templates and content
+	 * already say; it is no longer a widget of its own. The height default is
+	 * lower than the map widget's, because this one sits inside a column next
+	 * to the request card rather than spanning a results page.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function render_bike_location( $atts ) {
+		$atts = (array) $atts;
+
+		$atts['source'] = Citykleta_Map_Widget::SOURCE_BIKE;
+
+		if ( ! isset( $atts['map_height'] ) ) {
+			$atts['map_height'] = 220;
+		}
+
+		return $this->render_map( $atts );
 	}
 
 	/**
