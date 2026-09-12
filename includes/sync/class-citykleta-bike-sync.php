@@ -800,14 +800,17 @@ class Citykleta_Bike_Sync {
 	 * @return string
 	 */
 	private function build_title( array $item ) {
-		$parts = array_filter(
-			array(
-				isset( $item['brand'] ) ? sanitize_text_field( $item['brand'] ) : '',
-				isset( $item['model'] ) ? sanitize_text_field( $item['model'] ) : '',
-			)
-		);
+		$brand = isset( $item['brand'] ) ? sanitize_text_field( $item['brand'] ) : '';
+		$model = isset( $item['model'] ) ? sanitize_text_field( $item['model'] ) : '';
 
-		$title = implode( ' ', $parts );
+		// The app's model field often already starts with the brand (brand
+		// "Giant", model "Giant Cypress"); the brand is skipped then, so the
+		// title reads "Giant Cypress" and not "Giant Giant Cypress".
+		if ( '' !== $brand && 0 === stripos( $model, $brand ) ) {
+			$brand = '';
+		}
+
+		$title = trim( $brand . ' ' . $model );
 
 		if ( '' !== $title ) {
 			return $title;

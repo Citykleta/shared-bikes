@@ -64,14 +64,23 @@
 		select.dataset.citykletaInit = '1';
 	}
 
+	/*
+	 * El mismo selector de rango que usa la barra de búsqueda lo usa también
+	 * el formulario de solicitud ("Periodo de renta"), así que esta función no
+	 * conoce ninguna clase de esos dos componentes: el contenedor se marca con
+	 * data-citykleta-range y los dos inputs ocultos con data-citykleta-date,
+	 * y cualquier input con la clase .citykleta-daterange entra por acá. Así
+	 * el visitante ve el mismo calendario en los dos sitios sin que haya dos
+	 * implementaciones que se puedan ir separando con el tiempo.
+	 */
 	function initRange( input ) {
 		if ( input.dataset.citykletaInit ) {
 			return;
 		}
 
-		var field    = input.closest( '.citykleta-search-bar__field-inner' );
-		var fromInput = field ? field.querySelector( '.citykleta-search-bar__date-from' ) : null;
-		var toInput   = field ? field.querySelector( '.citykleta-search-bar__date-to' ) : null;
+		var field     = input.closest( '[data-citykleta-range]' ) || input.parentNode;
+		var fromInput = field ? field.querySelector( '[data-citykleta-date="from"]' ) : null;
+		var toInput   = field ? field.querySelector( '[data-citykleta-date="to"]' ) : null;
 
 		if ( 'undefined' === typeof window.flatpickr ) {
 			return;
@@ -82,6 +91,16 @@
 		}
 
 		window.flatpickr( input, {
+			/*
+			 * Sin esto, Flatpickr arma la clase del altInput como
+			 * "<clases del input original> form-control input" — o sea que el
+			 * input visible que crea se lleva también .citykleta-daterange, y
+			 * la siguiente pasada de initAll() (el hook element_ready del
+			 * editor, por ejemplo) le montaría un segundo calendario encima.
+			 * Se le pasan las clases de estilo sin la que dispara la
+			 * inicialización.
+			 */
+			altInputClass: input.className.replace( /\bcitykleta-daterange\b/g, '' ).trim(),
 			mode: 'range',
 			showMonths: 2,
 			minDate: 'today',
@@ -137,7 +156,7 @@
 	}
 
 	function initAll() {
-		var inputs = document.querySelectorAll( '.citykleta-search-bar__daterange' );
+		var inputs = document.querySelectorAll( '.citykleta-daterange' );
 		for ( var i = 0; i < inputs.length; i++ ) {
 			initRange( inputs[ i ] );
 		}
@@ -163,5 +182,7 @@
 	// cambiar ajustes; hay que re-inicializar cuando eso pase.
 	if ( window.elementorFrontend && window.elementorFrontend.hooks ) {
 		window.elementorFrontend.hooks.addAction( 'frontend/element_ready/citykleta_search.default', initAll );
+		// El widget "Bike Price & Request" trae el mismo campo de rango.
+		window.elementorFrontend.hooks.addAction( 'frontend/element_ready/citykleta_bike_request.default', initAll );
 	}
 } )();

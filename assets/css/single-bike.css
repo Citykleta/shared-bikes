@@ -225,6 +225,45 @@
 	margin-bottom: 0;
 }
 
+/*
+ * Drop Cap (Bike Description widget). Mirrors, class name for class name,
+ * Elementor's own widget-text-editor.min.css — that stylesheet is only
+ * enqueued for Elementor's own Text Editor widget, not for this one, so its
+ * defaults are reproduced here. The Drop Cap style controls in
+ * Citykleta_Bike_Description_Widget then override these same selectors with
+ * the same specificity, exactly as they would on the native widget.
+ */
+.citykleta-bike-single__description .elementor-drop-cap {
+	float: inline-start;
+	font-size: 50px;
+	line-height: 1;
+	text-align: center;
+}
+
+.citykleta-bike-single__description .elementor-drop-cap-letter {
+	display: inline-block;
+}
+
+.elementor-widget-citykleta_bike_description.elementor-drop-cap-view-stacked .elementor-drop-cap {
+	background-color: #69727d;
+	color: #fff;
+}
+
+.elementor-widget-citykleta_bike_description.elementor-drop-cap-view-framed .elementor-drop-cap {
+	background-color: transparent;
+	border: 3px solid;
+	color: #69727d;
+}
+
+.elementor-widget-citykleta_bike_description:not(.elementor-drop-cap-view-default) .elementor-drop-cap {
+	margin-block-start: 8px;
+}
+
+.elementor-widget-citykleta_bike_description:not(.elementor-drop-cap-view-default) .elementor-drop-cap-letter {
+	height: 1em;
+	width: 1em;
+}
+
 /* Propietario */
 
 .citykleta-bike-single__owner {
@@ -262,10 +301,40 @@
  */
 .citykleta-bike-single__specs {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	/* Sin gap: las celdas se tocan para que sus bordes formen una sola
-	   rejilla (verticales incluidas), no cajas sueltas con aire alrededor. */
-	gap: 0;
+	/*
+	 * --citykleta-specs-columns lo escribe Citykleta_Bike_Specs_Widget::render()
+	 * inline, en el propio <dl>, solo cuando el control "Columns" está en
+	 * "Auto" — ahí el número de columnas depende de cuántos datos tenga ESTA
+	 * bici, algo que Elementor no puede resolver desde una regla CSS fija por
+	 * instancia. Un ajuste de columnas explícito para cualquier breakpoint
+	 * (control "Columns" del widget) nunca llega hasta acá: esa regla vive
+	 * scoped al elemento (dos clases) y gana por especificidad sola, sin que
+	 * esta declaración tenga que saberlo.
+	 *
+	 * Sin el widget de por medio (shortcode viejo, o Elementor sin guardar
+	 * nada todavía) la variable no existe y cae a `auto-fit`, el mismo
+	 * comportamiento de siempre.
+	 */
+	grid-template-columns: repeat(var(--citykleta-specs-columns, auto-fit), minmax(200px, 1fr));
+	/*
+	 * "El hueco es la línea", no el borde de cada celda. Antes cada
+	 * `.citykleta-bike-single__spec` traía su propio `border: 1px solid`, y
+	 * con `gap: 0` (celdas pegadas) cada línea compartida sumaba DOS bordes
+	 * de 1px — se veía el doble de gruesa que el borde exterior. Con esta
+	 * técnica el fondo de este contenedor SOLO se asoma por el `gap` y el
+	 * `padding` de 1px de aquí abajo: nunca hay dos bordes que sumar, sea
+	 * cual sea la cantidad de columnas o filas.
+	 */
+	gap: 1px;
+	padding: 1px;
+	background-color: #e5e0d3;
+	/*
+	 * Redondear ESTE contenedor (control Box → Border Radius del widget)
+	 * cortaría en las esquinas si las celdas cuadradas de adentro no se
+	 * recortan con él — por eso overflow:hidden vive acá siempre, no solo
+	 * cuando el radio está puesto: en 0 no cambia nada.
+	 */
+	overflow: hidden;
 	margin: 0;
 }
 
@@ -274,7 +343,7 @@
 	flex-direction: column;
 	gap: 0.1rem;
 	padding: 0.65rem 1rem;
-	border: 1px solid #e5e0d3;
+	background-color: #fff;
 }
 
 .citykleta-bike-single__spec dt {
@@ -310,28 +379,23 @@
 /* Tarjeta de precio */
 
 /*
- * Pegajoso solo si el widget "Bike Price & Request" lo pide (control "Stick
- * On Scroll") — antes era fijo en el CSS porque la plantilla era fija; ahora
- * la decisión es de quien arma el layout.
+ * El widget "Bike Price & Request" no decide si se queda pegado al hacer
+ * scroll: eso es posicionamiento del layout, no del contenido de la pieza, y
+ * es del contenedor de Elementor que la envuelve. Hubo un control "Stick On
+ * Scroll" acá (heredado de cuando la plantilla era fija en PHP) y se quitó.
  */
-.citykleta-bike-single__aside--sticky {
-	position: sticky;
-	/* Deja aire arriba y esquiva la barra de admin cuando está logueado. */
-	top: 2rem;
-}
 
-@media (max-width: 860px) {
-	.citykleta-bike-single__aside--sticky {
-		position: static;
-	}
-}
-
+/*
+ * Sin radio ni sombra por defecto: son decisiones de diseño, y desde que el
+ * widget "Bike Request" tiene su sección Style → Card (fondo, borde, radio,
+ * sombra, padding) el lugar donde se deciden es el panel de Elementor, no acá.
+ * Lo que queda es el mínimo para que la tarjeta se lea como tarjeta aunque
+ * nadie la haya estilado todavía.
+ */
 .citykleta-bike-single__price-card {
 	padding: 1.5rem;
 	border: 1px solid #e5e0d3;
-	border-radius: 8px;
 	background: #fff;
-	box-shadow: 0 2px 10px rgba(21, 27, 29, 0.06);
 }
 
 .citykleta-bike-single__price {
@@ -340,6 +404,33 @@
 	font-size: 1.5rem;
 	color: #151b1d;
 	margin: 0 0 1rem;
+}
+
+/*
+ * Widget "Bike Data": un solo dato de la bici, elegido en un desplegable.
+ * El estilo base es deliberadamente mínimo — este widget existe para que quien
+ * arma el layout decida cómo se ve cada dato desde la pestaña Style, no para
+ * imponer una apariencia. Lo único que se resuelve acá es que la etiqueta
+ * opcional se lea como etiqueta y no como parte del valor.
+ */
+.citykleta-bike-single__data-label {
+	display: block;
+	font-size: 0.8rem;
+	font-weight: 500;
+	letter-spacing: 0.02em;
+	color: #5a5250;
+}
+
+.citykleta-bike-single__data-value {
+	margin: 0;
+	color: #151b1d;
+}
+
+/* El precio conserva el tamaño que tenía dentro de la tarjeta de solicitud. */
+.citykleta-bike-single__data--price .citykleta-bike-single__data-value {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: 1.5rem;
 }
 
 .citykleta-bike-single__note {

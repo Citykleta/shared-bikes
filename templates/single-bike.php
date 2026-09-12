@@ -6,7 +6,7 @@
  * Elementor — versión gratis, sin Theme Builder.
  *
  * Lo que hace que una sola plantilla sirva para las 68 bicis: las piezas de
- * adentro ([citykleta_bike_gallery], [citykleta_bike_header], …, ver
+ * adentro ([citykleta_bike_gallery], [citykleta_bike_title], …, ver
  * Citykleta_Bike_Part_Widgets) no reciben ninguna bici por parámetro —
  * cada una resuelve sola cuál es, leyéndola de la query
  * (`get_queried_object_id()`). Por eso no hacen falta los Dynamic Tags de

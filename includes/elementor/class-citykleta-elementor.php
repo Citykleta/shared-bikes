@@ -287,12 +287,16 @@ class Citykleta_Elementor {
 		// see Citykleta_Bike_Part_Widget.
 		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-bike-part-widgets.php';
 		$widgets_manager->register( new Citykleta_Bike_Gallery_Widget() );
-		$widgets_manager->register( new Citykleta_Bike_Header_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Title_Widget() );
+		$widgets_manager->register( new Citykleta_Bike_Location_Tags_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Owner_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Description_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Specs_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Request_Widget() );
 		$widgets_manager->register( new Citykleta_Bike_Directions_Widget() );
+		// Any single bike value, picked from a dropdown — including the ones
+		// no dedicated piece prints (price, availability, destinations, views).
+		$widgets_manager->register( new Citykleta_Bike_Data_Widget() );
 
 		// Same idea for a Destination's page: each piece resolves the
 		// destination from the query, so one template serves every

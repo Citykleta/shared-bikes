@@ -110,6 +110,10 @@ class Citykleta_Bike_Request_Rest {
 				'from'         => $from,
 				'to'           => $to,
 				'message'      => sanitize_textarea_field( (string) $request->get_param( 'message' ) ),
+				// Stored as typed, never checked: there is no public route on
+				// citykleta-sharing-api to verify a person against. See
+				// Citykleta_Bike_Request::META_VERIFICATION_CODE.
+				'verification_code' => sanitize_text_field( (string) $request->get_param( 'verification_code' ) ),
 				'source'       => esc_url_raw( (string) $request->get_param( 'source' ) ),
 			)
 		);

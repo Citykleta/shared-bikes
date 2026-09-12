@@ -87,6 +87,18 @@ class Citykleta_Bike_Request {
 	/**
 	 * Meta: where the request came from (the bike page URL).
 	 */
+	/**
+	 * Verification code the visitor typed on the form.
+	 *
+	 * **Captured, never validated.** Nothing in WordPress can check it:
+	 * citykleta-sharing-api exposes no public route to verify a person
+	 * (/bikesPublic/sync and /map-settings are the only two), so this is
+	 * stored for whoever handles the request to check by hand — the same
+	 * staging role this whole CPT plays. A request with a wrong code still
+	 * arrives; it just arrives with a wrong code written on it.
+	 */
+	const META_VERIFICATION_CODE = '_citykleta_request_verification_code';
+
 	const META_SOURCE = '_citykleta_request_source';
 
 	/**
@@ -257,6 +269,7 @@ class Citykleta_Bike_Request {
 		update_post_meta( $post_id, self::META_FROM, isset( $data['from'] ) ? (string) $data['from'] : '' );
 		update_post_meta( $post_id, self::META_TO, isset( $data['to'] ) ? (string) $data['to'] : '' );
 		update_post_meta( $post_id, self::META_MESSAGE, isset( $data['message'] ) ? (string) $data['message'] : '' );
+		update_post_meta( $post_id, self::META_VERIFICATION_CODE, isset( $data['verification_code'] ) ? (string) $data['verification_code'] : '' );
 		update_post_meta( $post_id, self::META_SOURCE, isset( $data['source'] ) ? (string) $data['source'] : '' );
 		update_post_meta( $post_id, self::META_STATUS, self::STATUS_NEW );
 
@@ -296,6 +309,7 @@ class Citykleta_Bike_Request {
 			'from'         => (string) get_post_meta( $post_id, self::META_FROM, true ),
 			'to'           => (string) get_post_meta( $post_id, self::META_TO, true ),
 			'message'      => (string) get_post_meta( $post_id, self::META_MESSAGE, true ),
+			'code'         => (string) get_post_meta( $post_id, self::META_VERIFICATION_CODE, true ),
 			'source'       => (string) get_post_meta( $post_id, self::META_SOURCE, true ),
 			'status'       => (string) get_post_meta( $post_id, self::META_STATUS, true ),
 		);
@@ -486,6 +500,8 @@ class Citykleta_Bike_Request {
 				: esc_html( $data['bike_title'] ),
 			'App bike id'  => esc_html( $data['external_id'] ),
 			'Dates'        => esc_html( self::format_dates( $post->ID ) ),
+			// Shown as typed. Nothing verified it — see META_VERIFICATION_CODE.
+			'Code'         => '' !== $data['code'] ? '<code>' . esc_html( $data['code'] ) . '</code>' : '',
 			'Contact'      => $this->contact_link( $data ),
 			'Message'      => '' !== $data['message'] ? nl2br( esc_html( $data['message'] ) ) : '',
 			'Came from'    => '' !== $data['source'] ? '<a href="' . esc_url( $data['source'] ) . '">' . esc_html( $data['source'] ) . '</a>' : '',

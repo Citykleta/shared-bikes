@@ -20,6 +20,10 @@
 	}
 
 	function initWidget( root ) {
+		if ( root.dataset.citykletaRequestInit ) {
+			return;
+		}
+
 		var form    = root.querySelector( '.citykleta-bike-request__form' );
 		var done    = root.querySelector( '.citykleta-bike-request__done' );
 		var error   = root.querySelector( '.citykleta-bike-request__error' );
@@ -30,13 +34,17 @@
 			return;
 		}
 
+		root.dataset.citykletaRequestInit = '1';
+
 		// Keep the two date fields consistent: picking a start date can't leave
 		// an earlier end date selectable. The server checks this too — this is
-		// only so the visitor finds out before submitting.
+		// only so the visitor finds out before submitting. Only applies to the
+		// native-date fallback; with Flatpickr the range is one control and
+		// can't be inconsistent in the first place.
 		var from = form.elements.from;
 		var to   = form.elements.to;
 
-		if ( from && to ) {
+		if ( from && to && 'date' === from.type ) {
 			from.addEventListener( 'change', function () {
 				to.min = from.value || to.getAttribute( 'min' ) || '';
 
@@ -57,8 +65,64 @@
 			}
 		}
 
+		/*
+		 * Two panels, one form. "Continuar" only moves between them — nothing
+		 * is sent until the visitor submits from step 2, so a half-filled form
+		 * never reaches the server and there is still exactly one POST per
+		 * request.
+		 */
+		var stepOne = root.querySelector( '.citykleta-bike-request__step[data-step="1"]' );
+		var stepTwo = root.querySelector( '.citykleta-bike-request__step[data-step="2"]' );
+		var next    = root.querySelector( '.citykleta-bike-request__next' );
+		var back    = root.querySelector( '.citykleta-bike-request__back' );
+		var code    = form.elements.verification_code;
+
+		function goToStep( n ) {
+			if ( ! stepOne || ! stepTwo ) {
+				return;
+			}
+
+			stepOne.hidden = 1 !== n;
+			stepTwo.hidden = 2 !== n;
+
+			if ( error ) {
+				error.hidden = true;
+			}
+		}
+
+		if ( next ) {
+			next.addEventListener( 'click', function () {
+				if ( code && code.dataset.required && '' === code.value.trim() ) {
+					showError( 'Escribe tu código de verificación, o verifícate primero.' );
+					return;
+				}
+
+				goToStep( 2 );
+			} );
+		}
+
+		if ( back ) {
+			back.addEventListener( 'click', function () {
+				goToStep( 1 );
+			} );
+		}
+
 		form.addEventListener( 'submit', function ( event ) {
 			event.preventDefault();
+
+			// Required-ness is checked here rather than with the `required`
+			// attribute: a hidden step-2 field with `required` makes the
+			// browser refuse to submit while refusing to say why (it can't
+			// focus a field nobody can see).
+			if ( '' === form.elements.name.value.trim() ) {
+				showError( 'Hace falta tu nombre.' );
+				return;
+			}
+
+			if ( '' === form.elements.contact.value.trim() ) {
+				showError( 'Deja un correo o un teléfono para poder responderte.' );
+				return;
+			}
 
 			if ( error ) {
 				error.hidden      = true;
@@ -76,6 +140,7 @@
 				from: from ? from.value : '',
 				to: to ? to.value : '',
 				message: form.elements.message.value,
+				verification_code: code ? code.value : '',
 				consent: form.elements.consent.checked,
 				website: form.elements.website.value,
 				source: window.location.href
@@ -115,5 +180,11 @@
 		document.addEventListener( 'DOMContentLoaded', init );
 	} else {
 		init();
+	}
+
+	// Elementor redraws a widget over AJAX while its settings are edited —
+	// same reason citykleta-search-widget.js and citykleta-map.js hook this.
+	if ( window.elementorFrontend && window.elementorFrontend.hooks ) {
+		window.elementorFrontend.hooks.addAction( 'frontend/element_ready/citykleta_bike_request.default', init );
 	}
 }() );

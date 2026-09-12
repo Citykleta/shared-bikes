@@ -901,20 +901,21 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			<?php if ( 'yes' === $settings['show_dates'] ) : ?>
 				<div class="citykleta-search-bar__divider"></div>
 				<div class="citykleta-search-bar__field citykleta-search-bar__field--date">
-					<div class="citykleta-search-bar__field-inner">
+					<?php // data-citykleta-range / data-citykleta-date: el contrato que lee citykleta-search-widget.js para armar el calendario de rango. El formulario de solicitud imprime los mismos atributos, así que los dos campos son literalmente el mismo selector. ?>
+					<div class="citykleta-search-bar__field-inner" data-citykleta-range>
 						<?php if ( 'yes' === $settings['show_labels'] ) : ?>
 							<label class="citykleta-search-bar__label" for="citykleta-daterange-<?php echo esc_attr( $this->get_id() ); ?>"><?php echo esc_html( $settings['dates_label'] ); ?></label>
 						<?php endif; ?>
 						<input
-							class="citykleta-search-bar__input citykleta-search-bar__daterange"
+							class="citykleta-search-bar__input citykleta-search-bar__daterange citykleta-daterange"
 							type="text"
 							id="citykleta-daterange-<?php echo esc_attr( $this->get_id() ); ?>"
 							placeholder="<?php echo esc_attr( $settings['dates_placeholder'] ); ?>"
 							autocomplete="off"
 							readonly="readonly"
 						/>
-						<input type="hidden" class="citykleta-search-bar__date-from" name="from" />
-						<input type="hidden" class="citykleta-search-bar__date-to" name="to" />
+						<input type="hidden" class="citykleta-search-bar__date-from" name="from" data-citykleta-date="from" />
+						<input type="hidden" class="citykleta-search-bar__date-to" name="to" data-citykleta-date="to" />
 					</div>
 				</div>
 			<?php endif; ?>

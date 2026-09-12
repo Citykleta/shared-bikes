@@ -37,6 +37,7 @@ class Citykleta_Settings {
 	const OPTION_GROUP_SYNC = 'citykleta_settings_sync';
 	const OPTION_GROUP_COMM = 'citykleta_settings_comm';
 	const OPTION_GROUP_DEST = 'citykleta_settings_dest';
+	const OPTION_GROUP_TPL  = 'citykleta_settings_tpl';
 
 	/**
 	 * Settings page slug.
@@ -51,6 +52,7 @@ class Citykleta_Settings {
 		'maps'     => 'Maps',
 		'comm'     => 'Communication',
 		'dest'     => 'Destinations',
+		'tpl'      => 'Templates',
 		'frontend' => 'Frontend',
 	);
 
@@ -814,6 +816,102 @@ class Citykleta_Settings {
 			self::PAGE_SLUG . '-dest',
 			'citykleta_dest_section'
 		);
+
+		// Templates: which layout each of the plugin's own front-end views is
+		// drawn with. One option holding view => template ID, rather than one
+		// option per view, so adding a view to
+		// Citykleta_Template_Post_Type::TYPES needs nothing here.
+		register_setting(
+			self::OPTION_GROUP_TPL,
+			Citykleta_Template_Post_Type::ACTIVE_OPTION,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( 'Citykleta_Template_Post_Type', 'sanitize_active' ),
+				'default'           => array(),
+			)
+		);
+
+		add_settings_section(
+			'citykleta_tpl_section',
+			'Active template',
+			function () {
+				echo '<p>Each view is drawn with one template. A view only lists the templates assigned to it in their own "Draws" box (Bicicletas → Templates), so a destination layout can never end up drawing a bike page.</p>';
+			},
+			self::PAGE_SLUG . '-tpl'
+		);
+
+		foreach ( Citykleta_Template_Post_Type::TYPES as $tpl_type => $tpl_label ) {
+			add_settings_field(
+				'citykleta_active_template_' . $tpl_type,
+				$tpl_label,
+				array( $this, 'render_active_template_field' ),
+				self::PAGE_SLUG . '-tpl',
+				'citykleta_tpl_section',
+				array( 'type' => $tpl_type )
+			);
+		}
+	}
+
+	/**
+	 * Renders one view's "which template draws this" dropdown.
+	 *
+	 * The blank option is not "none": it is the behaviour every install had
+	 * before this screen existed — the first published template of that view.
+	 * Keeping that as the default is what lets the plugin keep creating and
+	 * using its own default layouts without anyone coming here first.
+	 *
+	 * @param array $args Field args; 'type' is a key of
+	 *                    Citykleta_Template_Post_Type::TYPES.
+	 */
+	public function render_active_template_field( $args ) {
+		$type      = isset( $args['type'] ) ? $args['type'] : '';
+		$templates = Citykleta_Template_Post_Type::templates_for( $type );
+
+		if ( ! $templates ) {
+			echo '<p class="description">No published template draws this view yet. The plugin creates one with its default layout the first time the page is visited.</p>';
+			return;
+		}
+
+		$current = Citykleta_Template_Post_Type::active_id( $type );
+		$in_use  = Citykleta_Template_Post_Type::get_template( $type );
+
+		printf(
+			'<select name="%1$s[%2$s]" style="min-width:320px;">',
+			esc_attr( Citykleta_Template_Post_Type::ACTIVE_OPTION ),
+			esc_attr( $type )
+		);
+
+		printf(
+			'<option value="" %1$s>— First published (%2$s) —</option>',
+			selected( $current, 0, false ),
+			esc_html( get_the_title( $templates[0] ) )
+		);
+
+		foreach ( $templates as $template ) {
+			printf(
+				'<option value="%1$d" %2$s>%3$s</option>',
+				(int) $template->ID,
+				selected( $current, $template->ID, false ),
+				esc_html( get_the_title( $template ) )
+			);
+		}
+
+		echo '</select>';
+
+		if ( $in_use ) {
+			printf(
+				' <a href="%1$s">Edit “%2$s”</a>',
+				esc_url( (string) get_edit_post_link( $in_use->ID ) ),
+				esc_html( get_the_title( $in_use ) )
+			);
+		}
+
+		// The stored pick can stop resolving at any time (deleted, moved to
+		// draft, reassigned to another view) — say so instead of quietly
+		// drawing something else.
+		if ( $current && ( ! $in_use || (int) $in_use->ID !== $current ) ) {
+			echo '<p class="description" style="color:#996800;">The template picked here is no longer published for this view, so it falls back to the first published one. Pick another to clear this notice.</p>';
+		}
 	}
 
 	/**
@@ -1255,6 +1353,18 @@ class Citykleta_Settings {
 					submit_button( 'Save changes' );
 					?>
 				</form>
+			<?php elseif ( 'tpl' === $active_tab ) : ?>
+				<p>Layouts live under Bicicletas → <a href="<?php echo esc_url( admin_url( 'edit.php?post_type=' . Citykleta_Template_Post_Type::POST_TYPE ) ); ?>">Templates</a>
+				and are edited with Elementor. This tab only decides which one each view uses, so a
+				redesign can be built and published alongside the current layout and switched to
+				(or away from) in one step.</p>
+				<form method="post" action="options.php">
+					<?php
+					settings_fields( self::OPTION_GROUP_TPL );
+					do_settings_sections( self::PAGE_SLUG . '-tpl' );
+					submit_button( 'Save changes' );
+					?>
+				</form>
 			<?php elseif ( 'frontend' === $active_tab ) : ?>
 				<?php $this->render_frontend_tab(); ?>
 			<?php elseif ( 'sync' === $active_tab ) : ?>
@@ -1340,12 +1450,15 @@ class Citykleta_Settings {
 		// whichever bike the visitor is looking at.
 		$bike_parts = array(
 			array( '[citykleta_bike_gallery]', 'Photo carousel.' ),
-			array( '[citykleta_bike_header]', 'Title, location and tags.' ),
+			array( '[citykleta_bike_title]', 'The bike\'s title.' ),
+			array( '[citykleta_bike_location_tags]', 'Location + bike type tags.' ),
 			array( '[citykleta_bike_owner]', '"Publicado por" + owner photo.' ),
 			array( '[citykleta_bike_description]', "The bike's own description." ),
-			array( '[citykleta_bike_specs]', 'Brand, model, size, wheel size.' ),
-			array( '[citykleta_bike_request]', 'Price + the request form.' ),
-			array( '[citykleta_bike_location]', 'Small pickup map.' ),
+			array( '[citykleta_bike_specs]', 'Brand, model, size, wheel size, type, usage, electric.' ),
+			array( '[citykleta_bike_directions]', 'The address, as a line of text.' ),
+			array( '[citykleta_bike_request]', 'The two-step request form: period + verification code, then contact details.' ),
+			array( '[citykleta_bike_data]', 'One single value. field="price|description|address|owner|availability|destinations|views|brand|model|size|wheel_size|electric|bike_type|bike_usage".' ),
+			array( '[citykleta_bike_location]', 'Small pickup map (the map widget, "Bike Data" mode).' ),
 		);
 		?>
 		<style>

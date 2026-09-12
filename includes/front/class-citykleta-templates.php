@@ -419,7 +419,8 @@ class Citykleta_Templates {
 						66,
 						array(
 							$t::widget( 'citykleta_bike_gallery' ),
-							$t::widget( 'citykleta_bike_header' ),
+							$t::widget( 'citykleta_bike_title' ),
+							$t::widget( 'citykleta_bike_location_tags' ),
 							$t::widget( 'citykleta_bike_owner' ),
 							// The section titles are plain Elementor Headings,
 							// not something the pieces print — see
@@ -429,6 +430,7 @@ class Citykleta_Templates {
 							$t::heading( 'Ficha técnica' ),
 							$t::widget( 'citykleta_bike_specs' ),
 							$t::heading( 'Dónde recogerla' ),
+							$t::widget( 'citykleta_bike_directions' ),
 							/*
 							 * The map widget in "Bike Data" mode — the pickup
 							 * map is no longer a widget of its own.
@@ -457,6 +459,12 @@ class Citykleta_Templates {
 					$t::column(
 						34,
 						array(
+							// The price is its own piece since it left the
+							// request card — 'price' spelled out rather than
+							// the class constant for the same reason as
+							// 'bike' below: this runs on requests where
+							// Elementor hasn't loaded its widget classes.
+							$t::widget( 'citykleta_bike_data', array( 'field' => 'price' ) ),
 							$t::widget( 'citykleta_bike_request' ),
 						)
 					),
@@ -496,7 +504,7 @@ class Citykleta_Templates {
 
 	/**
 	 * Default single-bike layout — the same two-column design the old fixed
-	 * template had (content left, price/request card sticky at the right),
+	 * template had (content left, price/request card at the right),
 	 * rebuilt out of the individual pieces so every part of it can now be
 	 * moved, restyled or removed in Elementor. The wrapper divs reuse the
 	 * classes single-bike.css already styles.
@@ -508,7 +516,8 @@ class Citykleta_Templates {
 			"\n\n",
 			array(
 				self::shortcode_block( '[citykleta_bike_gallery]' ),
-				self::shortcode_block( '[citykleta_bike_header]' ),
+				self::shortcode_block( '[citykleta_bike_title]' ),
+				self::shortcode_block( '[citykleta_bike_location_tags]' ),
 				self::shortcode_block( '[citykleta_bike_owner]' ),
 				// Section titles as real Heading blocks, for the same reason
 				// the Elementor layout uses Heading widgets: the text is
@@ -518,11 +527,13 @@ class Citykleta_Templates {
 				self::heading_block( 'Ficha técnica' ),
 				self::shortcode_block( '[citykleta_bike_specs]' ),
 				self::heading_block( 'Dónde recogerla' ),
+				self::shortcode_block( '[citykleta_bike_directions]' ),
 				self::shortcode_block( '[citykleta_bike_location]' ),
 			)
 		);
 
-		$right = self::shortcode_block( '[citykleta_bike_request]' );
+		$right = self::shortcode_block( '[citykleta_bike_data field="price"]' )
+			. "\n\n" . self::shortcode_block( '[citykleta_bike_request]' );
 
 		// A real Columns block, so the two-column design opens in the editor
 		// as two columns you can drag pieces between — not as markup the

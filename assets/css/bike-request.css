@@ -55,6 +55,85 @@
 	gap: 0.85rem;
 }
 
+/* --- Pasos --- */
+
+/*
+ * Los dos pasos son paneles del mismo <form>, no dos formularios: se envía
+ * una sola vez, desde el paso 2. El display:grid va con [hidden] respetado
+ * explícitamente porque `display` gana sobre el atributo hidden.
+ */
+.citykleta-bike-request__step {
+	display: grid;
+	gap: 0.85rem;
+}
+
+.citykleta-bike-request__step[hidden] {
+	display: none;
+}
+
+.citykleta-bike-request__actions {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.citykleta-bike-request__actions .citykleta-bike-request__submit {
+	flex: 1 1 auto;
+}
+
+.citykleta-bike-request__back {
+	flex: 0 0 auto;
+	padding: 0.75rem 0.9rem;
+	border: 1px solid #e5e0d3;
+	border-radius: 8px;
+	background: transparent;
+	color: #5a5250;
+	font-family: inherit;
+	font-size: 0.9rem;
+	line-height: 1.2;
+	cursor: pointer;
+}
+
+.citykleta-bike-request__back:hover {
+	border-color: #151b1d;
+	color: #151b1d;
+}
+
+/* El "Continuar" del paso 1 comparte el look del botón de envío. */
+.citykleta-bike-request__next {
+	display: block;
+	width: 100%;
+	padding: 0.75rem 1rem;
+	border: 0;
+	border-radius: 8px;
+	background: #fed94c;
+	color: #151b1d;
+	font-family: 'Poppins', sans-serif;
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.citykleta-bike-request__next:hover {
+	background: #fac114;
+}
+
+/* --- Enlace de verificación --- */
+
+.citykleta-bike-request__verify {
+	justify-self: start;
+	font-size: 0.82rem;
+	line-height: 1.4;
+	color: #5a5250;
+	text-decoration: underline;
+}
+
+.citykleta-bike-request__verify:hover {
+	color: #151b1d;
+}
+
 .citykleta-bike-request__field {
 	display: grid;
 	gap: 0.3rem;
@@ -62,7 +141,15 @@
 	color: #5a5250;
 }
 
-.citykleta-bike-request__field > span {
+/*
+ * Las dos formas de etiqueta del formulario: el <span> dentro de un campo que
+ * ES un <label>, y el <label class="…__label"> suelto del campo de rango (ahí
+ * el control visible lo crea Flatpickr, así que la etiqueta necesita un `for`
+ * propio y no puede envolverlo). Van juntas para que estilar "las etiquetas"
+ * sea un solo selector, acá y en la pestaña Style del widget.
+ */
+.citykleta-bike-request__field > span,
+.citykleta-bike-request__label {
 	font-weight: 500;
 	color: #151b1d;
 }
@@ -80,7 +167,8 @@
  * se veía un doble borde. Mismo truco (y misma razón) que search-bar.css.
  */
 .citykleta-bike-request .citykleta-bike-request__field input,
-.citykleta-bike-request .citykleta-bike-request__field textarea {
+.citykleta-bike-request .citykleta-bike-request__field textarea,
+.citykleta-bike-request .citykleta-bike-request__input {
 	width: 100%;
 	padding: 0.55rem 0.7rem;
 	border: 1px solid #e5e0d3;
@@ -93,7 +181,8 @@
 }
 
 .citykleta-bike-request .citykleta-bike-request__field input:focus,
-.citykleta-bike-request .citykleta-bike-request__field textarea:focus {
+.citykleta-bike-request .citykleta-bike-request__field textarea:focus,
+.citykleta-bike-request .citykleta-bike-request__input:focus {
 	outline: 2px solid #fed94c;
 	outline-offset: 1px;
 	border-color: #fed94c;

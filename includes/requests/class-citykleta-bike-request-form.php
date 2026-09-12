@@ -44,12 +44,30 @@ class Citykleta_Bike_Request_Form {
 	 * The form's CSS/JS plus the REST base its script needs.
 	 *
 	 * Public and static because the form is no longer only printed by
-	 * templates/single-bike.php: it's also the "Bike Price & Request"
+	 * templates/single-bike.php: it's also the "Bike Request"
 	 * Elementor widget/shortcode (Citykleta_Bike_Part_Widgets), which can
 	 * land on any page — so Citykleta_Elementor calls this too. Safe to
 	 * call more than once: wp_enqueue_* dedupes by handle.
 	 */
 	public static function enqueue_form_assets() {
+		/*
+		 * The rental-period field is the search bar's range picker, so it
+		 * needs the search bar's vendor + glue scripts. They're enqueued from
+		 * here rather than relied on from Citykleta_Elementor: the form can be
+		 * dropped on a page that has no search widget at all, and
+		 * wp_enqueue_* dedupes by handle anyway. When the vendor files aren't
+		 * there, the form prints native date inputs instead — see
+		 * self::has_range_picker().
+		 */
+		if ( file_exists( CITYKLETA_PATH . 'assets/js/flatpickr.min.js' ) ) {
+			wp_enqueue_style( 'flatpickr', CITYKLETA_URL . 'assets/css/flatpickr.min.css', array(), CITYKLETA_VERSION );
+			wp_enqueue_style( 'citykleta-search-bar-datepicker', CITYKLETA_URL . 'assets/css/search-bar-datepicker.css', array( 'flatpickr' ), CITYKLETA_VERSION );
+
+			wp_enqueue_script( 'flatpickr', CITYKLETA_URL . 'assets/js/flatpickr.min.js', array(), CITYKLETA_VERSION, true );
+			wp_enqueue_script( 'flatpickr-es', CITYKLETA_URL . 'assets/js/flatpickr-es.js', array( 'flatpickr' ), CITYKLETA_VERSION, true );
+			wp_enqueue_script( 'citykleta-search-widget', CITYKLETA_URL . 'assets/js/citykleta-search-widget.js', array( 'flatpickr-es' ), CITYKLETA_VERSION, true );
+		}
+
 		wp_enqueue_style(
 			'citykleta-bike-request',
 			CITYKLETA_URL . 'assets/css/bike-request.css',
@@ -89,71 +107,186 @@ class Citykleta_Bike_Request_Form {
 	}
 
 	/**
-	 * Prints the form for one bike.
+	 * Whether the Flatpickr range picker the search bar uses is available.
 	 *
-	 * Dates are plain <input type="date"> rather than the Flatpickr range the
-	 * search widget uses: those vendor files don't ship with the plugin
-	 * (see CLAUDE.md), and a bike request must not silently lose its date
-	 * fields on an install that hasn't downloaded them.
+	 * Those vendor files don't ship with the plugin (see CLAUDE.md), and a
+	 * bike request must not silently lose its date fields on an install that
+	 * hasn't downloaded them — so the date field falls back to two native
+	 * <input type="date"> when they're missing, rather than printing a
+	 * read-only text box that nothing would ever open.
 	 *
-	 * @param int $bike_id Bike post ID.
+	 * @return bool
 	 */
-	public static function render( $bike_id ) {
+	private static function has_range_picker() {
+		return file_exists( CITYKLETA_PATH . 'assets/js/flatpickr.min.js' );
+	}
+
+	/**
+	 * Default presentation args for self::render(), so a caller that passes
+	 * nothing (the shortcode, or any older call site) still gets a complete
+	 * form. The Elementor widget overrides these from its own controls.
+	 *
+	 * @return array
+	 */
+	public static function defaults() {
+		return array(
+			'show_title'    => 'yes',
+			'title'         => 'Solicitar esta bicicleta',
+			'dates_label'   => 'Periodo de renta',
+			'dates_hint'    => 'Llegada — Salida',
+			'show_code'     => 'yes',
+			'code_label'    => 'Código de verificación',
+			'require_code'  => 'yes',
+			'verify_url'    => '',
+			'verify_text'   => 'Verificarme ahora',
+			'next_text'     => 'Continuar',
+			'submit_text'   => 'Enviar solicitud',
+			'back_text'     => 'Atrás',
+		);
+	}
+
+	/**
+	 * Prints the form for one bike, in two steps.
+	 *
+	 * **Step 1 is about the bike** (rental period + verification code) and
+	 * **step 2 is about the person** (name, contact, message). Splitting them
+	 * is not cosmetic: step 1 is what sits inside the price card next to the
+	 * bike, where a long "tell us about yourself" form buries the one thing
+	 * the visitor came to do. Nothing is submitted until step 2, so the whole
+	 * thing is still a single POST — the steps are panels, not requests.
+	 *
+	 * @param int   $bike_id Bike post ID.
+	 * @param array $args    Presentation args; see self::defaults().
+	 */
+	public static function render( $bike_id, array $args = array() ) {
+		$args  = array_merge( self::defaults(), $args );
 		$today = current_time( 'Y-m-d' );
+		$uid   = 'citykleta-req-' . wp_rand( 1000, 999999 );
 		?>
 		<div class="citykleta-bike-request" data-bike="<?php echo (int) $bike_id; ?>">
 
-			<h2 class="citykleta-bike-request__title">Solicitar esta bicicleta</h2>
+			<?php if ( 'yes' === $args['show_title'] && '' !== $args['title'] ) : ?>
+				<h2 class="citykleta-bike-request__title"><?php echo esc_html( $args['title'] ); ?></h2>
+			<?php endif; ?>
 
 			<form class="citykleta-bike-request__form">
 
-				<label class="citykleta-bike-request__field">
-					<span>Tu nombre</span>
-					<input type="text" name="name" autocomplete="name" required />
-				</label>
+				<?php // Step 1 — the booking itself. ?>
+				<div class="citykleta-bike-request__step" data-step="1">
 
-				<label class="citykleta-bike-request__field">
-					<span>Correo o teléfono</span>
-					<input type="text" name="contact" inputmode="email" required />
-					<small>Por aquí te respondemos.</small>
-				</label>
+					<?php if ( self::has_range_picker() ) : ?>
+						<?php
+						/*
+						 * The exact same range picker as the search bar: the
+						 * read-only visible input plus two hidden Y-m-d fields,
+						 * marked with the data attributes citykleta-search-widget.js
+						 * looks for. One implementation, two places.
+						 */
+						?>
+						<div class="citykleta-bike-request__field citykleta-bike-request__field--range" data-citykleta-range>
+							<label class="citykleta-bike-request__label" for="<?php echo esc_attr( $uid ); ?>-range"><?php echo esc_html( $args['dates_label'] ); ?></label>
+							<input
+								type="text"
+								id="<?php echo esc_attr( $uid ); ?>-range"
+								class="citykleta-bike-request__input citykleta-daterange"
+								placeholder="<?php echo esc_attr( $args['dates_hint'] ); ?>"
+								autocomplete="off"
+								readonly="readonly"
+							/>
+							<input type="hidden" name="from" data-citykleta-date="from" />
+							<input type="hidden" name="to" data-citykleta-date="to" />
+						</div>
+					<?php else : ?>
+						<div class="citykleta-bike-request__dates">
+							<label class="citykleta-bike-request__field">
+								<span>Desde</span>
+								<input type="date" name="from" min="<?php echo esc_attr( $today ); ?>" />
+							</label>
 
-				<div class="citykleta-bike-request__dates">
-					<label class="citykleta-bike-request__field">
-						<span>Desde</span>
-						<input type="date" name="from" min="<?php echo esc_attr( $today ); ?>" />
-					</label>
+							<label class="citykleta-bike-request__field">
+								<span>Hasta</span>
+								<input type="date" name="to" min="<?php echo esc_attr( $today ); ?>" />
+							</label>
+						</div>
+					<?php endif; ?>
 
-					<label class="citykleta-bike-request__field">
-						<span>Hasta</span>
-						<input type="date" name="to" min="<?php echo esc_attr( $today ); ?>" />
-					</label>
+					<?php if ( 'yes' === $args['show_code'] ) : ?>
+						<label class="citykleta-bike-request__field citykleta-bike-request__field--code">
+							<span><?php echo esc_html( $args['code_label'] ); ?></span>
+							<input
+								type="text"
+								name="verification_code"
+								autocomplete="one-time-code"
+								inputmode="text"
+								<?php echo 'yes' === $args['require_code'] ? 'data-required="1"' : ''; ?>
+							/>
+						</label>
+
+						<?php if ( '' !== $args['verify_url'] ) : ?>
+							<?php
+							/*
+							 * target="_blank" is what the flow needs — the visitor
+							 * goes off to verify and comes back to a form that
+							 * still holds what they had typed. rel="noopener
+							 * noreferrer" goes with it always: without it the
+							 * opened page gets a handle on this one through
+							 * window.opener.
+							 */
+							?>
+							<a
+								class="citykleta-bike-request__verify"
+								href="<?php echo esc_url( $args['verify_url'] ); ?>"
+								target="_blank"
+								rel="noopener noreferrer"
+							><?php echo esc_html( $args['verify_text'] ); ?></a>
+						<?php endif; ?>
+					<?php endif; ?>
+
+					<button type="button" class="citykleta-bike-request__next"><?php echo esc_html( $args['next_text'] ); ?></button>
 				</div>
 
-				<label class="citykleta-bike-request__field">
-					<span>Mensaje <small>(opcional)</small></span>
-					<textarea name="message" rows="3"></textarea>
-				</label>
+				<?php // Step 2 — who is asking. ?>
+				<div class="citykleta-bike-request__step" data-step="2" hidden>
 
-				<?php // Honeypot: hidden from real users, bots tend to fill it. ?>
-				<div class="citykleta-bike-request__hp" aria-hidden="true">
-					<label>No llenar este campo
-						<input type="text" name="website" tabindex="-1" autocomplete="off" />
+					<label class="citykleta-bike-request__field">
+						<span>Tu nombre</span>
+						<input type="text" name="name" autocomplete="name" />
 					</label>
+
+					<label class="citykleta-bike-request__field">
+						<span>Correo o teléfono</span>
+						<input type="text" name="contact" inputmode="email" />
+						<small>Por aquí te respondemos.</small>
+					</label>
+
+					<label class="citykleta-bike-request__field">
+						<span>Mensaje <small>(opcional)</small></span>
+						<textarea name="message" rows="3"></textarea>
+					</label>
+
+					<?php // Honeypot: hidden from real users, bots tend to fill it. ?>
+					<div class="citykleta-bike-request__hp" aria-hidden="true">
+						<label>No llenar este campo
+							<input type="text" name="website" tabindex="-1" autocomplete="off" />
+						</label>
+					</div>
+
+					<?php
+					// Optional on purpose: requesting a bike is not consent to be
+					// marketed at. Unticked, the address stays on the request and
+					// never becomes a marketing lead — see
+					// Citykleta_Bike_Request_Rest::maybe_capture_lead().
+					?>
+					<label class="citykleta-bike-request__consent">
+						<input type="checkbox" name="consent" value="1" />
+						<span>Quiero recibir novedades de Citykleta.</span>
+					</label>
+
+					<div class="citykleta-bike-request__actions">
+						<button type="button" class="citykleta-bike-request__back"><?php echo esc_html( $args['back_text'] ); ?></button>
+						<button type="submit" class="citykleta-bike-request__submit"><?php echo esc_html( $args['submit_text'] ); ?></button>
+					</div>
 				</div>
-
-				<?php
-				// Optional on purpose: requesting a bike is not consent to be
-				// marketed at. Unticked, the address stays on the request and
-				// never becomes a marketing lead — see
-				// Citykleta_Bike_Request_Rest::maybe_capture_lead().
-				?>
-				<label class="citykleta-bike-request__consent">
-					<input type="checkbox" name="consent" value="1" />
-					<span>Quiero recibir novedades de Citykleta.</span>
-				</label>
-
-				<button type="submit" class="citykleta-bike-request__submit">Enviar solicitud</button>
 
 				<p class="citykleta-bike-request__error" role="alert" hidden></p>
 

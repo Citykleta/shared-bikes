@@ -21,8 +21,17 @@
  * on its own from the current query.
  *
  * Each template declares WHAT it draws through the META_TYPE meta
- * (self::TYPES). The renderer asks for "the published template of type X"
- * — so a draft is a safe place to try a redesign without it going live.
+ * (self::TYPES). A draft is a safe place to try a redesign without it going
+ * live, since only a published template is ever used.
+ *
+ * **Several templates may draw the same view, and one of them is active.**
+ * The two metas answer different questions on purpose: META_TYPE says what a
+ * template is FOR (and it has to stay, because Citykleta_Template_Defaults
+ * needs it to know which layout file a capture belongs in), while the
+ * self::ACTIVE_OPTION option says which of those is the one actually used.
+ * Picking it is one dropdown per view in Bicicletas → Settings → Templates,
+ * so "which layout is my site using?" is answered on one screen instead of by
+ * opening templates one by one.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -46,6 +55,18 @@ class Citykleta_Template_Post_Type {
 	 * self::TYPES).
 	 */
 	const META_TYPE = '_citykleta_template_type';
+
+	/**
+	 * Option holding the active template per view: view key => template ID.
+	 *
+	 * Absent (or pointing at a template that was deleted, unpublished, or
+	 * reassigned to another view) means "fall back to the first published
+	 * template of that view" — see self::get_template(). That fallback is
+	 * what every install had before this option existed, so nothing has to be
+	 * chosen here for the plugin to work: ensure_template() keeps creating
+	 * the default layout on its own.
+	 */
+	const ACTIVE_OPTION = 'citykleta_active_templates';
 
 	/**
 	 * The views a template can be assigned to, and the label shown in
@@ -164,7 +185,11 @@ class Citykleta_Template_Post_Type {
 
 		echo '</select>';
 
-		echo '<p class="description">The front-end view this layout is used for. Only a <strong>published</strong> template is used, so a draft is a safe place to try a redesign.</p>';
+		echo '<p class="description">The front-end view this layout is <em>for</em>. Which of that view\'s templates is actually used is picked under Settings → <strong>Templates</strong>; only a <strong>published</strong> one can be, so a draft is a safe place to try a redesign.</p>';
+
+		if ( 'publish' === get_post_status( $post->ID ) && $current && self::is_active( $post->ID ) ) {
+			echo '<p class="description" style="color:#00733c;"><strong>This is the active template for that view.</strong></p>';
+		}
 	}
 
 	/**
@@ -236,31 +261,149 @@ class Citykleta_Template_Post_Type {
 
 		echo esc_html( self::TYPES[ $type ] );
 
+		/*
+		 * The same state the Templates tab of Settings shows, repeated here
+		 * on purpose: with more than one template per view, "is this the one
+		 * the site is using?" is the first thing you ask while looking at
+		 * this list, and having to leave it to find out defeats the column.
+		 */
 		if ( 'publish' !== get_post_status( $post_id ) ) {
-			echo ' <em style="color:#996800;">(draft — not in use)</em>';
+			echo ' <em style="color:#996800;">— Inactive (draft)</em>';
+			return;
 		}
+
+		if ( self::is_active( $post_id ) ) {
+			echo ' <strong style="color:#00733c;">— Active</strong>';
+			return;
+		}
+
+		echo ' <span style="color:#646970;">— Inactive</span>';
 	}
 
 	/**
-	 * The published template assigned to a view, if any.
+	 * Every published template assigned to a view, oldest first. This is the
+	 * list the Settings dropdown offers, and its first entry is the fallback
+	 * when no template has been picked.
 	 *
 	 * @param string $type A key of self::TYPES.
-	 * @return WP_Post|null
+	 * @return WP_Post[]
 	 */
-	public static function get_template( $type ) {
-		$found = get_posts(
+	public static function templates_for( $type ) {
+		if ( ! array_key_exists( $type, self::TYPES ) ) {
+			return array();
+		}
+
+		return get_posts(
 			array(
 				'post_type'      => self::POST_TYPE,
 				'post_status'    => 'publish',
-				'posts_per_page' => 1,
+				'posts_per_page' => -1,
 				'meta_key'       => self::META_TYPE, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 				'meta_value'     => $type, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 				'orderby'        => 'ID',
 				'order'          => 'ASC',
 			)
 		);
+	}
+
+	/**
+	 * The template ID picked for a view in Settings, as stored — not
+	 * validated, so callers that need a usable template go through
+	 * self::get_template() instead. Only the Settings screen wants the raw
+	 * value, to show the current selection even when it no longer resolves.
+	 *
+	 * @param string $type A key of self::TYPES.
+	 * @return int 0 when nothing is picked.
+	 */
+	public static function active_id( $type ) {
+		$active = get_option( self::ACTIVE_OPTION, array() );
+
+		if ( ! is_array( $active ) || empty( $active[ $type ] ) ) {
+			return 0;
+		}
+
+		return (int) $active[ $type ];
+	}
+
+	/**
+	 * The template a view is actually drawn with: the one picked in Settings
+	 * when that pick still resolves, else the first published template of
+	 * that view.
+	 *
+	 * The pick is re-validated on every call rather than trusted, because
+	 * nothing stops the chosen template from being deleted, moved to draft or
+	 * reassigned to another view after it was selected — and a stale ID here
+	 * would mean a blank page, which is the one outcome worth ruling out.
+	 *
+	 * @param string $type A key of self::TYPES.
+	 * @return WP_Post|null
+	 */
+	public static function get_template( $type ) {
+		$chosen = self::active_id( $type );
+
+		if ( $chosen ) {
+			$post = get_post( $chosen );
+
+			if ( $post
+				&& self::POST_TYPE === $post->post_type
+				&& 'publish' === $post->post_status
+				&& $type === get_post_meta( $post->ID, self::META_TYPE, true ) ) {
+				return $post;
+			}
+		}
+
+		$found = self::templates_for( $type );
 
 		return $found ? $found[0] : null;
+	}
+
+	/**
+	 * Whether this template is the one its view is currently drawn with.
+	 *
+	 * @param int $post_id Template ID.
+	 * @return bool
+	 */
+	public static function is_active( $post_id ) {
+		$type = get_post_meta( $post_id, self::META_TYPE, true );
+
+		if ( ! $type || ! array_key_exists( $type, self::TYPES ) ) {
+			return false;
+		}
+
+		$active = self::get_template( $type );
+
+		return $active && (int) $active->ID === (int) $post_id;
+	}
+
+	/**
+	 * Sanitizes the Settings dropdowns before they're stored: only known view
+	 * keys survive, and only as positive integers. An empty pick is dropped
+	 * rather than stored as 0, so "nothing chosen" has exactly one
+	 * representation.
+	 *
+	 * @param mixed $value Raw option value posted by the form.
+	 * @return array
+	 */
+	public static function sanitize_active( $value ) {
+		$clean = array();
+
+		if ( ! is_array( $value ) ) {
+			return $clean;
+		}
+
+		foreach ( array_keys( self::TYPES ) as $type ) {
+			if ( empty( $value[ $type ] ) ) {
+				continue;
+			}
+
+			$id = absint( $value[ $type ] );
+
+			if ( $id ) {
+				$clean[ $type ] = $id;
+			}
+		}
+
+		return $clean;
 	}
 
 	/**

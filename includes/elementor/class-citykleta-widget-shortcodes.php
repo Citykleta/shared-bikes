@@ -99,12 +99,16 @@ class Citykleta_Widget_Shortcodes {
 	 */
 	const BIKE_PART_SHORTCODES = array(
 		'citykleta_bike_gallery'     => 'Citykleta_Bike_Gallery_Widget',
-		'citykleta_bike_header'      => 'Citykleta_Bike_Header_Widget',
+		'citykleta_bike_title'         => 'Citykleta_Bike_Title_Widget',
+		'citykleta_bike_location_tags' => 'Citykleta_Bike_Location_Tags_Widget',
 		'citykleta_bike_owner'       => 'Citykleta_Bike_Owner_Widget',
 		'citykleta_bike_description' => 'Citykleta_Bike_Description_Widget',
 		'citykleta_bike_specs'       => 'Citykleta_Bike_Specs_Widget',
 		'citykleta_bike_request'     => 'Citykleta_Bike_Request_Widget',
 		'citykleta_bike_directions'  => 'Citykleta_Bike_Directions_Widget',
+		// [citykleta_bike_data field="price"] — any single value; see
+		// Citykleta_Bike_Data_Widget::FIELDS for the list.
+		'citykleta_bike_data'        => 'Citykleta_Bike_Data_Widget',
 	);
 
 	/**

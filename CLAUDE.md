@@ -231,10 +231,12 @@ que imite `GET /bikesPublic/sync` **de verdad** — nunca reintroducir un contra
 
 ## Settings page (pestañas Sync / Maps)
 
-`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con cuatro pestañas
+`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con seis pestañas
 propias (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
-De esas cuatro, **Sync**, **Communication** y **Destinations** tienen formulario guardable — **Maps** es
-de solo lectura desde que su configuración se mudó a Back Office (ver más abajo). **Destinations** guarda
+De esas seis, **Sync**, **Communication**, **Destinations** y **Templates** tienen formulario guardable
+— **Maps** es de solo lectura desde que su configuración se mudó a Back Office (ver más abajo) y
+**Frontend** es documentación (la tabla de shortcodes). **Templates** elige qué plantilla dibuja cada
+vista, ver "Varias plantillas por vista" más abajo. **Destinations** guarda
 el slug de URL (`citykleta_destination_slug`) y el FAQ por defecto (`citykleta_destination_faq_default`)
 — los destinos en sí (geocerca, FAQ propio) se administran como posts del CPT `destination`, ver la
 sección "Destinos" más abajo.
@@ -273,6 +275,25 @@ por separado, nunca uno compartido entre formularios distintos.
     propósito (montado *antes* del `verifyAuth` global de la API), así que no hay sesión ni llave
     compartida de por medio. **No es `/bikes`** — ese es el router de staff y está detrás de auth.
   - `map_settings` → `/map-settings` (ver "Configuración de mapas: mudada a Back Office").
+
+  **Rutas públicas del backend (las montadas ANTES del `verifyAuth` global, `src/app.ts`).** El plugin
+  consume dos; las otras están disponibles y sin usar:
+
+  | Ruta | Qué da | ¿La usa el plugin? |
+  |---|---|---|
+  | `GET /bikesPublic/sync` | catálogo sin PII (array plano) | **sí** |
+  | `GET /map-settings` | estilo de mapa + clusters | **sí** |
+  | `GET /bikesPublic/` | `listBikes` | no |
+  | `GET /reviews/bike/:bikeId` | reseñas de una bici | **no — sin explotar** |
+  | `GET /reviews/owner/:userId` | reputación de un dueño | **no — sin explotar** |
+  | `POST /contact/reveal` | teléfono del dueño a cambio de un código | **no — sin conectar** |
+  | `/auth`, `/health`, `/.well-known/…` | sesión e infraestructura | no |
+
+  Las tres últimas de interés (`/reviews/*` y `/contact/reveal`) están verificadas en vivo: las de
+  reseñas responden **200 sin autenticación ninguna**, y `/contact/reveal` da **401** sin la llave del
+  plugin, como debe. Reseñas y reputación del dueño son material directo para la ficha de una bici y
+  hoy no se muestran en ningún lado.
+
   No hay entrada `bike_types` a propósito: el `GET /bike-types` de la API está montado después del
   `verifyAuth` y responde **401** sin sesión de staff, así que este plugin no puede leerlo — y no le
   hace falta, porque cada fila de `/bikesPublic/sync` trae `bike_type` (slug) y `bike_type_name`. Ver
@@ -620,6 +641,8 @@ a un campo que no esté envuelto en una pieza — para eso hay que agregar el wi
   (`Citykleta_Template_Post_Type::TYPES`: `results` / `single_bike` / `destination`), elegible en
   la caja "Draws" y visible como columna en la lista. Solo cuenta una plantilla
   **publicada**, así que un borrador es un lugar seguro para probar un rediseño.
+  Puede haber **varias** por vista; cuál se usa se elige en Settings → Templates
+  (ver abajo).
 - `ensure_template()` la crea la primera vez que hace falta y **nunca pisa** una
   que ya exista. Los layouts por defecto están en
   `Citykleta_Templates::default_results_content()` /
@@ -686,6 +709,46 @@ a un campo que no esté envuelto en una pieza — para eso hay que agregar el wi
   propia. `Citykleta_Templates::migrate_legacy_bikes_page()` la mueve al CPT una
   sola vez, copiando también la meta `_elementor*` (ahí vive el diseño, no en
   `post_content`) y mandando la Page vieja a la **papelera**, no borrándola.
+
+### Varias plantillas por vista: cuál está activa
+
+Nada impide tener dos plantillas publicadas para la misma vista (el caso típico:
+duplicar la ficha de bici para probar un rediseño). **Cuál manda se elige en
+Bicicletas → Settings → pestaña `Templates`**, un desplegable por vista, guardado
+todo en una sola opción `citykleta_active_templates` (`vista => ID`,
+`Citykleta_Template_Post_Type::ACTIVE_OPTION`). Una sola opción y no una por
+vista a propósito: agregar una vista a `TYPES` no obliga a tocar
+`Citykleta_Settings`, los campos se generan del propio `TYPES`.
+
+Las dos piezas responden preguntas distintas y por eso conviven:
+**la caja "Draws" dice para qué sirve una plantilla** (y tiene que quedarse:
+`Citykleta_Template_Defaults` la necesita para saber si una captura va a
+`single-bike.json` o a `destination.json`), **el desplegable dice cuál de esas
+se usa**. De paso, cada desplegable solo lista las plantillas de *su* vista, así
+que no se puede elegir por error un layout de Destino para la ficha de una bici.
+
+- **La opción vacía no es "ninguna"**: es *"la primera publicada de esa vista"*,
+  o sea exactamente el comportamiento que había antes de que existiera esta
+  pantalla. Por eso actualizar no rompe nada y `ensure_template()` sigue creando
+  y usando el layout por defecto sin que nadie tenga que entrar a Settings.
+- **La elección se revalida en cada `get_template()`**, nunca se confía: la
+  plantilla elegida puede haberse borrado, pasado a borrador o reasignado a otra
+  vista después de elegirla, y un ID vencido ahí significaría una página en
+  blanco. Si no resuelve, cae al fallback de arriba y la pestaña avisa en ámbar.
+  Ojo, antes de esto `get_template()` hacía `orderby => ID ASC, posts_per_page => 1`,
+  o sea que **ganaba la más vieja en silencio** — publicar el rediseño no cambiaba
+  nada y no había ninguna señal de por qué.
+- La columna **"Draws"** de la lista de plantillas repite el estado
+  (`— Active` / `— Inactive` / `— Inactive (draft)`, vía
+  `Citykleta_Template_Post_Type::is_active()`). Es información duplicada a
+  propósito: mirando esa lista, "¿esta es la que está usando el sitio?" es la
+  primera pregunta, y tener que salir a Settings para responderla anularía la
+  columna.
+
+Flujo de rediseño que esto habilita: duplicar la plantilla → editarla con
+Elementor tranquilo (nadie la ve) → publicarla → elegirla en Settings → si no
+gusta, volver a elegir la vieja. `Mark as ready` sigue funcionando igual sobre
+la que sea, esté activa o no.
 
 ### Congelar un diseño de Elementor como el default del plugin
 
@@ -776,12 +839,27 @@ Elementor → Tools.
 
 ### Piezas de la ficha de una bici
 
-`includes/elementor/class-citykleta-bike-part-widgets.php` — siete widgets (y sus
+`includes/elementor/class-citykleta-bike-part-widgets.php` — nueve widgets (y sus
 shortcodes, ver `Citykleta_Widget_Shortcodes::BIKE_PART_SHORTCODES`), todos
 extendiendo `Citykleta_Bike_Part_Widget`: galería (`[citykleta_bike_gallery]`),
-título/ubicación (`[citykleta_bike_header]`), propietario, descripción, ficha
-técnica, precio+solicitud y mapa de recogida. Van todos en un archivo a propósito:
-son ~40 líneas cada uno y solo tienen sentido como conjunto.
+título (`[citykleta_bike_title]`), ubicación + tags de tipo
+(`[citykleta_bike_location_tags]`), propietario, descripción, dirección, ficha
+técnica, solicitud, y **Bike Data** (cualquier dato suelto, ver más abajo). El
+mapa de recogida no es una pieza propia — es el
+widget de mapa en modo "Bike Data", ver la nota de "un widget por trabajo" más
+abajo. Van todos en un archivo a propósito: son ~40 líneas cada uno y solo
+tienen sentido como conjunto.
+
+**Título y ubicación eran un solo widget ("Bike Title & Location") y se
+separaron.** Un rediseño no siempre quiere el título pegado a la ubicación —
+poder moverlos, ocultarlos o estilarlos por separado importaba más que
+ahorrarse un widget. `citykleta_bike_title` solo imprime el `<h1>`/`<h2>`/`<h3>`;
+`citykleta_bike_location_tags` imprime la ubicación y los tags de
+`bike_type` (ej. "Hybrid"). La etiqueta **"Eléctrica" se movió de ahí a Bike
+Specs** — es un dato de la bici como la marca o la talla, no un badge suelto
+junto a la dirección. Ver la nota de `taxonomy_specs()` más abajo sobre por
+qué necesita su propia línea de código en vez de sumarse al resto por
+`array_filter()`.
 
 **Un widget por trabajo, con un control de origen — no dos widgets parecidos.**
 El mapa de recogida de la ficha era `Citykleta_Bike_Location_Widget`, una clase
@@ -818,6 +896,188 @@ La regla general que sale de ahí, para cualquier pieza nueva: **el widget del
 plugin solo debe resolver lo que es dinámico**. Todo lo que sea texto fijo,
 espaciado o decoración es de Elementor. Cuanto menos posea el plugin, más
 control tiene quien diseña.
+
+**La dirección de la bici es su propia pieza** (`citykleta_bike_directions`,
+"Bike Directions"): era el pie de texto del mini-mapa, y ahí no se podía ni
+mover ni estilar aparte. El mapa dibuja el mapa; la dirección es texto.
+
+**Por qué los controles de estilo están escritos a mano y no heredados.** El
+Paragraph nativo de Elementor (`e-paragraph`) es un widget **V4 "atómico"**:
+declara un *props schema* y saca su panel de estilos de `Atomic_Widget_Base`,
+no de `add_control()` con `selectors`. Un widget de terceros no puede heredar
+ese panel sin reescribirse sobre esa API, que Elementor todavía marca como
+experimental. Por eso los paneles de estas piezas se declaran a la manera
+clásica, leídos directo del código fuente del widget nativo correspondiente
+(no aproximados) para que un ajuste guardado acá signifique lo mismo que en el
+original.
+
+**`citykleta_bike_description` calca el Text Editor nativo entero, menos su
+campo de texto** (`elementor/includes/widgets/text-editor.php`):
+- **Content**: `Drop Cap` y `Columns`/`Columns Gap` — idénticos, IDs incluidos.
+- **Style**: Alignment, Typography, Text Shadow, Paragraph Spacing, y un par
+  de pestañas Normal/Hover con Text Color/Link Color (Hover agrega Link Color
+  + Transition Duration). Ver `Citykleta_Bike_Part_Widget::register_text_editor_style_section()`.
+- **Style → Drop Cap** (solo si `drop_cap = yes`): View (Default/Stacked/
+  Framed), Primary/Secondary Color, Text Shadow, Size, Space, Border Radius,
+  Border Width, Typography — mismos IDs y condiciones que el original.
+
+**El efecto de la primera letra se hace en PHP, no en JS.** El widget nativo
+envuelve la primera letra en `<span class="elementor-drop-cap">…</span>` con
+un *frontend handler* de JavaScript (`TextEditor.wrapDropCap()`, corre en
+`onInit`/`onElementChange`) porque su texto es un campo WYSIWYG editable en
+vivo. Acá el texto ya está resuelto cuando `render()` corre — no hace falta
+JS para lograr lo mismo una sola vez — así que
+`Citykleta_Bike_Description_Widget::apply_drop_cap()` hace exactamente la
+misma regex (`/^ *([^ ] ?)/` sobre el primer `<p>`, mismo guardado si el
+contenido empieza con una etiqueta) en el servidor. Ventaja real: funciona
+sin JavaScript y no hay que encolar ningún script nuevo. El CSS base de esas
+dos clases (`assets/css/single-bike.css`) es una copia línea por línea de
+`widget-text-editor.min.css` de Elementor — esa hoja solo se encola para *su*
+widget, nunca para el nuestro.
+
+**`citykleta_bike_directions` comparte el panel Style, no el Content.** Es la
+dirección de la bici en una sola línea, no un bloque de párrafos, así que
+Drop Cap y Columns no aplican — su Content tab sigue siendo el suyo propio
+(HTML Tag, Prefix). Lo que comparte con la descripción es
+`register_text_editor_style_section()` (Alignment/Typography/Text
+Shadow/Paragraph Spacing/colores), un método **estático** que toma el widget
+como parámetro en vez de vivir como método de instancia — así una clase
+puede llamarlo con `self::` sin que la otra dependa de heredar de ella.
+
+**Gotcha real de esta sesión, para no perseguirlo de nuevo:** instanciar
+cualquiera de estos widgets a mano (`new Citykleta_Bike_Description_Widget(['id'=>'x','settings'=>[]], [])`,
+fuera de un render de página real o del propio editor de Elementor) y leer
+`get_controls()` hace parecer que **la mayoría de los controles con
+`selectors` nunca se registraron** — solo sobreviven los que no usan esa
+clave (`drop_cap`, `drop_cap_view`). Se investigó a fondo con bisección
+(aislando control por control) y **no es un bug del código de este
+plugin**: se reproduce igual con un widget mínimo de prueba, sin relación
+con Citykleta. Todo apunta a que `get_controls()`/el procesamiento de
+`selectors` necesita un Document/CSS-file de Elementor real detrás — algo
+que un `new Widget(...)` suelto no tiene, pero que sí existe en cualquier
+render de página de verdad. La prueba que importa es la del **render real**
+(`curl` a la página, o el editor de Elementor en el navegador), no un script
+que instancia el widget a mano — por eso todas las verificaciones de esta
+sección se hicieron contra la página real, nunca contra `get_controls()`.
+
+**`citykleta_bike_request` ("Bike Request") tiene pestaña Style propia**, escrita a mano por la
+misma razón que la de la descripción (el widget de formulario de Elementor es Pro, y sus controles V4
+atómicos no se heredan): Card (fondo, borde, radio, sombra, padding), Form Title, Labels (más
+color del texto de ayuda y separación entre campos), Fields, Buttons (tipografía + pestañas
+Normal/Hover, borde, radio, padding, sombra, más el botón "Atrás"), Verification Link y Note. Cada
+selector apunta a una clase que `bike-request.css` ya define, así que cada control **sobrescribe** un
+default real en vez de inventarse uno. El título "Solicitar esta bicicleta" tiene switcher para
+apagarlo y ponerlo como Heading nativo, siguiendo la regla general de las piezas.
+
+**Lo que este widget ya NO tiene es "Stick On Scroll".** Existió heredado de cuando la plantilla era
+fija en PHP; que la tarjeta se quede pegada al hacer scroll es posicionamiento del **contenedor** que la
+envuelve, no del contenido de la pieza. Se quitó el control, la clase y las reglas
+`position: sticky` de `single-bike.css`.
+
+**Gotcha de Elementor que costó un switcher roto, y que aplica a cualquier widget del plugin que le
+pase sus settings a un helper:** un SWITCHER apagado se guarda como **cadena vacía**, igual que un campo
+de texto que nadie llenó. `form_args()` filtraba con un `'' !== $value` (correcto para el texto: vacío
+significa "usa el default del formulario"), y eso **borraba** `show_title` cuando estaba en off — después
+`array_merge()` en `render()` rellenaba el hueco con el `'yes'` por defecto. El resultado era un switcher
+que se movía y no hacía absolutamente nada. Hoy son dos listas separadas: texto (vacío = cae al default)
+y switchers (vacío = **es** la decisión, se pasa siempre).
+
+**Tampoco imprime ya el precio** (por eso dejó de llamarse "Bike Price & Request"). El precio es un
+dato de la bici como cualquier otro, no una parte del formulario: metido dentro de esta pieza solo podía
+estar arriba de la tarjeta, y se estilaba desde una sección Style que existía únicamente para él. Hoy es
+`citykleta_bike_data` con `field="price"`, así que se pone donde sea y se estila como cualquier texto.
+El layout por defecto ya lo pone encima del formulario, pero **una plantilla que ya existía no se
+actualiza sola** (`ensure_template()` nunca pisa un diseño) — hay que arrastrar el widget, o hacer
+`Reset` en esa plantilla.
+
+### Bike Data: cualquier dato suelto de la bici
+
+`citykleta_bike_data` ("Bike Data", `[citykleta_bike_data field="…"]`) imprime **un** valor de la bici,
+elegido en un desplegable. Es la contraparte de la ficha técnica: aquella imprime la tabla entera, esta
+pone un dato donde haga falta — el precio al lado del formulario, la dirección debajo del mapa, las
+vistas en una esquina.
+
+Existe porque un dato sin widget propio es un dato que el layout sencillamente **no puede mostrar**, y
+escribir una clase por campo serían una docena de clases casi idénticas — el mismo razonamiento que
+fusionó los dos widgets de mapa en uno con control de origen. `FIELDS` es la lista: `price`,
+`description`, `address`, `owner`, `availability`, `destinations`, `views`, `brand`, `model`, `size`,
+`wheel_size`, `electric`, `bike_type`, `bike_usage`. Controles: el campo, etiqueta opcional (con texto
+propio o el nombre del campo), etiqueta HTML, y el mismo panel Style compartido
+(`register_text_editor_style_section()`) más tipografía/color para la etiqueta.
+
+- **Cada campo lleva dos labels** (`FIELDS` guarda `[admin, front]`): el desplegable de Elementor va en
+  inglés por convención de wp-admin, y lo que lee el visitante en español. Es exactamente la lección de
+  Bike Specs, donde leer el label de la taxonomía ponía "Bike type" en una tabla que decía "Marca".
+- **`availability` y `electric` se comparan contra la cadena vacía**, nunca por truthiness: `"0"` es una
+  respuesta real ("no disponible" / "no es eléctrica") y es falsy en PHP. Mismo trampa que ya
+  documenta `taxonomy_specs()`.
+- **`description` y `owner` no pasan por el control de etiqueta HTML**: la descripción trae sus propios
+  `<p>` y el propietario su bloque con foto. El resto sí.
+- **`destinations` es la primera pantalla en cualquier lado que muestra la asignación por geocerca** —
+  `Citykleta_Destination_Matcher::destinations_for_bike()` la venía escribiendo en cada sync y no tenía
+  ningún consumidor hasta ahora.
+- Un campo vacío no imprime nada (en el editor deja una nota explicando cuál falta), igual que el resto
+  de las piezas.
+- Descripción, dirección y propietario **conservan su widget propio**: esos cargan presentación que un
+  selector genérico aplanaría (el panel completo de Text Editor con su drop cap, la foto del dueño).
+  Acá son el valor pelado, para cuando eso es todo lo que el layout necesita.
+
+**Verificado en vivo** contra una bici real: los 14 campos resuelven (los dos que salieron vacíos,
+`views` y `bike_usage`, es porque esa bici no los tiene). Ojo al probar: **no sirve un script que
+instancie el widget a mano** — las clases de widget solo se cargan en `elementor/widgets/register`, así
+que `class_exists()` da `false` y el shortcode devuelve `''` sin avisar. En un probe hay que forzar ese
+registro con `\Elementor\Plugin::$instance->widgets_manager->get_widget_types()`, que es el mismo camino
+que toma un render de verdad.
+
+La **ficha técnica** (`citykleta_bike_specs`) tiene columnas responsive
+(1–6, más `''` = **Auto**) más separación, estilo de caja para **toda la
+tabla** (fondo, borde, radio, sombra, padding — nunca por fila) y
+tipografía/color/alineación por separado para etiqueta y valor — una tabla
+técnica necesita las dos mitades distintas. También añade la
+**categorización** de la bici como filas: `bike_type`, `bike_usage`, y
+**"Eléctrica"** (movida acá desde el widget de título/ubicación — ver esa
+sección más arriba). **Ojo con esas etiquetas**: se escriben en español a
+mano ("Tipo", "Uso") en vez de leerse de `labels->singular_name` de la
+taxonomía, porque esas son etiquetas de wp-admin y van en inglés por
+convención — leerlas ponía "Bike type" en una tabla que al visitante le dice
+"Marca", "Modelo", "Talla".
+
+**"Eléctrica" necesita su propia línea en `taxonomy_specs()`, no
+`array_filter()` junto al resto.** `is_electric` guarda `"0"` para "no es
+eléctrica" — un dato real, no un campo vacío — pero `"0"` es falsy en PHP, así
+que meterlo en el mismo `array_filter()` que usa `render()` para las demás
+specs (que sí deben desaparecer cuando están vacías) habría escondido en
+silencio el "No" tratándolo como "sin dato". Por eso se compara contra la
+cadena vacía explícitamente y se traduce a "Sí"/"No" a mano.
+
+**Columns → Auto**: le da una columna a cada dato que tenga la bici, sin
+importar cuántos sean — pensado para cuando la categorización de arriba
+suma filas y una cuenta fija de columnas dejaría espacio vacío o cortaría
+mal. Elementor no puede resolver esto con una regla CSS fija por instancia
+(cuántos specs tiene *esta* bici solo se sabe en `render()`, y cambia de
+una bici a otra bajo el mismo ajuste guardado) — por eso `Auto` es la
+**opción vacía** del control (Elementor no emite CSS cuando el valor
+resuelve vacío) y `render()` llena ese hueco escribiendo
+`style="--citykleta-specs-columns: N;"` directo en el `<dl>`, leído por el
+`repeat(var(--citykleta-specs-columns, auto-fit), …)` de `single-bike.css`.
+Un valor de columnas explícito en cualquier breakpoint nunca pasa por acá:
+esa regla vive scoped al widget (dos clases) y gana por especificidad sola.
+
+**El estilo de "Box" va en el contenedor completo (`.citykleta-bike-single__specs`),
+nunca en cada fila** — la primera versión lo aplicaba por fila
+(`.citykleta-bike-single__spec`) y se veía rota: con las celdas pegadas
+(`gap: 0`) el borde de 1px de una fila se sumaba al de su vecina en cada
+línea compartida, el doble de grueso que el borde exterior; y las cinco
+sombras (una por fila) se apilaban en un halo gris difuso alrededor de toda
+la tabla en vez de una sola sombra debajo. Las líneas divisorias entre
+celdas ya no son un `border` por celda — son la técnica estándar
+"el hueco es la línea": el contenedor tiene `background-color` + `gap: 1px`
++ `padding: 1px`, y cada celda tiene su propio `background-color: #fff`
+tapando ese fondo salvo por esa rendija de 1px, que nunca puede duplicarse
+sea cual sea la cantidad de filas o columnas. El contenedor lleva
+`overflow: hidden` fijo (no solo cuando hay radio puesto) para que ese
+mismo Border Radius del panel Box no deje las esquinas cuadradas de las
+celdas asomando fuera de la esquina redondeada.
 
 Como consecuencia, `.citykleta-bike-single__section-title` ya no lo imprime
 nadie y su regla se borró de `single-bike.css`. Los títulos toman el estilo que
@@ -1253,7 +1513,8 @@ había en `single-bike.php`.
 
 - `/reservations` y `/orders` de `citykleta-sharing-api` están detrás del `verifyAuth` global y
   responden **401** sin sesión de staff (verificado). WordPress **no puede crear una reserva** en la
-  fuente de verdad. Lo único público sigue siendo `/bikesPublic/sync` y `/map-settings`.
+  fuente de verdad. Ojo: eso vale para *reservar*, no para todo — hay más rutas públicas de las que
+  este documento decía (`/contact/reveal` entre ellas, ver "El contacto del dueño" más abajo).
 - **No existe disponibilidad por fecha en ningún lado.** El meta `available` es un booleano suelto
   derivado de `status === 'active'`. Dos personas pueden solicitar la misma bici el mismo día: ambas
   solicitudes entran y una persona resuelve. Inventar un sistema de reservas encima de datos que no
@@ -1303,6 +1564,41 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   que el muro y el contador de vistas (un visitante anónimo no puede firmar un nonce, así que se valida
   el payload). Honeypot `website`. La bici tiene que ser un post `bike` **publicado** — el id viaja en
   el HTML y nada impide mandar un número cualquiera.
+- **El formulario va en dos pasos, dentro del mismo `<form>`.** Paso 1 = lo de la bici (periodo de
+  renta + código de verificación); paso 2 = lo de la persona (nombre, contacto, mensaje, consentimiento).
+  No es cosmético: el paso 1 es lo que vive dentro de la tarjeta de precio, al lado de la bici, y un
+  formulario largo de "cuéntanos de ti" ahí entierra lo único que el visitante vino a hacer. **Los pasos
+  son paneles, no peticiones**: no se manda nada hasta el submit del paso 2, así que sigue habiendo un
+  solo POST por solicitud. Ojo con un detalle de implementación: los campos obligatorios del paso 2 se
+  validan en JS y **no** con el atributo `required` — un campo `required` dentro de un panel oculto hace
+  que el navegador se niegue a enviar sin poder decir por qué (no puede enfocar algo que nadie ve).
+- **El periodo de renta es el mismo selector que el del buscador**, no otro calendario parecido.
+  `initRange()` en `citykleta-search-widget.js` dejó de conocer las clases de la barra de búsqueda: hoy
+  el contrato son atributos — el contenedor lleva `data-citykleta-range`, los dos inputs ocultos
+  `data-citykleta-date="from"/"to"`, y el input visible la clase `.citykleta-daterange`. Los dos
+  componentes imprimen eso y comparten una única implementación.
+  - **Gotcha de Flatpickr que esto destapó:** con `altInput: true`, Flatpickr arma la clase del input
+    visible que crea como *"las clases del input original" + "form-control input"* — o sea que el clon
+    se llevaba también `.citykleta-daterange` y la siguiente pasada de `initAll()` (el hook
+    `element_ready` del editor, por ejemplo) le montaba un segundo calendario encima. Por eso ahora se
+    le pasa un `altInputClass` explícito: las clases de estilo sin la que dispara la inicialización.
+  - **Si Flatpickr no está descargado** (es vendor, no viaja en el repo), el campo cae a los dos
+    `<input type="date">` nativos de siempre — `Citykleta_Bike_Request_Form::has_range_picker()`. Una
+    solicitud no puede perder sus fechas en silencio por un archivo que falta. Y el formulario encola
+    Flatpickr él mismo en vez de confiar en `Citykleta_Elementor`: se puede soltar en una página que no
+    tenga ningún buscador.
+- **Código de verificación: hoy se captura sin validar — pero la ruta para validarlo YA EXISTE.**
+  El paso 1 pide un código y ofrece un enlace "Verificarme ahora" (URL configurable en el widget, abre
+  en pestaña nueva con `rel="noopener noreferrer"` para que el formulario a medio llenar siga ahí al
+  volver). Se guarda tal cual se escribió (`Citykleta_Bike_Request::META_VERIFICATION_CODE`, visible en
+  la ficha de la solicitud) para que lo revise quien la atiende.
+
+  **Corrección (2026-09): este documento afirmaba que `citykleta-sharing-api` "no expone ninguna ruta
+  pública para verificar a una persona". Es falso** — existe
+  **`POST /contact/reveal`**, montada *antes* del `verifyAuth` global y con este plugin como consumidor
+  previsto de primera clase (ver la sección siguiente). Ese código es precisamente lo que consume:
+  `identity_verification.contact_code`. Conectarlo cierra el círculo entero — validar el código y
+  obtener el teléfono del dueño son **la misma llamada**.
 - **Un solo campo para correo o teléfono**, a propósito: en La Habana mucha gente tiene WhatsApp y no
   un correo que revise, y pedir los dos costaría solicitudes. `parse_contact()` decide cuál es
   (`is_email()`, si no ≥8 dígitos = teléfono, el largo de un móvil cubano).
@@ -1316,27 +1612,56 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   igual que `citykleta_subscriber_captured` lo es para HubSpot. `Citykleta_Bike_Request_Notifier` se
   engancha ahí para los correos, y es donde entraría el push de la Fase 2.
 
-### El contacto del dueño no viene de la API (y no debe venir)
+### El contacto del dueño: no viaja en el catálogo, pero SÍ hay cómo pedirlo
 
-`GET /bikesPublic/sync` manda el dueño como **`{ name, verified }`** y nada más — sin teléfono, sin
-correo, sin foto (comprobado en las 68 bicis del catálogo real). No es un olvido: ese endpoint es
-público y sin autenticación, y CLAUDE.md ya lo describía como *"el catálogo sin PII"*. Publicar ahí los
-teléfonos de los dueños los haría raspables en bloque.
+Dos cosas distintas, y confundirlas costó una función entera de más (ver la corrección al final):
 
-**Ojo con esto al leer el código:** `Citykleta_Bike_Sync::upsert_bike()` lee `$item['owner']['phone']`
-y `['photo']`, pero esas claves **nunca llegan**, así que `owner_phone` y `owner_photo` están vacíos en
+**1. El catálogo no lo trae, y está bien así.** `GET /bikesPublic/sync` manda el dueño como
+**`{ name, verified }`** y nada más — sin teléfono, sin correo, sin foto (comprobado en las 68 bicis
+del catálogo real). No es un olvido: ese endpoint es público y sin autenticación, y publicar ahí los
+teléfonos los haría raspables en bloque.
+
+**Ojo al leer el código:** `Citykleta_Bike_Sync::upsert_bike()` lee `$item['owner']['phone']` y
+`['photo']`, pero esas claves **nunca llegan**, así que `owner_phone` y `owner_photo` están vacíos en
 todas las bicis. (Es la razón por la que el botón de WhatsApp se quitó de `single-bike.php`: no tenía
 número al que apuntar.)
 
-Por eso existe **`Citykleta_Owner_Contact`**: una caja aparte en la pantalla de la bici donde se escribe
-a mano un correo o teléfono del dueño. Va en su **propio meta** (`_citykleta_owner_contact`), **no** en
-`owner_phone` — ese es un campo sincronizado y, aunque hoy el `if` del sync no se cumpla nunca, el día
-que la API mande `phone` pisaría en silencio lo escrito a mano. Su aviso dice lo contrario que el de la
-caja "Bike data" de arriba (que avisa que todo se sobrescribe), así que es explícito a propósito.
+**2. Pero existe una ruta hecha exactamente para esto — `POST /contact/reveal`.**
 
-Con un **correo** el dueño recibe aviso automático; con un **teléfono** no hay nada que mandar solo
-(WhatsApp no da API de envío a este plugin), así que la ficha de la solicitud ofrece un enlace `wa.me`
-prellenado con la plantilla de Settings → Communication, para que una persona lo apriete.
+```
+POST http://localhost:8001/contact/reveal
+x-citykleta-plugin-key: <WORDPRESS_PLUGIN_KEY>     ← ya configurada en el .env del backend
+{ "contact_code": "…", "bike_id": 12 }
+
+→ { ok, requester: { name, verified_at },
+    bike: { id, name },
+    owner: { name, phone } }
+```
+
+- Montada **antes** del `verifyAuth` global, con el middleware **`requireAppOrPlugin`**: acepta la
+  llave compartida en el header `x-citykleta-plugin-key`, o una sesión de usuario de la app. El
+  "Plugin" de ese nombre es **este plugin** — es un consumidor previsto de primera clase, no un
+  aprovechamiento.
+- El `contact_code` es el de una `identity_verification` con `status = 'verified'`; un código de una
+  cuenta cerrada deja de servir.
+- **Límite por dueño, no por bici** (cinco anuncios de la misma persona son un solo teléfono), con
+  ventana configurable, y cada llamada deja fila en `contact_reveal` como auditoría — entrega un
+  teléfono sin sesión de por medio, así que queda registro de quién pidió qué.
+
+Eso es **el mismo código** que el formulario ya le pide al visitante en el paso 1. Conectarlo cierra
+el círculo completo: validar el código y obtener el teléfono del dueño son **una sola llamada**.
+
+**Corrección (2026-09), por si alguien lee código viejo:** este documento afirmaba que WordPress "no
+tiene ni puede tener" un canal hacia el dueño, y sobre esa premisa se construyó
+**`Citykleta_Owner_Contact`** — una caja en la pantalla de la bici para escribir a mano un correo o
+teléfono, en su propio meta `_citykleta_owner_contact` (nunca en `owner_phone`, que es campo
+sincronizado y lo pisaría el día que la API mande `phone`). **La premisa era falsa.** La caja sigue
+siendo útil como respaldo (un dueño sin verificación aprobada, o un visitante sin código), pero
+**no es el camino principal** — el camino principal es `/contact/reveal`, y está sin conectar.
+
+Mientras tanto: con un **correo** el dueño recibe aviso automático; con un **teléfono** no hay nada que
+mandar solo (WhatsApp no da API de envío a este plugin), así que la ficha de la solicitud ofrece un
+enlace `wa.me` prellenado con la plantilla de Settings → Communication, para que una persona lo apriete.
 
 ### Correos
 
@@ -1447,6 +1772,17 @@ un destino sin trucos), no como término de taxonomía.
   `single-bike.php` ya existe y muestra la ficha **completa**, y el muro terminó siendo global
   (el de descarga de la app, ver esa sección). Queda como decisión abierta si conviene volver
   a esconder algo, ahora que la conversión también puede ser una solicitud.
+- **Conectar `POST /contact/reveal`** — lo de mayor rendimiento por trabajo invertido de esta lista.
+  La ruta existe, la llave está configurada en el backend, y el formulario **ya le pide al visitante el
+  código que consume**. Conectarlo valida el código (hoy se guarda sin comprobar) y consigue el teléfono
+  del dueño en la misma llamada, lo que vuelve opcional el `Citykleta_Owner_Contact` manual. Hace falta
+  guardar la llave en Settings (no en código) y decidir el momento: al enviar la solicitud, o al
+  confirmarla desde wp-admin — la segunda opción no gasta cupo del límite por dueño en solicitudes que
+  nadie va a atender. Ver "El contacto del dueño" más arriba.
+- **Reseñas y reputación en la ficha de la bici** — `GET /reviews/bike/:bikeId` y
+  `GET /reviews/owner/:userId` son públicas, responden 200 sin autenticación, y no las consume nada.
+  En un marketplace P2P la reputación del dueño es de lo que más mueve una conversión, y sería otra
+  pieza de Elementor como las demás.
 - Endpoint REST propio (ej. `/wp-json/citykleta/v1/bikes`) con formato limpio
   para el móvil, en lugar del endpoint genérico.
 - Relación bicicleta ↔ propietario completa (perfil, reputación, más bicis del mismo
@@ -1476,7 +1812,8 @@ un destino sin trucos), no como término de taxonomía.
 4. Comprobar la API en: `http://<tu-sitio-local>/wp-json/wp/v2/bike`
 5. Comprobar que el backend real responde: `curl http://localhost:8001/bikesPublic/sync`
    (debe devolver un **array plano** de bicis con `app_bike_id`). `/map-settings` es la otra ruta
-   pública que consume el plugin. Ojo: `/bike-types` da **401**, es solo de staff.
+   pública que consume el plugin — pero **no son las dos únicas públicas**, ver la tabla en la sección
+   "Settings page". Ojo: `/bike-types` da **401**, es solo de staff.
 6. Ir a "Bicicletas" → "Settings" (pestaña "Sync") en wp-admin, revisar/guardar la URL de la API y
    la frecuencia, y probar el botón "Sync now". Debe crear/actualizar posts `bike` y, de paso, refrescar
    la pestaña "Maps" (ahora de solo lectura — ver "Configuración de mapas: mudada a Back Office" más
