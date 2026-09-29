@@ -110,20 +110,6 @@
 		form.addEventListener( 'submit', function ( event ) {
 			event.preventDefault();
 
-			// Required-ness is checked here rather than with the `required`
-			// attribute: a hidden step-2 field with `required` makes the
-			// browser refuse to submit while refusing to say why (it can't
-			// focus a field nobody can see).
-			if ( '' === form.elements.name.value.trim() ) {
-				showError( 'Hace falta tu nombre.' );
-				return;
-			}
-
-			if ( '' === form.elements.contact.value.trim() ) {
-				showError( 'Deja un correo o un teléfono para poder responderte.' );
-				return;
-			}
-
 			if ( error ) {
 				error.hidden      = true;
 				error.textContent = '';
@@ -135,13 +121,10 @@
 
 			var payload = {
 				bike_id: bikeId,
-				name: form.elements.name.value,
-				contact: form.elements.contact.value,
 				from: from ? from.value : '',
 				to: to ? to.value : '',
 				message: form.elements.message.value,
 				verification_code: code ? code.value : '',
-				consent: form.elements.consent.checked,
 				website: form.elements.website.value,
 				source: window.location.href
 			};

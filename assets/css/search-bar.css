@@ -144,6 +144,21 @@
 	box-sizing: border-box;
 }
 
+/*
+ * Hello Elementor's reset.css puts a global white-ring + black-outline
+ * focus style on every input/button/link (`input:focus-visible`), more
+ * specific than a plain ":focus-visible" here since it also matches on
+ * tag name — without this, tabbing into the field shows that generic ring
+ * sitting inside the field's own border instead of a focus style that
+ * matches the brand. Kept visible (not just suppressed) for keyboard
+ * accessibility, same idea as .citykleta-bike-request__input:focus.
+ */
+.citykleta-search-bar .citykleta-search-bar__input:focus-visible {
+	box-shadow: none;
+	outline: 2px solid #fed94c;
+	outline-offset: 2px;
+}
+
 .citykleta-search-bar__input::placeholder {
 	color: #948c85;
 }

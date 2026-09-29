@@ -63,8 +63,8 @@ class Citykleta_Bike_Request_Notifier {
 			'Nueva solicitud de bicicleta.',
 			'',
 			'Bicicleta: ' . $data['bike_title'],
-			'Solicitante: ' . $data['name'],
-			'Contacto: ' . $data['contact'],
+			'Solicitante: ' . $this->requester_label( $data ),
+			'Contacto: ' . ( '' !== $data['contact'] ? $data['contact'] : 'sin resolver' ),
 			'Fechas: ' . Citykleta_Bike_Request::format_dates( $post_id ),
 		);
 
@@ -111,7 +111,7 @@ class Citykleta_Bike_Request_Notifier {
 			'',
 			sprintf( 'Alguien quiere alquilar tu bicicleta "%s" a través de Citykleta.', $data['bike_title'] ),
 			'',
-			'Solicitante: ' . $data['name'],
+			'Solicitante: ' . $this->requester_label( $data ),
 			'Fechas: ' . Citykleta_Bike_Request::format_dates( $post_id ),
 		);
 
@@ -136,5 +136,21 @@ class Citykleta_Bike_Request_Notifier {
 		if ( $sent ) {
 			Citykleta_Bike_Request::mark_owner_notified( $post_id );
 		}
+	}
+
+	/**
+	 * Who to call the requester in an email — falls back to the verification
+	 * code since the form no longer asks for a name (see
+	 * Citykleta_Bike_Request_Rest::resolve_identity()).
+	 *
+	 * @param array $data Stored request data.
+	 * @return string
+	 */
+	private function requester_label( array $data ) {
+		if ( '' !== $data['name'] ) {
+			return $data['name'];
+		}
+
+		return '' !== $data['code'] ? 'código ' . $data['code'] : 'sin identificar';
 	}
 }

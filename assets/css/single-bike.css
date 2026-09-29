@@ -386,15 +386,14 @@
  */
 
 /*
- * Sin radio ni sombra por defecto: son decisiones de diseño, y desde que el
- * widget "Bike Request" tiene su sección Style → Card (fondo, borde, radio,
- * sombra, padding) el lugar donde se deciden es el panel de Elementor, no acá.
- * Lo que queda es el mínimo para que la tarjeta se lea como tarjeta aunque
- * nadie la haya estilado todavía.
+ * Sin borde, radio ni sombra por defecto: son decisiones de diseño, y desde
+ * que el widget "Bike Request" tiene su sección Style → Card (fondo, borde,
+ * radio, sombra, padding) el lugar donde se deciden es el panel de Elementor,
+ * no acá. Lo que queda es el mínimo para que la tarjeta tenga separación del
+ * contenido aunque nadie la haya estilado todavía.
  */
 .citykleta-bike-single__price-card {
 	padding: 1.5rem;
-	border: 1px solid #e5e0d3;
 	background: #fff;
 }
 

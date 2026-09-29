@@ -26,7 +26,44 @@ class Citykleta_Templates {
 		add_filter( 'template_include', array( $this, 'load_single_template' ) );
 		add_filter( 'template_include', array( $this, 'load_destination_template' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+		// Priority 5, before Elementor's own wp_enqueue_scripts callback (10).
+		add_action( 'wp_enqueue_scripts', array( $this, 'declare_template_render' ), 5 );
 		add_action( 'pre_get_posts', array( $this, 'apply_search_filters' ) );
+	}
+
+	/**
+	 * Tells Elementor which template this request is about to draw, early
+	 * enough for its V4 (atomic) styles to be generated.
+	 *
+	 * Elementor 4 prints the CSS of V4 elements (flexbox, grid, div-blocks and
+	 * every class on them, local or global) from a list of post IDs it builds
+	 * on the `elementor/post/render` action, and it consumes that list inside
+	 * its own wp_enqueue_scripts callback, in <head>. For an ordinary page the
+	 * action fires there for the queried post. Here the queried post is the
+	 * bike or destination, never the template: the template is only drawn
+	 * later, in the body, by render_template(), which is too late — the list is
+	 * already consumed and no atomic CSS is ever printed. The visible symptom
+	 * is a template whose widgets all render but whose containers have lost
+	 * their layout (everything collapsed into narrow, overlapping columns),
+	 * while the widgets' own Style controls still work, because those go
+	 * through the classic post CSS file, which does get enqueued.
+	 */
+	public function declare_template_render() {
+		if ( is_post_type_archive( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
+			$type = 'results';
+		} elseif ( is_singular( Citykleta_Bike_Post_Type::POST_TYPE ) ) {
+			$type = 'single_bike';
+		} elseif ( is_singular( Citykleta_Destination_Post_Type::POST_TYPE ) ) {
+			$type = 'destination';
+		} else {
+			return;
+		}
+
+		$template = Citykleta_Template_Post_Type::get_template( $type );
+
+		if ( $template ) {
+			do_action( 'elementor/post/render', $template->ID );
+		}
 	}
 
 	/**

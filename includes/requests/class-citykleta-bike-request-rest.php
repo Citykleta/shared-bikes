@@ -26,12 +26,6 @@ class Citykleta_Bike_Request_Rest {
 	const REST_NAMESPACE = 'citykleta/v1';
 
 	/**
-	 * Shortest string accepted as a phone number, counting digits only. Cuban
-	 * mobiles are 8 digits; anything shorter isn't a number someone can call.
-	 */
-	const MIN_PHONE_DIGITS = 8;
-
-	/**
 	 * Connects the class to WordPress hooks.
 	 */
 	public function register() {
@@ -76,17 +70,7 @@ class Citykleta_Bike_Request_Rest {
 			return $this->error( 'Esa bicicleta no está disponible.' );
 		}
 
-		$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
-
-		if ( '' === $name ) {
-			return $this->error( 'Hace falta tu nombre.' );
-		}
-
-		$contact = $this->parse_contact( (string) $request->get_param( 'contact' ) );
-
-		if ( null === $contact ) {
-			return $this->error( 'Deja un correo o un teléfono para poder responderte.' );
-		}
+		$code = sanitize_text_field( (string) $request->get_param( 'verification_code' ) );
 
 		$from = $this->parse_date( (string) $request->get_param( 'from' ) );
 		$to   = $this->parse_date( (string) $request->get_param( 'to' ) );
@@ -101,20 +85,19 @@ class Citykleta_Bike_Request_Rest {
 			return $this->error( 'La fecha de fin va antes que la de inicio.' );
 		}
 
+		$identity = $this->resolve_identity( $bike_id, $code );
+
 		$post_id = Citykleta_Bike_Request::create(
 			array(
-				'bike_id'      => $bike_id,
-				'name'         => $name,
-				'contact'      => $contact['value'],
-				'contact_type' => $contact['type'],
-				'from'         => $from,
-				'to'           => $to,
-				'message'      => sanitize_textarea_field( (string) $request->get_param( 'message' ) ),
-				// Stored as typed, never checked: there is no public route on
-				// citykleta-sharing-api to verify a person against. See
-				// Citykleta_Bike_Request::META_VERIFICATION_CODE.
-				'verification_code' => sanitize_text_field( (string) $request->get_param( 'verification_code' ) ),
-				'source'       => esc_url_raw( (string) $request->get_param( 'source' ) ),
+				'bike_id'            => $bike_id,
+				'name'               => $identity['name'],
+				'contact'            => $identity['contact'],
+				'contact_type'       => $identity['contact_type'],
+				'from'               => $from,
+				'to'                 => $to,
+				'message'            => sanitize_textarea_field( (string) $request->get_param( 'message' ) ),
+				'verification_code'  => $code,
+				'source'             => esc_url_raw( (string) $request->get_param( 'source' ) ),
 			)
 		);
 
@@ -127,8 +110,6 @@ class Citykleta_Bike_Request_Rest {
 				500
 			);
 		}
-
-		$this->maybe_capture_lead( $request, $name, $contact );
 
 		/**
 		 * Fires right after a bike request is captured and stored.
@@ -149,78 +130,51 @@ class Citykleta_Bike_Request_Rest {
 	}
 
 	/**
-	 * Optionally records the requester as a marketing lead.
+	 * Resolves who is behind a verification code, so the form doesn't have to
+	 * ask for a name or a contact it already has on file elsewhere.
 	 *
-	 * Only when they ticked the box AND left an email. Requesting a bike is not
-	 * consent to be marketed at — those are different legal bases — and
-	 * Citykleta_Subscriber::upsert() stamps consent unconditionally, so a
-	 * request must never be turned into a subscriber on its own. Without the
-	 * tick the address stays on the request and never reaches HubSpot.
+	 * **Not connected yet.** citykleta-sharing-api has exactly the route this
+	 * needs — `POST /contact/reveal` (`{ contact_code, bike_id }` →
+	 * `{ requester: { name, verified_at }, owner: { name, phone } }`, see
+	 * CLAUDE.md's "El contacto del dueño" section) — but calling it needs the
+	 * plugin's shared key (`x-citykleta-plugin-key`) stored somewhere in
+	 * Settings, and there is no field for it today. Until that's wired up,
+	 * this returns an unresolved identity and the code is the only thing
+	 * staff has to go on — the same "captured, never validated" situation
+	 * Citykleta_Bike_Request::META_VERIFICATION_CODE already documents.
 	 *
-	 * @param WP_REST_Request $request Incoming request.
-	 * @param string          $name    Sanitized name.
-	 * @param array           $contact Parsed contact (value + type).
+	 * A `citykleta_resolve_request_identity` filter is exposed instead of a
+	 * hard call to that endpoint, so the actual HTTP request (and where its
+	 * key lives) can be added without touching this REST route again — same
+	 * seam pattern as `citykleta_bike_request_captured` for the notifier.
+	 * Note that `/contact/reveal` only returns the requester's name (plus a
+	 * phone for the OWNER, not the requester) — there is still no way to get
+	 * an email/phone to reply to the requester on, unless the app grows one.
+	 *
+	 * @param int    $bike_id Requested bike post ID.
+	 * @param string $code    Verification code as typed on the form.
+	 * @return array{name:string,contact:string,contact_type:string}
 	 */
-	private function maybe_capture_lead( WP_REST_Request $request, $name, array $contact ) {
-		if ( Citykleta_Bike_Request::CONTACT_EMAIL !== $contact['type'] ) {
-			return;
+	private function resolve_identity( $bike_id, $code ) {
+		$identity = array(
+			'name'         => '',
+			'contact'      => '',
+			'contact_type' => '',
+		);
+
+		if ( '' === $code ) {
+			return $identity;
 		}
 
-		if ( ! rest_sanitize_boolean( $request->get_param( 'consent' ) ) ) {
-			return;
-		}
-
-		if ( ! class_exists( 'Citykleta_Subscriber' ) ) {
-			return;
-		}
-
-		$source  = esc_url_raw( (string) $request->get_param( 'source' ) );
-		$post_id = Citykleta_Subscriber::upsert( $contact['value'], $name, $source );
-
-		if ( ! $post_id ) {
-			return;
-		}
-
-		/** This is documented in class-citykleta-subscriber-rest.php. */
-		do_action( 'citykleta_subscriber_captured', $post_id, strtolower( $contact['value'] ), $name, $source );
-	}
-
-	/**
-	 * Validates the contact field, which accepts either an email or a phone.
-	 *
-	 * One field instead of two on purpose: in Havana plenty of people have a
-	 * WhatsApp number and no email they check, and asking for both would lose
-	 * requests.
-	 *
-	 * @param string $raw What the visitor typed.
-	 * @return array{value:string,type:string}|null Null when it's neither.
-	 */
-	private function parse_contact( $raw ) {
-		$raw = trim( $raw );
-
-		if ( '' === $raw ) {
-			return null;
-		}
-
-		$email = sanitize_email( $raw );
-
-		if ( is_email( $email ) ) {
-			return array(
-				'value' => strtolower( $email ),
-				'type'  => Citykleta_Bike_Request::CONTACT_EMAIL,
-			);
-		}
-
-		$digits = preg_replace( '/\D/', '', $raw );
-
-		if ( strlen( (string) $digits ) >= self::MIN_PHONE_DIGITS ) {
-			return array(
-				'value' => sanitize_text_field( $raw ),
-				'type'  => Citykleta_Bike_Request::CONTACT_PHONE,
-			);
-		}
-
-		return null;
+		/**
+		 * Filters the identity resolved from a verification code.
+		 *
+		 * @param array  $identity {name, contact, contact_type}, empty until
+		 *                         something hooks this.
+		 * @param string $code     Verification code as typed.
+		 * @param int    $bike_id  Requested bike post ID.
+		 */
+		return apply_filters( 'citykleta_resolve_request_identity', $identity, $code, $bike_id );
 	}
 
 	/**

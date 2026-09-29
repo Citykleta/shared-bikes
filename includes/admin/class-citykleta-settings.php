@@ -1456,7 +1456,7 @@ class Citykleta_Settings {
 			array( '[citykleta_bike_description]', "The bike's own description." ),
 			array( '[citykleta_bike_specs]', 'Brand, model, size, wheel size, type, usage, electric.' ),
 			array( '[citykleta_bike_directions]', 'The address, as a line of text.' ),
-			array( '[citykleta_bike_request]', 'The two-step request form: period + verification code, then contact details.' ),
+			array( '[citykleta_bike_request]', 'The two-step request form: period + verification code, then an optional message.' ),
 			array( '[citykleta_bike_data]', 'One single value. field="price|description|address|owner|availability|destinations|views|brand|model|size|wheel_size|electric|bike_type|bike_usage".' ),
 			array( '[citykleta_bike_location]', 'Small pickup map (the map widget, "Bike Data" mode).' ),
 		);

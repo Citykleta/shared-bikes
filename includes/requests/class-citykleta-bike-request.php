@@ -59,7 +59,15 @@ class Citykleta_Bike_Request {
 	const META_BIKE_TITLE = '_citykleta_request_bike_title';
 
 	/**
-	 * Meta: how to reach the person (an email address or a phone number).
+	 * Meta: the requester's name, when resolved from their verification code
+	 * (Citykleta_Bike_Request_Rest::resolve_identity()). Empty until that
+	 * lookup is actually wired up — see that method's docblock.
+	 */
+	const META_NAME = '_citykleta_request_name';
+
+	/**
+	 * Meta: how to reach the person (an email address or a phone number),
+	 * same "empty until resolved" situation as META_NAME.
 	 */
 	const META_CONTACT = '_citykleta_request_contact';
 
@@ -225,14 +233,18 @@ class Citykleta_Bike_Request {
 	 * @param array $data {
 	 *     Validated request data.
 	 *
-	 *     @type int    $bike_id      Bike post ID.
-	 *     @type string $name         Requester's name.
-	 *     @type string $contact      Email address or phone number.
-	 *     @type string $contact_type One of self::CONTACT_*.
-	 *     @type string $from         Start date 'Y-m-d', or ''.
-	 *     @type string $to           End date 'Y-m-d', or ''.
-	 *     @type string $message      Free-text note, or ''.
-	 *     @type string $source       URL the request came from, or ''.
+	 *     @type int    $bike_id            Bike post ID.
+	 *     @type string $name               Requester's name, resolved from the
+	 *                                       verification code — empty until
+	 *                                       that lookup is wired up.
+	 *     @type string $contact            Email address or phone number, same
+	 *                                       "empty until resolved" situation.
+	 *     @type string $contact_type       One of self::CONTACT_*, or ''.
+	 *     @type string $from               Start date 'Y-m-d', or ''.
+	 *     @type string $to                 End date 'Y-m-d', or ''.
+	 *     @type string $message            Free-text note, or ''.
+	 *     @type string $verification_code  As typed on the form, or ''.
+	 *     @type string $source             URL the request came from, or ''.
 	 * }
 	 * @return int Request post ID, or 0 on failure.
 	 */
@@ -240,11 +252,17 @@ class Citykleta_Bike_Request {
 		$bike_id    = isset( $data['bike_id'] ) ? (int) $data['bike_id'] : 0;
 		$bike_title = $bike_id ? (string) get_the_title( $bike_id ) : '';
 		$name       = isset( $data['name'] ) ? (string) $data['name'] : '';
+		$code       = isset( $data['verification_code'] ) ? (string) $data['verification_code'] : '';
 
-		// The list table shows the title, so make it say who wants what.
+		// The list table shows the title, so make it say who wants what. The
+		// form no longer collects a name (see the request form's docblock),
+		// so this falls back to the verification code — the only identifier
+		// staff has until resolve_identity() actually resolves one.
+		$who = '' !== $name ? $name : ( '' !== $code ? 'Código ' . $code : 'Sin identificar' );
+
 		$title = sprintf(
 			'%s — %s',
-			'' !== $name ? $name : 'Anónimo',
+			$who,
 			'' !== $bike_title ? $bike_title : 'bicicleta'
 		);
 
@@ -264,6 +282,7 @@ class Citykleta_Bike_Request {
 		update_post_meta( $post_id, self::META_BIKE_ID, $bike_id );
 		update_post_meta( $post_id, self::META_BIKE_TITLE, $bike_title );
 		update_post_meta( $post_id, self::META_BIKE_EXTERNAL_ID, $bike_id ? (string) get_post_meta( $bike_id, 'external_id', true ) : '' );
+		update_post_meta( $post_id, self::META_NAME, $name );
 		update_post_meta( $post_id, self::META_CONTACT, isset( $data['contact'] ) ? (string) $data['contact'] : '' );
 		update_post_meta( $post_id, self::META_CONTACT_TYPE, isset( $data['contact_type'] ) ? (string) $data['contact_type'] : '' );
 		update_post_meta( $post_id, self::META_FROM, isset( $data['from'] ) ? (string) $data['from'] : '' );
@@ -300,7 +319,7 @@ class Citykleta_Bike_Request {
 	public static function get_data( $post_id ) {
 		return array(
 			'id'           => (int) $post_id,
-			'name'         => (string) get_the_title( $post_id ),
+			'name'         => (string) get_post_meta( $post_id, self::META_NAME, true ),
 			'bike_id'      => (int) get_post_meta( $post_id, self::META_BIKE_ID, true ),
 			'bike_title'   => (string) get_post_meta( $post_id, self::META_BIKE_TITLE, true ),
 			'external_id'  => (string) get_post_meta( $post_id, self::META_BIKE_EXTERNAL_ID, true ),
@@ -390,6 +409,7 @@ class Citykleta_Bike_Request {
 
 		$columns['citykleta_bike']    = 'Bike';
 		$columns['citykleta_dates']   = 'Dates';
+		$columns['citykleta_code']    = 'Code';
 		$columns['citykleta_contact'] = 'Contact';
 		$columns['citykleta_status']  = 'Status';
 
@@ -427,8 +447,17 @@ class Citykleta_Bike_Request {
 				echo esc_html( self::format_dates( $post_id ) );
 				break;
 
+			case 'citykleta_code':
+				$code = (string) get_post_meta( $post_id, self::META_VERIFICATION_CODE, true );
+				echo $code ? '<code>' . esc_html( $code ) . '</code>' : '—';
+				break;
+
 			case 'citykleta_contact':
-				echo esc_html( (string) get_post_meta( $post_id, self::META_CONTACT, true ) );
+				// Empty until Citykleta_Bike_Request_Rest::resolve_identity()
+				// is actually wired up to /contact/reveal — the form no
+				// longer asks the requester for this directly.
+				$contact = (string) get_post_meta( $post_id, self::META_CONTACT, true );
+				echo $contact ? esc_html( $contact ) : '—';
 				break;
 
 			case 'citykleta_status':
@@ -502,6 +531,10 @@ class Citykleta_Bike_Request {
 			'Dates'        => esc_html( self::format_dates( $post->ID ) ),
 			// Shown as typed. Nothing verified it — see META_VERIFICATION_CODE.
 			'Code'         => '' !== $data['code'] ? '<code>' . esc_html( $data['code'] ) . '</code>' : '',
+			// Empty until Citykleta_Bike_Request_Rest::resolve_identity() is
+			// actually wired up to /contact/reveal — the form doesn't ask for
+			// this anymore, only the code above.
+			'Requester'    => '' !== $data['name'] ? esc_html( $data['name'] ) : '<em>Not resolved from the code yet</em>',
 			'Contact'      => $this->contact_link( $data ),
 			'Message'      => '' !== $data['message'] ? nl2br( esc_html( $data['message'] ) ) : '',
 			'Came from'    => '' !== $data['source'] ? '<a href="' . esc_url( $data['source'] ) . '">' . esc_html( $data['source'] ) . '</a>' : '',

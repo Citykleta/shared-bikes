@@ -1,0 +1,1049 @@
+{
+    "captured_at": "2026-09-16 21:05",
+    "plugin_version": "0.2.9",
+    "elements": [
+        {
+            "id": "ba02839",
+            "elType": "e-flexbox",
+            "settings": {
+                "classes": {
+                    "$$type": "classes",
+                    "value": [
+                        "e-e77e222"
+                    ]
+                }
+            },
+            "elements": [
+                {
+                    "id": "3767647",
+                    "elType": "e-flexbox",
+                    "settings": {
+                        "classes": {
+                            "$$type": "classes",
+                            "value": [
+                                "g-057c3fa"
+                            ]
+                        }
+                    },
+                    "elements": [
+                        {
+                            "id": "175c779",
+                            "elType": "e-flexbox",
+                            "settings": {
+                                "classes": {
+                                    "$$type": "classes",
+                                    "value": [
+                                        "e-fbe781c"
+                                    ]
+                                }
+                            },
+                            "elements": [
+                                {
+                                    "id": "78e941f",
+                                    "elType": "e-div-block",
+                                    "settings": {
+                                        "classes": {
+                                            "$$type": "classes",
+                                            "value": [
+                                                "e-78e941f-589ea39",
+                                                "g-9fb2ffa"
+                                            ]
+                                        }
+                                    },
+                                    "elements": [
+                                        {
+                                            "id": "0b698cd",
+                                            "elType": "widget",
+                                            "settings": [],
+                                            "elements": [],
+                                            "widgetType": "citykleta_bike_gallery"
+                                        }
+                                    ],
+                                    "isInner": false,
+                                    "styles": {
+                                        "e-78e941f-589ea39": {
+                                            "id": "e-78e941f-589ea39",
+                                            "label": "local",
+                                            "type": "class",
+                                            "variants": [
+                                                {
+                                                    "meta": {
+                                                        "breakpoint": "desktop",
+                                                        "state": null
+                                                    },
+                                                    "props": {
+                                                        "background": {
+                                                            "$$type": "background",
+                                                            "value": {
+                                                                "color": {
+                                                                    "$$type": "global-color-variable",
+                                                                    "value": "e-gv-8630102"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "custom_css": null
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "interactions": [],
+                                    "editor_settings": [],
+                                    "version": "0.0"
+                                },
+                                {
+                                    "id": "5e55b62",
+                                    "elType": "e-div-block",
+                                    "settings": {
+                                        "classes": {
+                                            "$$type": "classes",
+                                            "value": [
+                                                "g-9fb2ffa"
+                                            ]
+                                        }
+                                    },
+                                    "elements": [
+                                        {
+                                            "id": "b9075b5",
+                                            "elType": "e-flexbox",
+                                            "settings": {
+                                                "classes": {
+                                                    "$$type": "classes",
+                                                    "value": [
+                                                        "e-b9075b5-0337c87"
+                                                    ]
+                                                }
+                                            },
+                                            "elements": [
+                                                {
+                                                    "id": "309660e",
+                                                    "elType": "widget",
+                                                    "settings": {
+                                                        "selected_icon": {
+                                                            "value": "fas fa-location-arrow",
+                                                            "library": "fa-solid"
+                                                        },
+                                                        "__globals__": {
+                                                            "primary_color": "globals/colors?id=a0e9142"
+                                                        },
+                                                        "size": {
+                                                            "unit": "px",
+                                                            "size": 21,
+                                                            "sizes": []
+                                                        }
+                                                    },
+                                                    "elements": [],
+                                                    "widgetType": "icon"
+                                                },
+                                                {
+                                                    "id": "08023a3",
+                                                    "elType": "widget",
+                                                    "settings": {
+                                                        "directions_box_shadow_box_shadow_type": "yes",
+                                                        "directions_box_shadow_box_shadow": {
+                                                            "horizontal": 22,
+                                                            "vertical": 0,
+                                                            "blur": 17,
+                                                            "spread": 0,
+                                                            "color": "rgba(0,0,0,0.5)"
+                                                        },
+                                                        "tag": "span",
+                                                        "typography_typography": "custom",
+                                                        "typography_font_weight": "600"
+                                                    },
+                                                    "elements": [],
+                                                    "widgetType": "citykleta_bike_directions"
+                                                }
+                                            ],
+                                            "isInner": false,
+                                            "styles": {
+                                                "e-b9075b5-0337c87": {
+                                                    "id": "e-b9075b5-0337c87",
+                                                    "label": "local",
+                                                    "type": "class",
+                                                    "variants": [
+                                                        {
+                                                            "meta": {
+                                                                "breakpoint": "desktop",
+                                                                "state": null
+                                                            },
+                                                            "props": {
+                                                                "gap": {
+                                                                    "$$type": "size",
+                                                                    "value": {
+                                                                        "size": 20,
+                                                                        "unit": "px"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "custom_css": null
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "interactions": [],
+                                            "editor_settings": [],
+                                            "version": "0.0"
+                                        },
+                                        {
+                                            "id": "525b71d",
+                                            "elType": "widget",
+                                            "settings": [],
+                                            "elements": [],
+                                            "widgetType": "citykleta_bike_title"
+                                        },
+                                        {
+                                            "id": "0e7dddb",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "heading": "Sobre esta bicicleta",
+                                                "text_columns": "1",
+                                                "_padding": {
+                                                    "unit": "px",
+                                                    "top": "5",
+                                                    "right": "5",
+                                                    "bottom": "5",
+                                                    "left": "5",
+                                                    "isLinked": true
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "citykleta_bike_description"
+                                        },
+                                        {
+                                            "id": "7562573",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "space": {
+                                                    "unit": "px",
+                                                    "size": 20,
+                                                    "sizes": []
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "spacer"
+                                        },
+                                        {
+                                            "id": "048c74e",
+                                            "elType": "e-grid",
+                                            "settings": {
+                                                "classes": {
+                                                    "$$type": "classes",
+                                                    "value": [
+                                                        "e-048c74e-3efc9c8"
+                                                    ]
+                                                }
+                                            },
+                                            "elements": [
+                                                {
+                                                    "id": "cf05399",
+                                                    "elType": "e-flexbox",
+                                                    "settings": {
+                                                        "classes": {
+                                                            "$$type": "classes",
+                                                            "value": [
+                                                                "g-c8e5aab"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "elements": [
+                                                        {
+                                                            "id": "c3aca20",
+                                                            "elType": "widget",
+                                                            "settings": {
+                                                                "show_label": "yes",
+                                                                "align": "left",
+                                                                "tag": "span",
+                                                                "field": "brand"
+                                                            },
+                                                            "elements": [],
+                                                            "widgetType": "citykleta_bike_data"
+                                                        }
+                                                    ],
+                                                    "isInner": false,
+                                                    "styles": [],
+                                                    "interactions": [],
+                                                    "editor_settings": [],
+                                                    "version": "0.0"
+                                                },
+                                                {
+                                                    "id": "7096850",
+                                                    "elType": "e-flexbox",
+                                                    "settings": {
+                                                        "classes": {
+                                                            "$$type": "classes",
+                                                            "value": [
+                                                                "g-c8e5aab",
+                                                                "e-7096850-4e27810"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "elements": [
+                                                        {
+                                                            "id": "62a4028",
+                                                            "elType": "widget",
+                                                            "settings": {
+                                                                "show_label": "yes",
+                                                                "align": "left",
+                                                                "field": "model",
+                                                                "tag": "span"
+                                                            },
+                                                            "elements": [],
+                                                            "widgetType": "citykleta_bike_data"
+                                                        }
+                                                    ],
+                                                    "isInner": false,
+                                                    "styles": {
+                                                        "e-7096850-4e27810": {
+                                                            "id": "e-7096850-4e27810",
+                                                            "label": "local",
+                                                            "type": "class",
+                                                            "variants": [
+                                                                {
+                                                                    "meta": {
+                                                                        "breakpoint": "desktop",
+                                                                        "state": null
+                                                                    },
+                                                                    "props": {
+                                                                        "border-width": {
+                                                                            "$$type": "size",
+                                                                            "value": {
+                                                                                "size": 1,
+                                                                                "unit": "px"
+                                                                            }
+                                                                        },
+                                                                        "border-style": {
+                                                                            "$$type": "string",
+                                                                            "value": "solid"
+                                                                        }
+                                                                    },
+                                                                    "custom_css": null
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "interactions": [],
+                                                    "editor_settings": [],
+                                                    "version": "0.0"
+                                                },
+                                                {
+                                                    "id": "e4fdcc9",
+                                                    "elType": "e-flexbox",
+                                                    "settings": {
+                                                        "classes": {
+                                                            "$$type": "classes",
+                                                            "value": [
+                                                                "g-c8e5aab",
+                                                                "e-e4fdcc9-7afa61c"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "elements": [
+                                                        {
+                                                            "id": "84d03bd",
+                                                            "elType": "widget",
+                                                            "settings": {
+                                                                "show_label": "yes",
+                                                                "align": "left",
+                                                                "field": "bike_type",
+                                                                "tag": "span"
+                                                            },
+                                                            "elements": [],
+                                                            "widgetType": "citykleta_bike_data"
+                                                        }
+                                                    ],
+                                                    "isInner": false,
+                                                    "styles": {
+                                                        "e-e4fdcc9-7afa61c": {
+                                                            "id": "e-e4fdcc9-7afa61c",
+                                                            "label": "local",
+                                                            "type": "class",
+                                                            "variants": [
+                                                                {
+                                                                    "meta": {
+                                                                        "breakpoint": "desktop",
+                                                                        "state": null
+                                                                    },
+                                                                    "props": {
+                                                                        "border-width": {
+                                                                            "$$type": "size",
+                                                                            "value": {
+                                                                                "size": 1,
+                                                                                "unit": "px"
+                                                                            }
+                                                                        },
+                                                                        "border-style": {
+                                                                            "$$type": "string",
+                                                                            "value": "solid"
+                                                                        }
+                                                                    },
+                                                                    "custom_css": null
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "interactions": [],
+                                                    "editor_settings": [],
+                                                    "version": "0.0"
+                                                },
+                                                {
+                                                    "id": "14dcd10",
+                                                    "elType": "e-flexbox",
+                                                    "settings": {
+                                                        "classes": {
+                                                            "$$type": "classes",
+                                                            "value": [
+                                                                "g-c8e5aab",
+                                                                "e-14dcd10-11ce13e"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "elements": [
+                                                        {
+                                                            "id": "82b061a",
+                                                            "elType": "widget",
+                                                            "settings": {
+                                                                "show_label": "yes",
+                                                                "align": "left",
+                                                                "field": "size",
+                                                                "tag": "span"
+                                                            },
+                                                            "elements": [],
+                                                            "widgetType": "citykleta_bike_data"
+                                                        }
+                                                    ],
+                                                    "isInner": false,
+                                                    "styles": {
+                                                        "e-14dcd10-11ce13e": {
+                                                            "id": "e-14dcd10-11ce13e",
+                                                            "label": "local",
+                                                            "type": "class",
+                                                            "variants": [
+                                                                {
+                                                                    "meta": {
+                                                                        "breakpoint": "desktop",
+                                                                        "state": null
+                                                                    },
+                                                                    "props": {
+                                                                        "border-width": {
+                                                                            "$$type": "size",
+                                                                            "value": {
+                                                                                "size": 1,
+                                                                                "unit": "px"
+                                                                            }
+                                                                        },
+                                                                        "border-style": {
+                                                                            "$$type": "string",
+                                                                            "value": "solid"
+                                                                        }
+                                                                    },
+                                                                    "custom_css": null
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "interactions": [],
+                                                    "editor_settings": [],
+                                                    "version": "0.0"
+                                                },
+                                                {
+                                                    "id": "d33993a",
+                                                    "elType": "e-flexbox",
+                                                    "settings": {
+                                                        "classes": {
+                                                            "$$type": "classes",
+                                                            "value": [
+                                                                "g-c8e5aab",
+                                                                "e-d33993a-8a1194a"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "elements": [
+                                                        {
+                                                            "id": "27b4dc7",
+                                                            "elType": "widget",
+                                                            "settings": {
+                                                                "show_label": "yes",
+                                                                "align": "left",
+                                                                "field": "wheel_size",
+                                                                "tag": "span"
+                                                            },
+                                                            "elements": [],
+                                                            "widgetType": "citykleta_bike_data"
+                                                        }
+                                                    ],
+                                                    "isInner": false,
+                                                    "styles": {
+                                                        "e-d33993a-8a1194a": {
+                                                            "id": "e-d33993a-8a1194a",
+                                                            "label": "local",
+                                                            "type": "class",
+                                                            "variants": [
+                                                                {
+                                                                    "meta": {
+                                                                        "breakpoint": "desktop",
+                                                                        "state": null
+                                                                    },
+                                                                    "props": {
+                                                                        "border-width": {
+                                                                            "$$type": "size",
+                                                                            "value": {
+                                                                                "size": 1,
+                                                                                "unit": "px"
+                                                                            }
+                                                                        },
+                                                                        "border-style": {
+                                                                            "$$type": "string",
+                                                                            "value": "solid"
+                                                                        }
+                                                                    },
+                                                                    "custom_css": null
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "interactions": [],
+                                                    "editor_settings": [],
+                                                    "version": "0.0"
+                                                },
+                                                {
+                                                    "id": "a2585e4",
+                                                    "elType": "e-flexbox",
+                                                    "settings": {
+                                                        "classes": {
+                                                            "$$type": "classes",
+                                                            "value": [
+                                                                "g-c8e5aab",
+                                                                "e-a2585e4-9ec3e1a"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "elements": [
+                                                        {
+                                                            "id": "07b1364",
+                                                            "elType": "widget",
+                                                            "settings": {
+                                                                "show_label": "yes",
+                                                                "align": "left",
+                                                                "field": "electric",
+                                                                "tag": "span"
+                                                            },
+                                                            "elements": [],
+                                                            "widgetType": "citykleta_bike_data"
+                                                        }
+                                                    ],
+                                                    "isInner": false,
+                                                    "styles": {
+                                                        "e-a2585e4-9ec3e1a": {
+                                                            "id": "e-a2585e4-9ec3e1a",
+                                                            "label": "local",
+                                                            "type": "class",
+                                                            "variants": [
+                                                                {
+                                                                    "meta": {
+                                                                        "breakpoint": "desktop",
+                                                                        "state": null
+                                                                    },
+                                                                    "props": {
+                                                                        "border-width": {
+                                                                            "$$type": "size",
+                                                                            "value": {
+                                                                                "size": 1,
+                                                                                "unit": "px"
+                                                                            }
+                                                                        },
+                                                                        "border-style": {
+                                                                            "$$type": "string",
+                                                                            "value": "solid"
+                                                                        }
+                                                                    },
+                                                                    "custom_css": null
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "interactions": [],
+                                                    "editor_settings": [],
+                                                    "version": "0.0"
+                                                }
+                                            ],
+                                            "isInner": false,
+                                            "styles": {
+                                                "e-048c74e-3efc9c8": {
+                                                    "id": "e-048c74e-3efc9c8",
+                                                    "label": "local",
+                                                    "type": "class",
+                                                    "variants": [
+                                                        {
+                                                            "meta": {
+                                                                "breakpoint": "desktop",
+                                                                "state": null
+                                                            },
+                                                            "props": {
+                                                                "padding": {
+                                                                    "$$type": "size",
+                                                                    "value": {
+                                                                        "size": 0,
+                                                                        "unit": "px"
+                                                                    }
+                                                                },
+                                                                "border-width": {
+                                                                    "$$type": "size",
+                                                                    "value": {
+                                                                        "size": 1,
+                                                                        "unit": "px"
+                                                                    }
+                                                                },
+                                                                "border-color": {
+                                                                    "$$type": "global-color-variable",
+                                                                    "value": "e-gv-f0c7970"
+                                                                },
+                                                                "border-style": {
+                                                                    "$$type": "string",
+                                                                    "value": "solid"
+                                                                },
+                                                                "gap": {
+                                                                    "$$type": "size",
+                                                                    "value": {
+                                                                        "size": 0,
+                                                                        "unit": "px"
+                                                                    }
+                                                                },
+                                                                "grid-auto-flow": {
+                                                                    "$$type": "string",
+                                                                    "value": "row"
+                                                                }
+                                                            },
+                                                            "custom_css": null
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "interactions": [],
+                                            "editor_settings": {
+                                                "grid_outline": true
+                                            },
+                                            "version": "0.0"
+                                        },
+                                        {
+                                            "id": "f7b8de9",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "space": {
+                                                    "unit": "px",
+                                                    "size": 20,
+                                                    "sizes": []
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "spacer"
+                                        },
+                                        {
+                                            "id": "6467ce8",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "space": {
+                                                    "unit": "px",
+                                                    "size": 10,
+                                                    "sizes": []
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "spacer"
+                                        }
+                                    ],
+                                    "isInner": false,
+                                    "styles": [],
+                                    "interactions": [],
+                                    "editor_settings": [],
+                                    "version": "0.0"
+                                },
+                                {
+                                    "id": "4687067",
+                                    "elType": "e-div-block",
+                                    "settings": {
+                                        "classes": {
+                                            "$$type": "classes",
+                                            "value": [
+                                                "g-9fb2ffa"
+                                            ]
+                                        }
+                                    },
+                                    "elements": [
+                                        {
+                                            "id": "efdc6ad",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "classes": {
+                                                    "$$type": "classes",
+                                                    "value": [
+                                                        "g-a37cca9"
+                                                    ]
+                                                },
+                                                "title": {
+                                                    "$$type": "html-v3",
+                                                    "value": {
+                                                        "content": {
+                                                            "$$type": "string",
+                                                            "value": "Lugar de recogida"
+                                                        },
+                                                        "children": []
+                                                    }
+                                                },
+                                                "link": {
+                                                    "$$type": "link",
+                                                    "value": {
+                                                        "isTargetBlank": null
+                                                    }
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "e-heading",
+                                            "styles": [],
+                                            "interactions": [],
+                                            "editor_settings": [],
+                                            "version": "0.0"
+                                        },
+                                        {
+                                            "id": "8847c13",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "space": {
+                                                    "unit": "px",
+                                                    "size": 20,
+                                                    "sizes": []
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "spacer"
+                                        },
+                                        {
+                                            "id": "9b337bd",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "source": "bike",
+                                                "_border_radius": {
+                                                    "unit": "px",
+                                                    "top": "2",
+                                                    "right": "2",
+                                                    "bottom": "2",
+                                                    "left": "2",
+                                                    "isLinked": true
+                                                },
+                                                "_mask_shape": "pill-horizontal",
+                                                "_mask_size": "custom",
+                                                "_mask_size_scale": {
+                                                    "unit": "%",
+                                                    "size": 145,
+                                                    "sizes": []
+                                                },
+                                                "_mask_position": "custom",
+                                                "_mask_position_x": {
+                                                    "unit": "%",
+                                                    "size": 48,
+                                                    "sizes": []
+                                                },
+                                                "_mask_position_y": {
+                                                    "unit": "%",
+                                                    "size": 42,
+                                                    "sizes": []
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "citykleta_map"
+                                        }
+                                    ],
+                                    "isInner": false,
+                                    "styles": [],
+                                    "interactions": [],
+                                    "editor_settings": [],
+                                    "version": "0.0"
+                                },
+                                {
+                                    "id": "b4d5630",
+                                    "elType": "e-div-block",
+                                    "settings": {
+                                        "classes": {
+                                            "$$type": "classes",
+                                            "value": [
+                                                "g-9fb2ffa"
+                                            ]
+                                        }
+                                    },
+                                    "elements": [
+                                        {
+                                            "id": "cc0c201",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "label": "Publicado por"
+                                            },
+                                            "elements": [],
+                                            "widgetType": "citykleta_bike_owner"
+                                        }
+                                    ],
+                                    "isInner": false,
+                                    "styles": [],
+                                    "interactions": [],
+                                    "editor_settings": [],
+                                    "version": "0.0"
+                                }
+                            ],
+                            "isInner": false,
+                            "styles": {
+                                "e-fbe781c": {
+                                    "id": "e-fbe781c",
+                                    "label": "local",
+                                    "type": "class",
+                                    "variants": [
+                                        {
+                                            "meta": {
+                                                "breakpoint": "desktop",
+                                                "state": null
+                                            },
+                                            "props": {
+                                                "width": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 66.666600000000003,
+                                                        "unit": "%"
+                                                    }
+                                                },
+                                                "flex-direction": {
+                                                    "$$type": "string",
+                                                    "value": "column"
+                                                },
+                                                "gap": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 1,
+                                                        "unit": "rem"
+                                                    }
+                                                }
+                                            },
+                                            "custom_css": null
+                                        },
+                                        {
+                                            "meta": {
+                                                "breakpoint": "mobile",
+                                                "state": null
+                                            },
+                                            "props": {
+                                                "width": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 100,
+                                                        "unit": "%"
+                                                    }
+                                                }
+                                            },
+                                            "custom_css": null
+                                        }
+                                    ]
+                                }
+                            },
+                            "interactions": [],
+                            "editor_settings": [],
+                            "version": "0.0"
+                        },
+                        {
+                            "id": "e4a470b",
+                            "elType": "e-flexbox",
+                            "settings": {
+                                "classes": {
+                                    "$$type": "classes",
+                                    "value": [
+                                        "e-617ba0d"
+                                    ]
+                                }
+                            },
+                            "elements": [
+                                {
+                                    "id": "c9be769",
+                                    "elType": "e-flexbox",
+                                    "settings": {
+                                        "classes": {
+                                            "$$type": "classes",
+                                            "value": [
+                                                "e-c9be769-8a16abe",
+                                                "g-20138d4",
+                                                "g-9fb2ffa"
+                                            ]
+                                        }
+                                    },
+                                    "elements": [
+                                        {
+                                            "id": "3494098",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "show_label": ""
+                                            },
+                                            "elements": [],
+                                            "widgetType": "citykleta_bike_data"
+                                        },
+                                        {
+                                            "id": "7a9177b",
+                                            "elType": "widget",
+                                            "settings": {
+                                                "sticky": "",
+                                                "title": "Solicitar esta bicicleta",
+                                                "dates_label": "Periodo de alquiler",
+                                                "dates_hint": "Desde — Hasta",
+                                                "code_label": "ID Verificado",
+                                                "verify_url": {
+                                                    "url": "httpp://aqui.si",
+                                                    "is_external": "",
+                                                    "nofollow": "",
+                                                    "custom_attributes": ""
+                                                },
+                                                "verify_text": "Verificarme ahora",
+                                                "next_text": "Continuar",
+                                                "back_text": "Atrás",
+                                                "submit_text": "Enviar solicitud",
+                                                "_box_shadow_box_shadow": {
+                                                    "horizontal": 0,
+                                                    "vertical": 0,
+                                                    "blur": 0,
+                                                    "spread": 0,
+                                                    "color": "rgba(0,0,0,0.5)"
+                                                },
+                                                "_padding": {
+                                                    "unit": "px",
+                                                    "top": "0",
+                                                    "right": "0",
+                                                    "bottom": "0",
+                                                    "left": "0",
+                                                    "isLinked": true
+                                                }
+                                            },
+                                            "elements": [],
+                                            "widgetType": "citykleta_bike_request"
+                                        }
+                                    ],
+                                    "isInner": false,
+                                    "styles": {
+                                        "e-c9be769-8a16abe": {
+                                            "id": "e-c9be769-8a16abe",
+                                            "label": "local",
+                                            "type": "class",
+                                            "variants": [
+                                                {
+                                                    "meta": {
+                                                        "breakpoint": "desktop",
+                                                        "state": null
+                                                    },
+                                                    "props": {
+                                                        "transition": {
+                                                            "$$type": "transition",
+                                                            "value": []
+                                                        }
+                                                    },
+                                                    "custom_css": null
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "interactions": [],
+                                    "editor_settings": {
+                                        "title": "Flotante"
+                                    },
+                                    "version": "0.0"
+                                }
+                            ],
+                            "isInner": false,
+                            "styles": {
+                                "e-617ba0d": {
+                                    "id": "e-617ba0d",
+                                    "label": "local",
+                                    "type": "class",
+                                    "variants": [
+                                        {
+                                            "meta": {
+                                                "breakpoint": "desktop",
+                                                "state": null
+                                            },
+                                            "props": {
+                                                "width": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 33.333300000000001,
+                                                        "unit": "%"
+                                                    }
+                                                },
+                                                "flex-direction": {
+                                                    "$$type": "string",
+                                                    "value": "column"
+                                                }
+                                            },
+                                            "custom_css": null
+                                        },
+                                        {
+                                            "meta": {
+                                                "breakpoint": "mobile",
+                                                "state": null
+                                            },
+                                            "props": {
+                                                "width": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 100,
+                                                        "unit": "%"
+                                                    }
+                                                }
+                                            },
+                                            "custom_css": null
+                                        }
+                                    ]
+                                }
+                            },
+                            "interactions": [],
+                            "editor_settings": [],
+                            "version": "0.0"
+                        }
+                    ],
+                    "isInner": false,
+                    "styles": [],
+                    "interactions": [],
+                    "editor_settings": {
+                        "title": "Container"
+                    },
+                    "version": "0.0"
+                }
+            ],
+            "isInner": false,
+            "styles": {
+                "e-e77e222": {
+                    "id": "e-e77e222",
+                    "label": "local",
+                    "type": "class",
+                    "variants": [
+                        {
+                            "meta": {
+                                "breakpoint": "desktop",
+                                "state": null
+                            },
+                            "props": {
+                                "background": {
+                                    "$$type": "background",
+                                    "value": {
+                                        "color": {
+                                            "$$type": "global-color-variable",
+                                            "value": "e-gv-281f449"
+                                        }
+                                    }
+                                },
+                                "flex-direction": {
+                                    "$$type": "string",
+                                    "value": "row"
+                                }
+                            },
+                            "custom_css": null
+                        }
+                    ]
+                }
+            },
+            "interactions": [],
+            "editor_settings": [],
+            "version": "0.0"
+        }
+    ]
+}

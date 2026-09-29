@@ -204,22 +204,6 @@
 	gap: 0.6rem;
 }
 
-/* --- Consentimiento (opcional) --- */
-
-.citykleta-bike-request__consent {
-	display: flex;
-	align-items: flex-start;
-	gap: 0.5rem;
-	font-size: 0.82rem;
-	line-height: 1.4;
-	color: #5a5250;
-}
-
-.citykleta-bike-request__consent input {
-	margin-top: 0.15rem;
-	flex: 0 0 auto;
-}
-
 /* --- Honeypot: fuera de vista pero no display:none (algunos bots lo saltan) --- */
 
 .citykleta-bike-request__hp {

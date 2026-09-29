@@ -625,6 +625,18 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_responsive_control(
+			'field_padding',
+			array(
+				'label'      => 'Field padding',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-search-bar__field' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(

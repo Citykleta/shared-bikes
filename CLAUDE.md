@@ -710,6 +710,20 @@ a un campo que no esté envuelto en una pieza — para eso hay que agregar el wi
   sola vez, copiando también la meta `_elementor*` (ahí vive el diseño, no en
   `post_content`) y mandando la Page vieja a la **papelera**, no borrándola.
 
+**Contenedores V4 (flexbox/grid/div-block) y `Citykleta_Templates::declare_template_render()`.**
+Si el diseño de una plantilla usa los contenedores nuevos de Elementor 4 (`e-flexbox`, `e-grid`,
+`e-div-block`, y sus clases locales `e-xxxxxxx-…` o globales `g-xxxxxxx`), su CSS **no** va en
+`post-{id}.css`: lo genera el gestor de estilos atómicos, que solo procesa los IDs que le llegan por la
+action `elementor/post/render` *antes* de que Elementor imprima estilos en `<head>` (su callback de
+`wp_enqueue_scripts`, prioridad 10). Para una página normal esa action se dispara con el post de la
+query; acá la query es la bici/destino y la plantilla se dibuja después, en el body, así que su ID nunca
+llegaba. **Síntoma:** todos los widgets salen, pero los contenedores pierden el layout (columnas
+angostas, cosas encimadas), mientras los controles Style de los widgets del plugin siguen funcionando
+(esos sí van en el `post-{id}.css` clásico) — engaña porque parece un problema del widget. Se resuelve
+disparando esa action con el ID de la plantilla activa en `wp_enqueue_scripts` prioridad 5. Para
+diagnosticarlo: buscar la clase `e-…` del contenedor en las hojas de la página; si no aparece en ninguna,
+es esto (con el arreglo aparece en `css/local-{id}-frontend-desktop.css`).
+
 ### Varias plantillas por vista: cuál está activa
 
 Nada impide tener dos plantillas publicadas para la misma vista (el caso típico:
@@ -1505,9 +1519,14 @@ descargas — agregar rate-limit por IP si algún día importa.
 
 ## Solicitudes de bicicleta
 
-La página individual tiene un formulario **"Solicitar esta bicicleta"** (nombre, correo **o**
-teléfono, fechas opcionales, mensaje). Reemplazó la nota *"La reserva se hace desde la app"* que
-había en `single-bike.php`.
+La página individual tiene un formulario **"Solicitar esta bicicleta"** (periodo de renta, código
+de verificación, mensaje opcional). Reemplazó la nota *"La reserva se hace desde la app"* que había
+en `single-bike.php`.
+
+**Ya no pide nombre ni correo/teléfono (2026-09).** El código de verificación es el identificador
+único de la persona dentro de la plataforma — quien ya se verificó tiene un nombre y un contacto en
+algún sitio, así que preguntárselos de nuevo en este formulario era pedir dos veces lo mismo. Ver
+`Citykleta_Bike_Request_Rest::resolve_identity()` para cómo (y cuánto de) eso se resuelve hoy.
 
 **Es una SOLICITUD, no una reserva, y la distinción es dura, no un matiz de redacción:**
 
@@ -1565,13 +1584,9 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   el payload). Honeypot `website`. La bici tiene que ser un post `bike` **publicado** — el id viaja en
   el HTML y nada impide mandar un número cualquiera.
 - **El formulario va en dos pasos, dentro del mismo `<form>`.** Paso 1 = lo de la bici (periodo de
-  renta + código de verificación); paso 2 = lo de la persona (nombre, contacto, mensaje, consentimiento).
-  No es cosmético: el paso 1 es lo que vive dentro de la tarjeta de precio, al lado de la bici, y un
-  formulario largo de "cuéntanos de ti" ahí entierra lo único que el visitante vino a hacer. **Los pasos
-  son paneles, no peticiones**: no se manda nada hasta el submit del paso 2, así que sigue habiendo un
-  solo POST por solicitud. Ojo con un detalle de implementación: los campos obligatorios del paso 2 se
-  validan en JS y **no** con el atributo `required` — un campo `required` dentro de un panel oculto hace
-  que el navegador se niegue a enviar sin poder decir por qué (no puede enfocar algo que nadie ve).
+  renta + código de verificación); paso 2 = un mensaje opcional. No es cosmético: el paso 1 es lo que
+  vive dentro de la tarjeta de precio, al lado de la bici. **Los pasos son paneles, no peticiones**: no
+  se manda nada hasta el submit del paso 2, así que sigue habiendo un solo POST por solicitud.
 - **El periodo de renta es el mismo selector que el del buscador**, no otro calendario parecido.
   `initRange()` en `citykleta-search-widget.js` dejó de conocer las clases de la barra de búsqueda: hoy
   el contrato son atributos — el contenedor lleva `data-citykleta-range`, los dos inputs ocultos
@@ -1599,15 +1614,15 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   previsto de primera clase (ver la sección siguiente). Ese código es precisamente lo que consume:
   `identity_verification.contact_code`. Conectarlo cierra el círculo entero — validar el código y
   obtener el teléfono del dueño son **la misma llamada**.
-- **Un solo campo para correo o teléfono**, a propósito: en La Habana mucha gente tiene WhatsApp y no
-  un correo que revise, y pedir los dos costaría solicitudes. `parse_contact()` decide cuál es
-  (`is_email()`, si no ≥8 dígitos = teléfono, el largo de un móvil cubano).
-- **El consentimiento de marketing es opcional y va aparte.** Solicitar una bici **no** es consentir
-  marketing — son bases legales distintas — y `Citykleta_Subscriber::upsert()` estampa
-  `META_CONSENT = '1'` incondicionalmente. Si esa llamada se hiciera siempre, cada solicitud entraría
-  en la cola `pending` y el conector la empujaría a HubSpot como contacto de marketing sin
-  consentimiento. Por eso `maybe_capture_lead()` sólo crea el Subscriber cuando la persona marcó la
-  casilla **y** dejó un correo; sin marcar, la dirección vive sólo en la solicitud.
+- **`Citykleta_Bike_Request_Rest::resolve_identity( $bike_id, $code )` es donde ese lookup entraría
+  (2026-09).** Hoy devuelve siempre `{name:'', contact:'', contact_type:''}` — sin campo de nombre ni
+  contacto en el formulario, y sin la llave del plugin (`x-citykleta-plugin-key`) guardada en Settings,
+  no hay de dónde sacarlos. Expone el filtro `citykleta_resolve_request_identity` (mismo patrón de seam
+  que `citykleta_bike_request_captured`) para que la llamada real a `/contact/reveal` se conecte sin
+  tocar la ruta REST otra vez. **Ojo:** esa ruta solo devuelve el *nombre* del solicitante — el teléfono
+  que trae es el del **dueño**, no el del solicitante — así que conectarla resuelve la identidad pero
+  todavía no da un correo/teléfono al que responderle; sigue sin existir ese dato en ningún lado hasta
+  que la app lo exponga.
 - **`citykleta_bike_request_captured`** (`$post_id`, `$bike_id`, `$data`) es el punto de acoplamiento,
   igual que `citykleta_subscriber_captured` lo es para HubSpot. `Citykleta_Bike_Request_Notifier` se
   engancha ahí para los correos, y es donde entraría el push de la Fase 2.
@@ -1853,7 +1868,7 @@ un destino sin trucos), no como término de taxonomía.
     ```
     curl -X POST http://<tu-sitio-local>/wp-json/citykleta/v1/bike-requests \
       -H "Content-Type: application/json" \
-      -d '{"bike_id":<ID del post>,"name":"Ana","contact":"ana@example.com","from":"2026-09-20","to":"2026-09-23"}'
+      -d '{"bike_id":<ID del post>,"verification_code":"ABC123","from":"2026-09-20","to":"2026-09-23"}'
     ```
     Devuelve `201` con `{"ok":true}` si se guardó, `400` con un mensaje si el payload no vale.
 13. En wp-admin, ir a Bicicletas → "All Bikes": arriba de la lista debe verse el mismo

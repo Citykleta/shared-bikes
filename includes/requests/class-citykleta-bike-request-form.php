@@ -149,11 +149,18 @@ class Citykleta_Bike_Request_Form {
 	 * Prints the form for one bike, in two steps.
 	 *
 	 * **Step 1 is about the bike** (rental period + verification code) and
-	 * **step 2 is about the person** (name, contact, message). Splitting them
-	 * is not cosmetic: step 1 is what sits inside the price card next to the
-	 * bike, where a long "tell us about yourself" form buries the one thing
-	 * the visitor came to do. Nothing is submitted until step 2, so the whole
-	 * thing is still a single POST — the steps are panels, not requests.
+	 * **step 2 is the optional message**. Splitting them is not cosmetic:
+	 * step 1 is what sits inside the price card next to the bike, where a
+	 * long form buries the one thing the visitor came to do. Nothing is
+	 * submitted until step 2, so the whole thing is still a single POST —
+	 * the steps are panels, not requests.
+	 *
+	 * **No name/contact fields here.** The verification code is the
+	 * requester's identifier — whoever verified it already has a name and a
+	 * way to reach them on file wherever that verification happened, so
+	 * asking for them again on this form would be asking twice for the same
+	 * thing. See Citykleta_Bike_Request_Rest::resolve_identity() for how (and
+	 * how much of) that gets resolved today.
 	 *
 	 * @param int   $bike_id Bike post ID.
 	 * @param array $args    Presentation args; see self::defaults().
@@ -245,19 +252,8 @@ class Citykleta_Bike_Request_Form {
 					<button type="button" class="citykleta-bike-request__next"><?php echo esc_html( $args['next_text'] ); ?></button>
 				</div>
 
-				<?php // Step 2 — who is asking. ?>
+				<?php // Step 2 — an optional note, nothing identifying. ?>
 				<div class="citykleta-bike-request__step" data-step="2" hidden>
-
-					<label class="citykleta-bike-request__field">
-						<span>Tu nombre</span>
-						<input type="text" name="name" autocomplete="name" />
-					</label>
-
-					<label class="citykleta-bike-request__field">
-						<span>Correo o teléfono</span>
-						<input type="text" name="contact" inputmode="email" />
-						<small>Por aquí te respondemos.</small>
-					</label>
 
 					<label class="citykleta-bike-request__field">
 						<span>Mensaje <small>(opcional)</small></span>
@@ -270,17 +266,6 @@ class Citykleta_Bike_Request_Form {
 							<input type="text" name="website" tabindex="-1" autocomplete="off" />
 						</label>
 					</div>
-
-					<?php
-					// Optional on purpose: requesting a bike is not consent to be
-					// marketed at. Unticked, the address stays on the request and
-					// never becomes a marketing lead — see
-					// Citykleta_Bike_Request_Rest::maybe_capture_lead().
-					?>
-					<label class="citykleta-bike-request__consent">
-						<input type="checkbox" name="consent" value="1" />
-						<span>Quiero recibir novedades de Citykleta.</span>
-					</label>
 
 					<div class="citykleta-bike-request__actions">
 						<button type="button" class="citykleta-bike-request__back"><?php echo esc_html( $args['back_text'] ); ?></button>

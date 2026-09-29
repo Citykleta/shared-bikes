@@ -1,0 +1,399 @@
+{
+    "captured_at": "2026-09-16 21:06",
+    "plugin_version": "0.2.9",
+    "elements": [
+        {
+            "id": "9ada087",
+            "elType": "container",
+            "settings": {
+                "padding": {
+                    "unit": "px",
+                    "top": "15",
+                    "right": "15",
+                    "bottom": "15",
+                    "left": "15",
+                    "isLinked": true
+                },
+                "position": "fixed",
+                "z_index": 7,
+                "content_width": "full"
+            },
+            "elements": [
+                {
+                    "id": "c55ff40",
+                    "elType": "e-div-block",
+                    "settings": {
+                        "classes": {
+                            "$$type": "classes",
+                            "value": [
+                                "e-c55ff40-43ec519"
+                            ]
+                        }
+                    },
+                    "elements": [
+                        {
+                            "id": "f2f1ae3",
+                            "elType": "widget",
+                            "settings": {
+                                "location_label": "Dónde",
+                                "location_placeholder": "Ciudad, barrio, dirección",
+                                "dates_label": "Fechas",
+                                "dates_placeholder": "Selecciona fechas",
+                                "electric_filter_label": "Eléctricas",
+                                "usage_label": "Categoría",
+                                "button_text": "Buscar",
+                                "container_bg_color": "#FFFFFF00",
+                                "container_border_border": "solid",
+                                "container_border_width": {
+                                    "unit": "px",
+                                    "top": "2",
+                                    "right": "2",
+                                    "bottom": "2",
+                                    "left": "2",
+                                    "isLinked": true
+                                },
+                                "container_border_radius": {
+                                    "unit": "px",
+                                    "top": "4",
+                                    "right": "4",
+                                    "bottom": "4",
+                                    "left": "4",
+                                    "isLinked": true
+                                },
+                                "container_shadow_box_shadow_type": "yes",
+                                "container_shadow_box_shadow": {
+                                    "horizontal": 11,
+                                    "vertical": -10,
+                                    "blur": 0,
+                                    "spread": 0,
+                                    "color": "rgba(0, 0, 0, 0.77)"
+                                },
+                                "container_padding": {
+                                    "unit": "px",
+                                    "size": 13,
+                                    "sizes": []
+                                },
+                                "container_gap": {
+                                    "unit": "px",
+                                    "size": 17,
+                                    "sizes": []
+                                },
+                                "placeholder_color": "#282120",
+                                "divider_color": "#282120",
+                                "divider_height": {
+                                    "unit": "px",
+                                    "size": 29,
+                                    "sizes": []
+                                },
+                                "field_border_border": "none",
+                                "field_border_color": "#282120",
+                                "field_border_radius": {
+                                    "unit": "px",
+                                    "top": "8",
+                                    "right": "8",
+                                    "bottom": "8",
+                                    "left": "8",
+                                    "isLinked": true
+                                },
+                                "button_bg_color": "#282120",
+                                "button_color": "#E6C2BF",
+                                "button_border_radius": {
+                                    "unit": "px",
+                                    "top": "99",
+                                    "right": "99",
+                                    "bottom": "99",
+                                    "left": "99",
+                                    "isLinked": true
+                                },
+                                "_z_index": 999,
+                                "_box_shadow_box_shadow_type": "yes",
+                                "_box_shadow_box_shadow": {
+                                    "horizontal": 0,
+                                    "vertical": 0,
+                                    "blur": 0,
+                                    "spread": 0,
+                                    "color": "rgba(0,0,0,0.5)"
+                                },
+                                "__globals__": {
+                                    "button_bg_color": "globals/colors?id=a0e9142",
+                                    "button_color": "globals/colors?id=secondary",
+                                    "field_border_color": "globals/colors?id=text",
+                                    "divider_color": "",
+                                    "placeholder_color": "globals/colors?id=a0e9142",
+                                    "label_color": "",
+                                    "container_border_color": "globals/colors?id=a0e9142"
+                                }
+                            },
+                            "elements": [],
+                            "widgetType": "citykleta_search"
+                        }
+                    ],
+                    "isInner": false,
+                    "styles": {
+                        "e-c55ff40-43ec519": {
+                            "id": "e-c55ff40-43ec519",
+                            "label": "local",
+                            "type": "class",
+                            "variants": [
+                                {
+                                    "meta": {
+                                        "breakpoint": "desktop",
+                                        "state": null
+                                    },
+                                    "props": {
+                                        "max-width": {
+                                            "$$type": "size",
+                                            "value": {
+                                                "size": 1280,
+                                                "unit": "px"
+                                            }
+                                        },
+                                        "margin": {
+                                            "$$type": "dimensions",
+                                            "value": {
+                                                "block-start": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 1,
+                                                        "unit": "%"
+                                                    }
+                                                },
+                                                "block-end": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 1,
+                                                        "unit": "%"
+                                                    }
+                                                },
+                                                "inline-start": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": "",
+                                                        "unit": "auto"
+                                                    }
+                                                },
+                                                "inline-end": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": "",
+                                                        "unit": "auto"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "custom_css": null
+                                }
+                            ]
+                        }
+                    },
+                    "interactions": [],
+                    "editor_settings": [],
+                    "version": "0.0"
+                },
+                {
+                    "id": "f7ab9b9",
+                    "elType": "e-div-block",
+                    "settings": {
+                        "classes": {
+                            "$$type": "classes",
+                            "value": [
+                                "e-f7ab9b9-e98143a"
+                            ]
+                        }
+                    },
+                    "elements": [
+                        {
+                            "id": "86d6909",
+                            "elType": "e-flexbox",
+                            "settings": {
+                                "classes": {
+                                    "$$type": "classes",
+                                    "value": [
+                                        "e-86d6909-fed5eb3"
+                                    ]
+                                }
+                            },
+                            "elements": [
+                                {
+                                    "id": "cd8d325",
+                                    "elType": "widget",
+                                    "settings": {
+                                        "use_url_filters": "yes",
+                                        "columns": "4",
+                                        "title_tag": "h4",
+                                        "image_ratio": {
+                                            "unit": "px",
+                                            "size": 1.3,
+                                            "sizes": []
+                                        },
+                                        "count": 9,
+                                        "posts_per_page": 8
+                                    },
+                                    "elements": [],
+                                    "widgetType": "citykleta_bikes"
+                                }
+                            ],
+                            "isInner": false,
+                            "styles": {
+                                "e-86d6909-fed5eb3": {
+                                    "id": "e-86d6909-fed5eb3",
+                                    "label": "local",
+                                    "type": "class",
+                                    "variants": [
+                                        {
+                                            "meta": {
+                                                "breakpoint": "desktop",
+                                                "state": null
+                                            },
+                                            "props": {
+                                                "width": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 66.659999999999997,
+                                                        "unit": "%"
+                                                    }
+                                                },
+                                                "overflow": {
+                                                    "$$type": "string",
+                                                    "value": "auto"
+                                                },
+                                                "object-fit": {
+                                                    "$$type": "string",
+                                                    "value": "contain"
+                                                },
+                                                "justify-content": {
+                                                    "$$type": "string",
+                                                    "value": "flex-end"
+                                                },
+                                                "align-items": {
+                                                    "$$type": "string",
+                                                    "value": "center"
+                                                }
+                                            },
+                                            "custom_css": null
+                                        }
+                                    ]
+                                }
+                            },
+                            "interactions": [],
+                            "editor_settings": [],
+                            "version": "0.0"
+                        },
+                        {
+                            "id": "8c825ab",
+                            "elType": "e-flexbox",
+                            "settings": {
+                                "classes": {
+                                    "$$type": "classes",
+                                    "value": [
+                                        "e-8c825ab-7be8b34"
+                                    ]
+                                }
+                            },
+                            "elements": [
+                                {
+                                    "id": "d3aacbc",
+                                    "elType": "widget",
+                                    "settings": {
+                                        "use_url_filters": "yes",
+                                        "map_height": {
+                                            "unit": "px",
+                                            "size": 900,
+                                            "sizes": []
+                                        },
+                                        "_element_width": "inherit",
+                                        "_element_custom_width": {
+                                            "unit": "%",
+                                            "size": 50,
+                                            "sizes": []
+                                        },
+                                        "_position": "absolute",
+                                        "_offset_orientation_h": "end",
+                                        "_offset_x": {
+                                            "unit": "px",
+                                            "size": 1000,
+                                            "sizes": []
+                                        },
+                                        "_offset_orientation_v": "end",
+                                        "_offset_y_end": {
+                                            "unit": "px",
+                                            "size": "",
+                                            "sizes": []
+                                        }
+                                    },
+                                    "elements": [],
+                                    "widgetType": "citykleta_map"
+                                }
+                            ],
+                            "isInner": false,
+                            "styles": {
+                                "e-8c825ab-7be8b34": {
+                                    "id": "e-8c825ab-7be8b34",
+                                    "label": "local",
+                                    "type": "class",
+                                    "variants": [
+                                        {
+                                            "meta": {
+                                                "breakpoint": "desktop",
+                                                "state": null
+                                            },
+                                            "props": {
+                                                "width": {
+                                                    "$$type": "size",
+                                                    "value": {
+                                                        "size": 33.329999999999998,
+                                                        "unit": "%"
+                                                    }
+                                                }
+                                            },
+                                            "custom_css": null
+                                        }
+                                    ]
+                                }
+                            },
+                            "interactions": [],
+                            "editor_settings": [],
+                            "version": "0.0"
+                        }
+                    ],
+                    "isInner": false,
+                    "styles": {
+                        "e-f7ab9b9-e98143a": {
+                            "id": "e-f7ab9b9-e98143a",
+                            "label": "local",
+                            "type": "class",
+                            "variants": [
+                                {
+                                    "meta": {
+                                        "breakpoint": "desktop",
+                                        "state": null
+                                    },
+                                    "props": {
+                                        "display": {
+                                            "$$type": "string",
+                                            "value": "flex"
+                                        },
+                                        "flex-direction": {
+                                            "$$type": "string",
+                                            "value": "row"
+                                        },
+                                        "align-items": {
+                                            "$$type": "string",
+                                            "value": "stretch"
+                                        }
+                                    },
+                                    "custom_css": null
+                                }
+                            ]
+                        }
+                    },
+                    "interactions": [],
+                    "editor_settings": [],
+                    "version": "0.0"
+                }
+            ],
+            "isInner": false
+        }
+    ]
+}
