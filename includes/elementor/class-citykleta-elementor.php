@@ -24,6 +24,22 @@ class Citykleta_Elementor {
 		add_action( 'elementor/widgets/register', array( $this, 'register_widgets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_rows_assets' ) );
+	}
+
+	/**
+	 * Scroll behaviour of the Bike Rows widget. Kept apart from
+	 * enqueue_scripts(), which returns early when the Flatpickr vendor file is
+	 * missing — rows must not depend on a calendar library.
+	 */
+	public function enqueue_rows_assets() {
+		wp_enqueue_script(
+			'citykleta-bike-rows',
+			CITYKLETA_URL . 'assets/js/citykleta-bike-rows.js',
+			array(),
+			CITYKLETA_VERSION,
+			true
+		);
 	}
 
 	/**
@@ -46,6 +62,20 @@ class Citykleta_Elementor {
 		wp_enqueue_style(
 			'citykleta-search-bar',
 			CITYKLETA_URL . 'assets/css/search-bar.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_style(
+			'citykleta-bike-rows',
+			CITYKLETA_URL . 'assets/css/bike-rows.css',
+			array( 'citykleta-bike-cards' ),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_style(
+			'citykleta-bike-terms',
+			CITYKLETA_URL . 'assets/css/bike-terms.css',
 			array(),
 			CITYKLETA_VERSION
 		);
@@ -278,8 +308,19 @@ class Citykleta_Elementor {
 		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-search-widget.php';
 		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-map-widget.php';
 		$widgets_manager->register( new Citykleta_Bike_Widget() );
+
+		// One scrollable row of bikes per top-level type; reuses the grid's
+		// card, so it loads after it.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-bike-rows-widget.php';
+		$widgets_manager->register( new Citykleta_Bike_Rows_Widget() );
 		$widgets_manager->register( new Citykleta_Search_Widget() );
 		$widgets_manager->register( new Citykleta_Map_Widget() );
+
+		// The bike taxonomies (types / usage types) as a horizontal list, so
+		// a page can offer "browse by category" without hardcoding a list
+		// that the next Citykleta_Bike_Type_Sync run would make stale.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-bike-terms-widget.php';
+		$widgets_manager->register( new Citykleta_Bike_Terms_Widget() );
 
 		// The pieces a single-bike layout is built from. They resolve the
 		// bike from the current query themselves, which is what lets one

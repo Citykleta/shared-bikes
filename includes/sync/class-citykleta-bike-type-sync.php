@@ -1,12 +1,19 @@
 <?php
 /**
- * Keeps the `bike_type` taxonomy terms in step with the types the Sharing App
- * reports, so every `bike_type` slug a bike references already exists as a term
- * by the time the bikes themselves are saved.
+ * Keeps the SUBTYPES — the second level of the `bike_type` tree — in step
+ * with the types the Sharing App reports (the API calls them `bike_type`), so
+ * every slug a bike references already exists as a term by the time the bikes
+ * are saved.
  *
- * The types are read off the bike payload rather than fetched (the API's
+ * They're read off the bike payload rather than fetched (the API's
  * /bike-types is staff-only) — see run(). Never deletes terms that disappear;
  * they're flagged inactive instead, see _citykleta_type_active below.
+ *
+ * Only ever touches second-level terms. The types above them are declared by
+ * hand and the app knows nothing about them, so a top-level type is never
+ * flagged inactive for "not being in the API" — and an existing subtype's
+ * parent is never changed, so placing a subtype under its type in wp-admin
+ * sticks.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -78,15 +85,37 @@ class Citykleta_Bike_Type_Sync {
 	 * @return int Term id, or 0 on failure.
 	 */
 	private function upsert_term( $slug, $name ) {
-		$term = get_term_by( 'slug', $slug, Citykleta_Bike_Type_Taxonomy::TAXONOMY );
+		$taxonomy = Citykleta_Bike_Type_Taxonomy::TAXONOMY;
+		$term     = get_term_by( 'slug', $slug, $taxonomy );
 
 		if ( ! $term ) {
-			$inserted = wp_insert_term( $name, Citykleta_Bike_Type_Taxonomy::TAXONOMY, array( 'slug' => $slug ) );
+			// A subtype the app just started sending lands under the holding
+			// type, never at the top level, where it would pass for a type in
+			// the search dropdown. Someone files it under its real type by
+			// changing its parent in wp-admin.
+			$inserted = wp_insert_term(
+				$name,
+				$taxonomy,
+				array(
+					'slug'   => $slug,
+					'parent' => Citykleta_Bike_Type_Taxonomy::unclassified_id(),
+				)
+			);
+
 			return is_wp_error( $inserted ) ? 0 : (int) $inserted['term_id'];
 		}
 
+		// The slug is taken by a KIND (top level), not a type: the app's type
+		// can't be stored under a slug that already means something else.
+		// Skipped rather than renamed — nothing would match it by slug then.
+		if ( 0 === (int) $term->parent ) {
+			return 0;
+		}
+
+		// Only the name follows the app. The parent is never touched: that's
+		// where a person placed this subtype; the app doesn't know types.
 		if ( $term->name !== $name ) {
-			wp_update_term( $term->term_id, Citykleta_Bike_Type_Taxonomy::TAXONOMY, array( 'name' => $name ) );
+			wp_update_term( $term->term_id, $taxonomy, array( 'name' => $name ) );
 		}
 
 		return (int) $term->term_id;
@@ -99,18 +128,9 @@ class Citykleta_Bike_Type_Sync {
 	 * @param array $seen_slugs Slugs returned by the API in this run.
 	 */
 	private function flag_missing_as_inactive( array $seen_slugs ) {
-		$existing_terms = get_terms(
-			array(
-				'taxonomy'   => Citykleta_Bike_Type_Taxonomy::TAXONOMY,
-				'hide_empty' => false,
-			)
-		);
-
-		if ( is_wp_error( $existing_terms ) ) {
-			return;
-		}
-
-		foreach ( $existing_terms as $existing_term ) {
+		// Subtypes only — a top-level type is never in the API, so every one would
+		// otherwise be flagged "no longer offered" on every single run.
+		foreach ( Citykleta_Bike_Type_Taxonomy::all_subtypes() as $existing_term ) {
 			if ( ! in_array( $existing_term->slug, $seen_slugs, true ) ) {
 				update_term_meta( $existing_term->term_id, self::ACTIVE_META_KEY, '0' );
 			}

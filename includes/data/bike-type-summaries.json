@@ -1,0 +1,126 @@
+{
+	"version": 1,
+	"license": "Texts adapted from Wikipedia (CC BY-SA 4.0). Each entry names the article it came from; fetched through the Wikipedia REST summary API.",
+	"terms": {
+		"urbano": {
+			"summary": "El ciclismo urbano consiste en la utilización de la bicicleta como medio de transporte urbano, generalmente para distancias cortas, aunque hoy muchas personas la han adoptado como su principal medio de movilidad. La proliferación del automóvil desde la Segunda Guerra Mundial congestionó el tráfico y se apoderó del espacio público, y la bicicleta se convirtió en una de las principales alternativas para mejorar la habitabilidad de la ciudad. India, China, Cuba y Corea del Norte figuran entre los países que la han usado progresivamente como medio de transporte importante; también es común en Países Bajos, Dinamarca y Francia.",
+			"title": "Ciclismo urbano",
+			"url": "https://es.wikipedia.org/wiki/Ciclismo_urbano"
+		},
+		"carretera": {
+			"summary": "El ciclismo en carretera, también conocido como ciclismo en ruta, es una modalidad de ciclismo de competición que consiste en competir en carretera, a diferencia del ciclismo en pista, que se disputa en el óvalo de un velódromo. Es un deporte muy exigente y no debe confundirse con el cicloturismo, aunque en este también pueda darse cierto nivel de exigencia competitiva.",
+			"title": "Ciclismo en carretera",
+			"url": "https://es.wikipedia.org/wiki/Ciclismo_en_carretera"
+		},
+		"todo-terreno": {
+			"summary": "El ciclismo de montaña (ciclismo MTB o ciclomontañismo), considerado un deporte de riesgo, es una modalidad de ciclismo realizada en circuitos naturales a través de bosques, por caminos angostos con cuestas empinadas. La bicicleta de montaña, o bicicleta todo terreno (BTT), es el tipo de bicicleta diseñado para practicarlo.",
+			"title": "Ciclismo de montaña",
+			"url": "https://es.wikipedia.org/wiki/Ciclismo_de_monta%C3%B1a"
+		},
+		"extremo": {
+			"summary": "Los deportes extremos o de aventura son todas aquellas actividades de ocio o profesionales con un componente deportivo que comparten una peligrosidad real o aparente, por las condiciones difíciles o arriesgadas en las que se practican.",
+			"title": "Deporte extremo",
+			"url": "https://es.wikipedia.org/wiki/Deporte_extremo"
+		},
+		"cargo": {
+			"summary": "Una bicicleta de reparto, bicicleta de cargo, triciclo de reparto o bicicarro es un vehículo de tracción humana diseñado específicamente para transportar cargas. El diseño suele incluir una zona de carga que puede ser una caja cerrada, una plataforma plana o una cesta, montada sobre la bicicleta o entre ruedas paralelas en la parte delantera o trasera. El cuadro y la transmisión deben soportar cargas muy superiores a las de una bicicleta normal. Con la aparición de aplicaciones móviles de reparto, donde se requiere un transporte ligero y de bajo costo, estas bicicletas han vuelto a tener un gran auge en el siglo XXI, en especial en las grandes ciudades.",
+			"title": "Bicicleta de reparto",
+			"url": "https://es.wikipedia.org/wiki/Bicicleta_de_reparto"
+		},
+		"chopper": {
+			"summary": "Una bicicleta chopper es una bicicleta altamente personalizada cuyo diseño, construcción y estilo es similar al de una motocicleta estilo chopper.",
+			"title": "Bicicleta chopper",
+			"url": "https://es.wikipedia.org/wiki/Bicicleta_chopper"
+		},
+		"city bike": {
+			"summary": "La bicicleta urbana (city bike, utility bicycle) está diseñada para trayectos cortos y frecuentes por zonas urbanas, y permite rodar con ropa normal en una gran variedad de condiciones climáticas. Es una bicicleta pensada para el transporte práctico, a diferencia de las dedicadas sobre todo al ocio y la competición, como las de cicloturismo, carretera o montaña. Es la forma de bicicleta más común en el mundo y constituye la gran mayoría de las que se ven en los países en desarrollo. Puede ser de propiedad individual o formar parte de un sistema público de bicicletas compartidas.",
+			"title": "Utility bicycle",
+			"url": "https://en.wikipedia.org/wiki/Utility_bicycle"
+		},
+		"cruiser": {
+			"summary": "Una bicicleta playera, en inglés cruiser o beach cruiser, es el nombre popular de lo que antes se llamaba bicicleta con «neumáticos de balón». Este estilo fue muy popular en las décadas de 1940 y 1950. Se caracteriza por neumáticos de 26 x 2.125\", y es una bicicleta de paseo a medio camino entre una bicicleta urbana y una de montaña. Generalmente no lleva cambios y frena por contrapedal.",
+			"title": "Bicicleta playera",
+			"url": "https://es.wikipedia.org/wiki/Bicicleta_playera"
+		},
+		"fixie": {
+			"summary": "La bicicleta de piñón fijo, fixie o fixed, es una bicicleta monomarcha que no tiene piñón libre, lo que significa que no tiene punto muerto: los pedales están siempre en movimiento cuando la bicicleta avanza. Por eso no se puede dejar de pedalear mientras la rueda trasera gira, y se puede frenar haciendo una fuerza inversa al sentido de la marcha, e incluso ir marcha atrás.",
+			"title": "Bicicleta de piñón fijo",
+			"url": "https://es.wikipedia.org/wiki/Bicicleta_de_pi%C3%B1%C3%B3n_fijo"
+		},
+		"folding bike": {
+			"summary": "Las bicicletas plegables son un tipo de bicicleta que incorpora bisagras en el cuadro y el manubrio, lo que permite doblarla y dejarla en un tamaño más compacto. Por lo general tienen ruedas de 20 pulgadas o menos. Se pueden subir al transporte público y llevar a oficinas, departamentos y otros sitios donde una bicicleta convencional no podría entrar, lo que facilita el transporte mixto, porque no necesitan encadenarse en la calle o en las estaciones de tren.",
+			"title": "Bicicleta plegable",
+			"url": "https://es.wikipedia.org/wiki/Bicicleta_plegable"
+		},
+		"hybrid": {
+			"summary": "Las bicicletas híbridas combinan características de las bicicletas de carretera, de turismo y de montaña. El resultado es una bicicleta de uso general que tolera una amplia gama de condiciones de conducción. Su estabilidad, comodidad y facilidad de uso las hacen populares entre ciclistas novatos, ciclistas ocasionales, quienes se desplazan al trabajo y niños.",
+			"title": "Bicicleta híbrida",
+			"url": "https://es.wikipedia.org/wiki/Bicicleta_h%C3%ADbrida"
+		},
+		"road": {
+			"summary": "El término bicicleta de carretera describe las bicicletas construidas para circular a velocidad por vías pavimentadas. Algunas fuentes lo usan como sinónimo de bicicleta de carreras; otras excluyen las de carreras y lo aplican a bicicletas de estilo similar pensadas más para la resistencia que para los arranques rápidos de velocidad, por lo que suelen tener más combinaciones de marchas y menos elementos tecnológicos de competición.",
+			"title": "Road bicycle",
+			"url": "https://en.wikipedia.org/wiki/Road_bicycle"
+		},
+		"touring bike": {
+			"summary": "Una bicicleta de cicloturismo (touring) está diseñada o modificada para viajar en bicicleta. Para que sea lo bastante robusta, cómoda y capaz de llevar cargas pesadas, puede incluir una distancia entre ejes larga, materiales de cuadro que favorecen la flexibilidad sobre la rigidez, ruedas reforzadas y múltiples puntos de anclaje.",
+			"title": "Touring bicycle",
+			"url": "https://en.wikipedia.org/wiki/Touring_bicycle"
+		},
+		"gravel": {
+			"summary": "El ciclismo gravel es un deporte o actividad recreativa que consiste en rodar en bicicleta por caminos de grava u otras superficies sin asfaltar. Aunque suele practicarse con una bicicleta gravel diseñada para ello, sirve cualquier bicicleta capaz de cubrir el terreno.",
+			"title": "Gravel cycling",
+			"url": "https://en.wikipedia.org/wiki/Gravel_cycling"
+		},
+		"mountain bike": {
+			"summary": "Una bicicleta de montaña (MTB) está diseñada para el ciclismo fuera de carretera. Comparte similitudes con otras bicicletas, pero incorpora características para mejorar la durabilidad y el rendimiento en terreno difícil, lo que suele hacerla más pesada, más compleja y menos eficiente sobre superficies lisas. Entre ellas, normalmente una horquilla con suspensión, neumáticos grandes y tacos, ruedas más resistentes, frenos más potentes, un manubrio recto y ancho para mejorar el equilibrio, y una relación de cambios amplia adaptada al relieve.",
+			"title": "Mountain bike",
+			"url": "https://en.wikipedia.org/wiki/Mountain_bike"
+		},
+		"mtb xc": {
+			"summary": "El cross-country (XC) es una disciplina del ciclismo de montaña y de las carreras de bicicleta de montaña. Se convirtió en deporte olímpico en 1996 y es la única forma de ciclismo de montaña que se practica en los Juegos Olímpicos.",
+			"title": "Cross-country cycling",
+			"url": "https://en.wikipedia.org/wiki/Cross-country_cycling"
+		},
+		"trail": {
+			"summary": "El trail riding o trail biking es una forma variada, popular y no competitiva de ciclismo de montaña, sobre senderos reconocidos, a menudo señalizados y graduados por dificultad: pistas sin asfaltar, caminos forestales, etc. Los senderos pueden ser rutas sueltas o formar parte de un complejo mayor, conocido como trail center. Su dificultad va de rutas «familiares» suaves (verdes) a otras con elementos técnicos cada vez mayores (azules y rojas) y a las que exigen mucha forma física y habilidad (negras), con subidas exigentes y descensos técnicos empinados.",
+			"title": "Mountain biking (Trail riding)",
+			"url": "https://en.wikipedia.org/wiki/Mountain_biking#Trail_riding"
+		},
+		"bmx": {
+			"summary": "El BMX es una disciplina del ciclismo que se practica con bicicletas cross de ruedas de 20 pulgadas de diámetro. Nació a finales de la década de 1960 en California, cuando niños y adolescentes imitaban el motocross usando bicicletas en pistas de tierra, inspirándose en los pilotos de motos de la época. Se practica en pistas de tierra con rampas y curvas (BMX Racing) o en parques específicos, skateparks e incluso calles (BMX Freestyle, que incluye estilos como park, street, flatland y dirt jump).",
+			"title": "Ciclismo BMX",
+			"url": "https://es.wikipedia.org/wiki/Ciclismo_BMX"
+		},
+		"downhill": {
+			"summary": "El descenso (downhill, DH) es un estilo de ciclismo de montaña que se practica en terreno empinado y accidentado, con frecuencia con saltos, desniveles, jardines de rocas y otros obstáculos. Los saltos pueden llegar a 12 metros y los desniveles superar los 3 metros.",
+			"title": "Downhill mountain biking",
+			"url": "https://en.wikipedia.org/wiki/Downhill_mountain_biking"
+		},
+		"fat bike": {
+			"summary": "Una fatbike es una bicicleta con neumáticos sobredimensionados, normalmente de 3,8 pulgadas (97 mm) o más, sobre llantas de 2,16 pulgadas (55 mm) o más anchas, diseñada para ejercer poca presión sobre el suelo y poder rodar en terreno blando e inestable como nieve, arena, pantanos y barro. Sus neumáticos anchos pueden usarse con presiones muy bajas, de hasta 5 psi, para absorber obstáculos con suavidad. Se desarrollaron para la nieve o la arena, pero son capaces de recorrer terrenos diversos, desde el pavimento hasta los senderos de ciclismo de montaña, y en la década de 2020 también se han usado más en zonas urbanas.",
+			"title": "Fatbike",
+			"url": "https://en.wikipedia.org/wiki/Fatbike"
+		},
+		"tall bike": {
+			"summary": "Una tall bike es una bicicleta inusualmente alta, a menudo construida por aficionados con piezas sobrantes. Lo habitual es unir dos cuadros convencionales, uno sobre otro, soldándolos o de otra manera; la transmisión se reconfigura para conectar con el juego de pedales superior y los mandos se llevan a la zona del manubrio de arriba.",
+			"title": "Tall bike",
+			"url": "https://en.wikipedia.org/wiki/Tall_bike"
+		},
+		"car rack": {
+			"summary": "Un portabicis o soporte para bicicletas es un dispositivo conectado a un automóvil o autobús para el transporte de bicicletas.",
+			"title": "Portabicicletas",
+			"url": "https://es.wikipedia.org/wiki/Portabicicletas"
+		},
+		"cargo bike": {
+			"summary": "Desde su aparición en el siglo XIX ha habido muchos vehículos de tracción humana diseñados y construidos específicamente para transportar cargas. Se les llama de distintas maneras según el número de ruedas (normalmente dos, tres o cuatro) y su uso específico: cargo cycles, freight cycles, box cycles, carrier cycles, etcétera. A veces también se les llama cycletrucks.",
+			"title": "Cargo bike",
+			"url": "https://en.wikipedia.org/wiki/Cargo_bike"
+		},
+		"cargo trycle": {
+			"summary": "Un triciclo de carga o triciclo de transporte es un tipo de bicicleta de carga que se ha usado históricamente para transportar mercancías y, más recientemente, también niños. Se sostiene solo cuando está estacionado y es estable a baja velocidad. Sin embargo, suele tener poca estabilidad a velocidades altas, porque los modelos simples no pueden inclinarse en las curvas para desplazar el centro de gravedad.",
+			"title": "Cargo tricycle",
+			"url": "https://en.wikipedia.org/wiki/Cargo_tricycle"
+		}
+	}
+}

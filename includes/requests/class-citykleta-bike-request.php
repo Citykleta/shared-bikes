@@ -98,14 +98,24 @@ class Citykleta_Bike_Request {
 	/**
 	 * Verification code the visitor typed on the form.
 	 *
-	 * **Captured, never validated.** Nothing in WordPress can check it:
-	 * citykleta-sharing-api exposes no public route to verify a person
-	 * (/bikesPublic/sync and /map-settings are the only two), so this is
-	 * stored for whoever handles the request to check by hand — the same
-	 * staging role this whole CPT plays. A request with a wrong code still
-	 * arrives; it just arrives with a wrong code written on it.
+	 * Checked against the API at submit time (Citykleta_Contact_Reveal): a code
+	 * the API rejects never becomes a request. What is stored here is the code
+	 * as typed, and META_VERIFIED says whether the API actually confirmed it.
 	 */
 	const META_VERIFICATION_CODE = '_citykleta_request_verification_code';
+
+	/**
+	 * Meta: '1' when the API confirmed the code, '0' when the request was saved
+	 * WITHOUT that check (API down, key missing, no code typed). Staff should
+	 * treat a '0' request's code as unchecked.
+	 */
+	const META_VERIFIED = '_citykleta_request_verified';
+
+	/**
+	 * Meta: why a request is unverified, for staff (never shown to the
+	 * visitor). Empty on verified requests.
+	 */
+	const META_VERIFICATION_NOTE = '_citykleta_request_verification_note';
 
 	const META_SOURCE = '_citykleta_request_source';
 
@@ -290,6 +300,8 @@ class Citykleta_Bike_Request {
 		update_post_meta( $post_id, self::META_MESSAGE, isset( $data['message'] ) ? (string) $data['message'] : '' );
 		update_post_meta( $post_id, self::META_VERIFICATION_CODE, isset( $data['verification_code'] ) ? (string) $data['verification_code'] : '' );
 		update_post_meta( $post_id, self::META_SOURCE, isset( $data['source'] ) ? (string) $data['source'] : '' );
+		update_post_meta( $post_id, self::META_VERIFIED, ! empty( $data['verified'] ) ? '1' : '0' );
+		update_post_meta( $post_id, self::META_VERIFICATION_NOTE, isset( $data['verification_note'] ) ? (string) $data['verification_note'] : '' );
 		update_post_meta( $post_id, self::META_STATUS, self::STATUS_NEW );
 
 		return (int) $post_id;
@@ -330,6 +342,8 @@ class Citykleta_Bike_Request {
 			'message'      => (string) get_post_meta( $post_id, self::META_MESSAGE, true ),
 			'code'         => (string) get_post_meta( $post_id, self::META_VERIFICATION_CODE, true ),
 			'source'       => (string) get_post_meta( $post_id, self::META_SOURCE, true ),
+			'verified'     => '1' === (string) get_post_meta( $post_id, self::META_VERIFIED, true ),
+			'verification_note' => (string) get_post_meta( $post_id, self::META_VERIFICATION_NOTE, true ),
 			'status'       => (string) get_post_meta( $post_id, self::META_STATUS, true ),
 		);
 	}
@@ -453,9 +467,8 @@ class Citykleta_Bike_Request {
 				break;
 
 			case 'citykleta_contact':
-				// Empty until Citykleta_Bike_Request_Rest::resolve_identity()
-				// is actually wired up to /contact/reveal — the form no
-				// longer asks the requester for this directly.
+				// The form never asks the requester for this, and
+				// /contact/reveal doesn't return it, so it stays empty.
 				$contact = (string) get_post_meta( $post_id, self::META_CONTACT, true );
 				echo $contact ? esc_html( $contact ) : '—';
 				break;
@@ -467,6 +480,34 @@ class Citykleta_Bike_Request {
 				echo esc_html( isset( $statuses[ $status ] ) ? $statuses[ $status ] : $statuses[ self::STATUS_NEW ] );
 				break;
 		}
+	}
+
+	/**
+	 * The requested dates as a phrase that slots into the WhatsApp message
+	 * ({dates} placeholder): " del 20/09/2026 al 23/09/2026", " el 20/09/2026",
+	 * " desde el …", " hasta el …", or '' when no dates were given. The leading
+	 * space is part of the phrase so that an empty one leaves no gap behind.
+	 *
+	 * @param string $from 'Y-m-d' or ''.
+	 * @param string $to   'Y-m-d' or ''.
+	 * @return string
+	 */
+	public static function dates_phrase( $from, $to ) {
+		$fmt = static function ( $ymd ) {
+			$ts = strtotime( $ymd . ' 12:00:00' );
+
+			return $ts ? gmdate( 'd/m/Y', $ts ) : $ymd;
+		};
+
+		if ( '' !== $from && '' !== $to ) {
+			return $from === $to ? ' el ' . $fmt( $from ) : ' del ' . $fmt( $from ) . ' al ' . $fmt( $to );
+		}
+
+		if ( '' !== $from ) {
+			return ' desde el ' . $fmt( $from );
+		}
+
+		return '' !== $to ? ' hasta el ' . $fmt( $to ) : '';
 	}
 
 	/**
@@ -529,12 +570,13 @@ class Citykleta_Bike_Request {
 				: esc_html( $data['bike_title'] ),
 			'App bike id'  => esc_html( $data['external_id'] ),
 			'Dates'        => esc_html( self::format_dates( $post->ID ) ),
-			// Shown as typed. Nothing verified it — see META_VERIFICATION_CODE.
 			'Code'         => '' !== $data['code'] ? '<code>' . esc_html( $data['code'] ) . '</code>' : '',
-			// Empty until Citykleta_Bike_Request_Rest::resolve_identity() is
-			// actually wired up to /contact/reveal — the form doesn't ask for
-			// this anymore, only the code above.
-			'Requester'    => '' !== $data['name'] ? esc_html( $data['name'] ) : '<em>Not resolved from the code yet</em>',
+			'Verification' => $data['verified']
+				? '<strong style="color:#1a7f37;">Verified by the app</strong>'
+				: '<strong style="color:#b32d2e;">NOT verified</strong>' . ( '' !== $data['verification_note'] ? ' — ' . esc_html( $data['verification_note'] ) : '' ),
+			// Only filled when the API confirmed the code (the form doesn't ask
+			// for a name).
+			'Requester'    => '' !== $data['name'] ? esc_html( $data['name'] ) : '<em>Not resolved from the code</em>',
 			'Contact'      => $this->contact_link( $data ),
 			'Message'      => '' !== $data['message'] ? nl2br( esc_html( $data['message'] ) ) : '',
 			'Came from'    => '' !== $data['source'] ? '<a href="' . esc_url( $data['source'] ) . '">' . esc_html( $data['source'] ) . '</a>' : '',
@@ -610,6 +652,7 @@ class Citykleta_Bike_Request {
 				'{bike}'  => $data['bike_title'],
 				'{price}' => Citykleta_Bike_Meta::price_html( $bike_id ),
 				'{url}'   => (string) get_permalink( $bike_id ),
+				'{dates}' => self::dates_phrase( $data['from'], $data['to'] ),
 			)
 		);
 

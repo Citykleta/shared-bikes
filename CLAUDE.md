@@ -27,10 +27,13 @@ includes/
                                         geocerca, no un campo que se elige a mano. Incluye su propia caja
                                         de campos (geocerca + FAQ). Ver sección "Destinos" más abajo.
   taxonomies/
-    class-citykleta-bike-type-taxonomy.php → Taxonomía bike_type, sincronizada (ver
-                                        class-citykleta-bike-type-sync.php).
-    class-citykleta-bike-usage-taxonomy.php → Taxonomía bike_usage, administrada a mano, sin
-                                        asignación directa por bici (se deriva de bike_type).
+    class-citykleta-bike-type-taxonomy.php → Taxonomía JERÁRQUICA bike_type: arriba los tipos
+                                        (Urbano, Carretera…, a mano), dentro los subtipos
+                                        (Road, MTB…, los crea el sync). Ver "Bike types y etiquetas".
+    class-citykleta-bike-tag-taxonomy.php  → Taxonomía bike_tag (Tandem, Kids, Trailer, Electric),
+                                        sincronizada desde `tags` de la API; Electric se deriva.
+    class-citykleta-bike-type-migration.php → Migración de una sola vez al árbol bike_type (desde las
+                                        planas viejas o desde el bike_kind provisional). Ver esa sección.
   meta/
     class-bike-meta.php              → Campos personalizados + caja de edición + guardado + REST API.
     class-citykleta-owner-contact.php → El ÚNICO campo de la bici que no se sincroniza: el contacto del
@@ -122,6 +125,9 @@ includes/
     class-citykleta-map-widget.php    → Widget "Bikes Map": consulta bicis con WP_Query (mismo patrón que
                                          el widget de grid) y se las pasa como JSON a citykleta-map.js, que
                                          las dibuja en un mapa Leaflet agrupadas en clusters.
+    class-citykleta-bike-terms-widget.php → Widget "Bike Categories": las taxonomías de bici
+                                         (bike_type o bike_usage) como una lista horizontal de chips.
+                                         Ver "Bike Categories" más abajo.
     class-citykleta-widget-shortcodes.php → [citykleta_search]/[citykleta_grid]/[citykleta_map]: los tres
                                          widgets de arriba, también como shortcodes (reusan su render()
                                          real, ver la sección "Archivo de bicis" más abajo).
@@ -209,11 +215,10 @@ datos vienen de la app y que editar ahí no se guarda en el origen.
 Por la misma razón, `Citykleta_Bike_Post_Type` quita el enlace "Añadir nueva" del menú
 lateral y oculta el botón "Añadir bicicleta" de la lista (solo CSS, no toca capacidades de
 usuario — la URL `post-new.php?post_type=bike` sigue siendo accesible a mano si alguien la
-escribe). `Citykleta_Bike_Type_Taxonomy` hace lo mismo con el formulario "Añadir nuevo tipo",
-porque esos términos también se crean solos al sincronizar (`wp_set_object_terms()` en
-`Citykleta_Bike_Sync::upsert_bike()`). La taxonomía `bike_usage` ("Tipos de uso") es la
-excepción — esa sí la declara el administrador a mano (ver `Citykleta_Bike_Usage_Taxonomy`),
-no viene de la API, así que **no** se le oculta nada.
+escribe). `Citykleta_Bike_Tag_Taxonomy` hace lo mismo con el formulario "Añadir etiqueta",
+porque las etiquetas también llegan solas al sincronizar. `bike_type` es mixta y por eso **no**
+oculta su formulario: los tipos de arriba (Urbano, Carretera…) los crea el administrador a mano;
+los subtipos de abajo los crea el sync. Ver "Bike types y etiquetas".
 
 **Esa API real ya existe y es la única fuente: `citykleta-sharing-api`.** En desarrollo corre
 en `http://localhost:8001` (ojo: `http://localhost:5175` es el **Back Office**, un dev server de
@@ -338,8 +343,11 @@ por separado, nunca uno compartido entre formularios distintos.
   sigan en inglés.
 
 `Citykleta_Bike_Type_Sync` **ya no trae nada de la red**: recibe los tipos por parámetro
-(`run( array $types )`, slug => nombre) y crea/actualiza los términos de la taxonomía `bike_type` por
-`slug`. El motivo es que el `GET /bike-types` de la API es solo de staff (401 sin sesión, ver arriba),
+(`run( array $types )`, slug => nombre) y crea/actualiza los **subtipos** — el segundo nivel de
+`bike_type` — por `slug`. Un subtipo nuevo nace bajo el tipo "Unclassified", nunca suelto arriba; a
+uno existente sólo le actualiza el nombre, **nunca el padre** (eso lo decidió una persona en
+wp-admin), y jamás toca ni marca inactivo un tipo de primer nivel. El motivo de leer los subtipos del
+payload es que el `GET /bike-types` de la API es solo de staff (401 sin sesión, ver arriba),
 pero cada fila de `/bikesPublic/sync` ya trae `bike_type` y `bike_type_name` — así que
 `Citykleta_Bike_Sync::collect_bike_types()` los recoge del payload de bicis que de todos modos acaba
 de descargar, y se los pasa. Por eso **corre después del fetch de bicis** pero **antes del loop de
@@ -613,6 +621,101 @@ Los dos dan un **conteo** más un ejemplo. Antes cada fallo hacía su propio
 le pasó a la última bici procesada**: con 68 fallos se veía el 68º, y si la última hubiera
 funcionado no se habría visto ninguno. El código de error se compara contra
 `Citykleta_Bike_Sync::IMAGE_TYPE_ERROR`, no contra el texto del mensaje.
+
+## Bike types y etiquetas (taxonomías)
+
+Desde 2026-10 la clasificación de una bici es **un árbol de dos niveles**, como las categorías de
+WordPress — la taxonomía jerárquica `bike_type` (`Citykleta_Bike_Type_Taxonomy`), con URLs
+`/bike-type/urbano/city-bike/` (`REWRITE_SLUG`). Estado al 2026-10-05:
+
+```
+Urbano        → Chopper, City bike, Cruiser, Fixie, Folding bike
+Carretera     → Hybrid, Road, Touring bike
+Todo-terreno  → Gravel, Mountain bike (MTB), MTB XC, Trail
+Extremo       → BMX, Downhill, Fat bike, Tall bike
+Cargo         → Car Rack, Cargo bike, Cargo trycle
+Unclassified  → (subtipos nuevos que todavía nadie colocó; oculto al visitante)
+```
+
+- **Primer nivel = los TIPOS** (Urbano, Carretera…), escritos a mano en wp-admin (Bicicletas → Bike
+  types), con descripción y `display_order`. **Segundo nivel = los SUBTIPOS** (Road, MTB…), que crea
+  el sync con el slug que manda la API — **la API los llama `bike_type`**, ojo con la confusión.
+- **La bici recibe su SUBTIPO, nunca el tipo.** Su tipo es el padre del subtipo. Helpers de
+  `Citykleta_Bike_Type_Taxonomy`: `bike_subtypes( $bike_id )` (lo asignado), `bike_types( $bike_id )`
+  (los padres), `top_level()`, `children( $type_id )`, `all_subtypes()`. Como un `tax_query` incluye
+  los hijos por defecto, filtrar por "Urbano" encuentra todas sus bicis: `?usage=urbano` no necesita
+  ninguna tabla de traducción.
+- **Un subtipo tiene UN solo tipo** — es la regla de cualquier jerarquía. Antes, con las dos
+  taxonomías planas `bike_usage` + `bike_type` unidas por un term meta con IDs, uno podía estar en dos
+  usos. Al fusionarlas hubo que decidir (decisión del usuario, 2026-10): **Downhill y Fat bike →
+  Extremo**, **Gravel → Todo-terreno**, **Touring bike → Carretera**; y los que no tenían uso: **Cargo
+  trycle → Cargo**, **Tall bike → Extremo**. Cambiarlo es mover el padre en wp-admin. Después, a mano
+  en wp-admin, **Cruiser pasó a Urbano y E-bike desapareció** (no lo hizo ninguna migración).
+- **Subtipos nuevos del sync → "Unclassified"**, nunca sueltos en primer nivel (pasarían por un tipo
+  en el buscador). El sync nunca cambia el padre de un subtipo existente: colocarlo a mano dura.
+- **Slugs: un solo espacio de nombres.** El uso "Carretera" tenía slug `road`, igual que el subtipo
+  "Road" — que tiene que conservarlo porque es el que manda la API. El tipo pasó a `carretera`, así
+  que **`?usage=road` cambió de significado**: ya no es "Carretera" (25 bicis) sino el subtipo Road (14).
+- **REST:** `bike_type_names` sigue devolviendo los **subtipos** (Road, MTB) — exactamente lo que
+  devolvía cuando `bike_type` era la lista plana, para no romper a quien ya lo lea. El primer nivel va
+  en `bike_type_parent_names`; las etiquetas en `bike_tag_names`.
+
+### Etiquetas — `bike_tag`
+
+`Citykleta_Bike_Tag_Taxonomy`: Tandem, Kids, Trailer, Electric… Es **de solo lectura en WP**: el
+backend ya tiene `tag` / `bike_tag` y `/bikesPublic/sync` las manda como `tags: ["…"]` en cada bici;
+`Citykleta_Bike_Sync::sync_tags()` reescribe el conjunto completo en cada corrida (también a vacío,
+para que una etiqueta quitada en la app desaparezca aquí). **Tandem y Trailer eran tipos** y pasaron
+a etiqueta — eso, del lado del backend, es un cambio que hay que hacer en Back Office: si la API sigue
+mandando `bike_type: tandem`, el sync lo vuelve a crear como tipo (bajo Unclassified).
+
+**Electric no viene de `tags`: se deriva de `is_electric`.** Una sola fuente para un mismo hecho; un
+"Electric" que llegue en `tags` se descarta. Verificado: 13 bicis con `is_electric` = 13 con la
+etiqueta, cero desajustes.
+
+### La migración (`Citykleta_Bike_Type_Migration`)
+
+Corre una sola vez, en la primera petición tras actualizar, desde `citykleta_init()` (después de
+registrar las taxonomías). Marca `citykleta_bike_type_tree_migrated` con la fecha y usa
+`citykleta_bike_type_migrating` como candado (un `add_option()` que falla si ya existe, para que dos
+primeras peticiones simultáneas no dupliquen todos los términos). Sirve para **dos puntos de partida**:
+
+1. **Siempre primero: aparta los términos planos viejos.** El árbol reusa el nombre `bike_type`, que
+   seguían ocupando los 22 términos planos de antes; si se quedaban ahí, aparecerían mezclados en el
+   árbol y cada bici apuntaría a los dos. Se renombran sus filas a `bike_type_legacy` /
+   `bike_usage_legacy`. Tiene que ir primero: hasta que corre, todo lo que está bajo `bike_type` es
+   la lista plana vieja.
+2. **Luego, según el estado:**
+   - **Sitio que tuvo el árbol provisional `bike_kind`** (sólo este LocalWP, unos días de 2026-10): se
+     renombran sus filas a `bike_type`. IDs, padres, metas y asignaciones quedan intactos — cuelgan de
+     `term_taxonomy_id`, no del nombre. Lo que se haya hecho a mano en wp-admin se conserva (de ahí
+     que Cruiser y E-bike llegaran como estaban).
+   - **Sitio con las taxonomías planas** (posiblemente producción): construye el árbol desde las
+     `*_legacy` — usos → tipos, tipos viejos → subtipos (con `PARENT_OVERRIDES`), Tandem/Trailer →
+     etiquetas, reasigna todas las bicis, y quita de las descripciones la cola "Bike types: X, Y" que un
+     guardado viejo de `bike_usage` dejaba pegada (el buscador ya añade esa lista en vivo como "Inc. …").
+3. **Al final, borra los términos `*_legacy`** (`purge_legacy()`, decisión del usuario del 2026-10-05,
+   en todos los sitios, sin respaldo). Usa `wp_delete_term()` y no SQL, porque así se van también
+   sus metas y las relaciones de cada bici con ellos. **Desde ahí la migración ya no se puede
+   deshacer.** Salvaguarda: si el árbol `bike_type` está vacío —o sea, falló la construcción— no
+   borra nada, porque los `*_legacy` serían la única copia de la clasificación; reintenta en otra
+   petición. Lo marca la opción aparte `citykleta_bike_type_legacy_purged`. **Verificado en este
+   LocalWP** leyendo la base de datos: cero filas `*_legacy`, cero términos/metas/relaciones
+   huérfanos, árbol intacto (25 términos).
+
+Renombrar la columna `taxonomy` de `wp_term_taxonomy` es la única forma de renombrar una taxonomía
+— WordPress no tiene API para eso — y es seguro por lo mismo: nada más guarda el nombre por fila. Lo
+único derivado es la opción de caché de jerarquía `{taxonomía}_children`, que se borra después.
+
+**Verificado en vivo en este LocalWP:** 25 términos (6 tipos + 19 subtipos, ningún plano viejo
+colado), 68 bicis con tipo y subtipo, filtros `?usage=` con los mismos números que antes del
+renombre, `/bike-type/…` en 200 y `/bike_kind/…` en 404.
+
+Las claves que ya estaban guardadas en plantillas de Elementor y shortcodes **no cambiaron**:
+`field="bike_type"` / `field="bike_usage"` en Bike Data y `taxonomy="bike_type"` /
+`taxonomy="bike_usage"` en Bike Categories siguen funcionando. **Ojo con su significado:** ahí
+`bike_type` es el **subtipo** y `bike_usage` el **tipo** de arriba — nombres viejos conservados para no
+dejar en blanco ningún widget ya colocado.
 
 ## Plantillas (Bicicletas → Templates)
 
@@ -1015,7 +1118,10 @@ Existe porque un dato sin widget propio es un dato que el layout sencillamente *
 escribir una clase por campo serían una docena de clases casi idénticas — el mismo razonamiento que
 fusionó los dos widgets de mapa en uno con control de origen. `FIELDS` es la lista: `price`,
 `description`, `address`, `owner`, `availability`, `destinations`, `views`, `brand`, `model`, `size`,
-`wheel_size`, `electric`, `bike_type`, `bike_usage`. Controles: el campo, etiqueta opcional (con texto
+`wheel_size`, `electric`, `bike_type`, `bike_usage`, `bike_tags`. (Ojo: `bike_type` = el **subtipo**
+— "Subtipo" — y `bike_usage` = el **tipo** de arriba — "Tipo" —, ambos del árbol `bike_type`; las
+claves conservan el nombre viejo porque están guardadas en plantillas y shortcodes.) Controles: el
+campo, etiqueta opcional (con texto
 propio o el nombre del campo), etiqueta HTML, y el mismo panel Style compartido
 (`register_text_editor_style_section()`) más tipografía/color para la etiqueta.
 
@@ -1048,10 +1154,12 @@ La **ficha técnica** (`citykleta_bike_specs`) tiene columnas responsive
 tabla** (fondo, borde, radio, sombra, padding — nunca por fila) y
 tipografía/color/alineación por separado para etiqueta y valor — una tabla
 técnica necesita las dos mitades distintas. También añade la
-**categorización** de la bici como filas: `bike_type`, `bike_usage`, y
+**categorización** de la bici como filas: "Tipo" (Urbano — el padre de su subtipo; antes
+esta fila leía un término `bike_usage` que nunca se asignaba a ninguna bici, así que
+**jamás aparecía**), "Subtipo" (City bike — lo que manda la API), y
 **"Eléctrica"** (movida acá desde el widget de título/ubicación — ver esa
 sección más arriba). **Ojo con esas etiquetas**: se escriben en español a
-mano ("Tipo", "Uso") en vez de leerse de `labels->singular_name` de la
+mano ("Tipo", "Subtipo") en vez de leerse de `labels->singular_name` de la
 taxonomía, porque esas son etiquetas de wp-admin y van en inglés por
 convención — leerlas ponía "Bike type" en una tabla que al visitante le dice
 "Marca", "Modelo", "Talla".
@@ -1262,14 +1370,74 @@ El widget también tiene pestaña **Style** con cuatro secciones — Diseño (es
 entre tarjetas), Tarjeta (color/padding vertical y horizontal/borde/esquinas por
 lado/sombra), Contenido (color, tipografía y espaciado propios para título, ubicación
 y precio, más colores de las etiquetas de disponibilidad) y Foto del propietario
-(tamaño, posición izquierda/centro/derecha, separación del borde) — todo vía el
+(solo tamaño: el avatar va dentro de la línea de meta, delante del nombre) — todo vía el
 mecanismo `selectors`/`selectors_dictionary` de Elementor, sin tocar `render()`.
 
-**Nota técnica:** posición y separación del avatar del propietario se combinan con
-una variable CSS (`--citykleta-owner-offset`, definida por el control de padding y
-consumida por el `selectors_dictionary` de posición) porque Elementor no permite que
-un control de tipo CHOOSE incluya el valor de otro control dentro de su
-`selectors_dictionary` directamente.
+**El hover de la tarjeta: la imagen no se mueve y la tarjeta es plana.** La versión anterior hacía
+`transform: translateY(-2px)` más una sombra; con una foto dentro eso se lee como que la imagen **salta
+de sitio**. Hoy la tarjeta **no tiene sombra** (ni en reposo ni en hover, por pedido, siguiendo la
+referencia de diseño) y lo único que cambia al pasar el mouse es el fondo de la tarjeta entera, control
+Style → Card → Hover → Background Color (`card_bg_color_hover`), cuyo default es el color global
+**Secondary** del kit (`var(--e-global-color-secondary)`). El control "Text Area Background"
+(`card_body_bg_color_hover`) se **eliminó**: tintar solo el bloque de texto dejaba la meta y la imagen fuera
+del hover. El fondo de `__image` tampoco lleva color propio. Border Radius es por esquina (`DIMENSIONS`).
+Tipografía a escala de la referencia: título Poppins 600 1rem, ubicación .875rem, precio .875rem 600.
+
+**Regla: los defaults los ponen los controles de Elementor, no el CSS del plugin.** El tinte del hover
+(`card_bg_color_hover`, default global Secondary) y el título (color + tipografía Poppins 600 1rem, vía
+`fields_options` con `'typography' => array( 'default' => 'custom' )`) viven como `default` del control.
+Un estilo duplicado en `bike-cards.css` entra en conflicto con el control y deja al usuario con dos
+fuentes de verdad. Efecto: el default solo aparece tras regenerar el CSS de Elementor (Elementor →
+Tools), y un shortcode no lo recibe (no hay CSS generado para él). La tarjeta es una columna flex
+(`__body { flex: 1 }`) para que el hover cubra toda la tarjeta aunque se estire en la fila. Las reglas
+genéricas `p`/`h4` del kit (0,1,1) le ganan al CSS plano del plugin, y el margen inferior del precio
+colapsa con el superior de la meta: por eso el slider "Spacing" no reaccionaba por debajo de ~28px.
+
+**Línea de meta (dueño · vistas).** Debajo del precio, `show_owner_name` y `show_views` (ambos
+activados por defecto) imprimen el nombre del dueño y las vistas (`Citykleta_View_Stats::count()`),
+separados por un punto. Las vistas llevan un **ícono de ojo** (SVG inline, `currentColor`) en vez de la
+palabra; la palabra "vista(s)" queda como `screen-reader-text` para accesibilidad. Una bici con 0 vistas
+no imprime nada (un "0" se lee como etiqueta de advertencia). **No hay "guardados"** a propósito: el
+plugin no tiene ninguna función de favoritos, y mostrar un contador sin feature detrás sería inventar el
+dato. Estilos propios en Style → "Owner & Views".
+
+**La meta es hermana de `__body`, no hija, y siempre queda pegada al fondo.** `render()` cierra
+`__body` (título, ubicación, precio) y luego imprime `<div class="citykleta-bike-card__meta">` directo
+dentro del `<a>`. Como `__body { flex: 1 }` absorbe el espacio sobrante, el hueco queda entre el contenido
+y la meta aunque las tarjetas de una fila tengan alturas distintas. La meta lleva su propio padding
+(`0 1rem 1rem`); el control Content Padding (`card_content_padding`) lo aplica también a ella, y "Spacing"
+(`meta_spacing`) ahora es `padding-top` de la meta. En Image Left/Right la tarjeta pasa a **grid** (imagen
+en las dos filas, body arriba, meta abajo en la columna de texto) porque en flex de fila la meta sería una
+tercera columna.
+
+**La foto del dueño va dentro de esta línea, delante del nombre**, no encima de la imagen de la bici.
+`render()` arma `$owner_html` (avatar + nombre) dentro de un `.citykleta-bike-card__ownerline`
+(`inline-flex`, alineado al centro), círculo de 20px (`border-radius: 50%`). El switcher
+`show_owner_photo` y el control de tamaño siguen vigentes; **Position y Edge Spacing se borraron**
+porque ya no hay nada que posicionar. Ojo: `owner_photo` llega **siempre vacío** (el catálogo manda
+`owner: { name, verified }`), así que el avatar no se ve hasta que la API mande la foto o alguien llene
+ese meta a mano.
+
+Dos trampas de especificidad que esto destapó, las dos ya resueltas:
+
+- **El aro de 0.5px hay que repetirlo en el `:hover`.** `box-shadow` se reemplaza entero, no se
+  acumula: sin repetirlo, el contorno de la tarjeta desaparecía justo al pasar el mouse.
+- **El kit de Elementor subrayaba y teñía todo el texto de la tarjeta.** La tarjeta entera es un `<a>`,
+  y `.elementor-kit-{id} a:hover { color: …; text-decoration: underline }` pesa **0,2,1** — le gana
+  tanto al `text-decoration: none` de la regla base (0,1,0) como a repetirlo en
+  `.citykleta-bike-card:hover` (0,2,0), cosa que se probó en vivo y seguía subrayando. Título,
+  ubicación y precio salían los tres subrayados y en el color primario del kit. Se resuelve
+  encadenando el contenedor (`.citykleta-bike-grid a.citykleta-bike-card:hover`, 0,3,1), que gana sin
+  depender del orden de carga de las hojas ni de `!important`.
+
+**"Bike Count" y "Bikes Per Page" no son dos campos redundantes, pero antes lo parecían.** Los dos
+escriben `posts_per_page` y **nunca** a la vez: `render()` lee `count` para una grilla fija (y para
+`Destination Bikes`), y `posts_per_page` solo en la rama de página de resultados, donde la grilla
+pagina de verdad en vez de pararse en un conteo. El problema era que `count` vivía en Content sin
+condición, así que se veía siempre — también con "Filter From Page URL" encendido, donde no hace
+absolutamente nada. Uno de los dos era siempre el muerto, y nada en pantalla decía cuál. Hoy `count`
+tiene `conditions` (origen = Destination **o** "Filter From Page URL" apagado), así que solo se muestra
+el que manda, y las descripciones de ambos dicen que el otro lo reemplaza.
 
 **Gotcha:** encolar el CSS del widget (`wp_enqueue_style`) **dentro de `render()`**
 funciona en una carga de página normal, pero no dentro del editor de Elementor — ahí
@@ -1335,6 +1503,84 @@ sola clase (`.citykleta-search-bar__input`), así que "border: none" con solo es
 clase no le ganaba — se veía un doble borde (el nuestro + el del tema). Solución:
 encadenar dos clases (`.citykleta-search-bar .citykleta-search-bar__input`) para
 subir la especificidad sin necesitar `!important`.
+
+### Bike Categories (las taxonomías como lista horizontal)
+
+`Citykleta_Bike_Terms_Widget` (`citykleta_bike_terms`, `[citykleta_bike_categories]`) dibuja una fila
+de chips con una de tres fuentes: **Bike Types** (primer nivel de `bike_type`: Urbano, Carretera…),
+**Bike Subtypes** (su segundo nivel: Road, MTB…) o **Tags** (`bike_tag`). Un control elige cuál, no
+hay tres widgets casi idénticos — mismo criterio que `Citykleta_Bike_Data_Widget` con su control de campo.
+
+**Ojo con los valores guardados de ese control:** siguen siendo `bike_usage` (= tipos, primer nivel) /
+`bike_type` (= subtipos) / `bike_tag`, los nombres de las taxonomías planas viejas. Ya no son nombres
+de taxonomía sino claves de origen (`SOURCE_TYPES` / `SOURCE_SUBTYPES` / `SOURCE_TAGS`), y se dejaron
+así a propósito: cada widget de Elementor y cada `[citykleta_bike_categories taxonomy="bike_usage"]` ya
+colocado sigue funcionando sin tocarlo.
+
+Sirve para ofrecer "explora por categoría" sin escribir la lista a mano: los subtipos los crea
+`Citykleta_Bike_Type_Sync` desde el catálogo de la app, así que una lista escrita a mano quedaría
+vencida en la siguiente corrida.
+
+**A dónde enlaza cada uno:** un **tipo** es justo por lo que filtra la barra de búsqueda
+(`?usage={slug}`, ver `Citykleta_Templates::request_filters()`), así que enlaza a `/bikes/?usage=urbano`
+— el visitante se queda en la página que tiene el buscador y el mapa. Un **subtipo** o una
+**etiqueta** enlaza a su archivo de término (`/bike-type/urbano/city-bike/`, `/bike_tag/electric/`).
+
+**"Show Count" y "Hide Empty" funcionan para las tres fuentes.** Con la vieja `bike_usage` plana no
+podían: un uso nunca se asignaba a una bici, así que su `count` era siempre 0. Un tipo tampoco se
+asigna (la bici recibe su **subtipo**), pero ahora su cuenta es la suma de la de sus subtipos
+(`count_for()`), y como cada bici tiene un solo subtipo, ninguna se cuenta dos veces.
+
+**"Order By → Display order"** usa el term meta `display_order`, que sólo tienen los tipos de primer
+nivel; sobre subtipos o etiquetas cae al nombre en vez de devolver un orden arbitrario. Todo el
+ordenado, el filtrado y el límite se hacen en PHP, no en `get_terms()`: la cuenta de un tipo no es una
+columna por la que WordPress pueda ordenar.
+
+**"Wrap Lines" apagado no significa "se desborda"**: el widget emite `flex-wrap: nowrap` y
+`bike-terms.css` ya tiene `overflow-x: auto`, así que la fila se desplaza en vez de romper la página —
+mantener la lectura horizontal en una pantalla angosta es justamente el punto de este widget.
+
+Pestaña Style: Layout (alineación, separación, wrap — las tres responsive), Categories (tipografía,
+padding, radio, y pestañas Normal/Hover con color, fondo y borde) y Count. Cada selector apunta a una
+clase que `assets/css/bike-terms.css` ya define con un valor real, así que cada control **sobrescribe**
+un default en vez de inventarlo.
+
+**Pendiente de verificar en vivo tras el paso al árbol `bike_type` (2026-10).** La versión anterior
+(dos taxonomías planas) sí se verificó contra un render real por HTTP; la actual compila, pero ni el
+widget ni los helpers que usa (`top_level()`, `all_subtypes()`, `children()`) se han visto en un render — no hay
+ninguna página del sitio que lo tenga puesto. Probarlo arrastrándolo a una página con cada una de las
+tres fuentes. (Lo mismo vale para el desplegable de uso del buscador: en `/bikes/` está apagado.)
+
+### Bike Rows (una fila deslizable por tipo) y resúmenes de Wikipedia
+
+`Citykleta_Bike_Rows_Widget` (`citykleta_bike_rows`, "Bike Rows") dibuja una fila de bicis por cada tipo
+de primer nivel con bicis, en orden `display_order`; un tipo nuevo creado en wp-admin trae su fila sin
+tocar nada, y el control "Types" (vacío = todos) limita a mano. **Extiende `Citykleta_Bike_Widget`**: la
+tarjeta sale de `render_card()` (extraído del `render()` de la grilla) y hereda toda su pestaña Style;
+solo se quitan lo que no aplica (columnas, masonry, origen, filtros de URL). El título de fila es un
+enlace al archivo del tipo (`get_term_link()`), con etiqueta HTML configurable (h3 por defecto, un nivel
+bajo el encabezado opcional del widget; las tarjetas pasan a h4). Fila = `overflow-x: auto` +
+`scroll-snap`, sin librería; `assets/js/citykleta-bike-rows.js` solo marca `has-prev`/`has-next` y
+mueve los botones. Referencia Lovart: **no hay tarjeta cortada** — las flechas y un degradado en el
+borde aparecen al pasar el mouse, y solo del lado que tiene más contenido (a la izquierda, recién tras
+avanzar). En pantallas táctiles (`hover: none`) no hay flechas: se desliza.
+**Fuente (`rows_source`):** `all` (default: una fila por tipo, como arriba) o una sola fila de un tipo/subtipo,
+una etiqueta, un destino, "esta página" (archivo de tipo/etiqueta → ese término; página de destino → su
+geocerca; ficha de bici → bicis del mismo subtipo sin ella; otra página → todas) o una consulta libre
+(ubicación). `build_rows()` devuelve filas `title/url/args`, y `render()` las dibuja igual en todos los casos.
+**Botones de flecha:** panel Style → Arrows completo (tamaño, ícono propio prev/next, colores normal/hover,
+borde, radio desde cuadrado hasta círculo, sombra, distancia al borde, "siempre / al pasar el mouse" vía
+`prefix_class`, ancho del degradado); sus defaults viven en los controles, no en `bike-rows.css`.
+Pendiente de verificar en vivo: el widget compila pero no se ha colocado en ninguna página.
+
+**Resúmenes (`Citykleta_Bike_Type_Summaries`).** Cada tipo y subtipo tiene un texto de ≤1000 caracteres
+adaptado de Wikipedia (`includes/data/bike-type-summaries.json`: nombre en minúsculas → `summary`,
+`title`, `url`). Se siembra una vez en term meta `citykleta_summary*` **solo si está vacío**, y se
+imprime en la página del término por el filtro `get_the_archive_description` con enlace a la fuente
+(CC BY-SA 4.0). Va en meta propio y **no** en la descripción del término: la de los tipos de primer nivel
+ya se usa en el desplegable del buscador, donde un párrafo largo no cabe. Varios artículos solo existen
+en inglés (se tradujeron); "Trail" sale de la sección *Trail riding* de *Mountain biking*, porque el
+artículo *Trail riding* trata de equitación. Un término nuevo sin entrada en el JSON no muestra resumen.
 
 ### Mapa de bicis (widget de Elementor + página de wp-admin)
 

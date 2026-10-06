@@ -43,6 +43,7 @@ class Citykleta_Widget_Shortcodes {
 		add_shortcode( 'citykleta_search', array( $this, 'render_search' ) );
 		add_shortcode( 'citykleta_grid', array( $this, 'render_grid' ) );
 		add_shortcode( 'citykleta_map', array( $this, 'render_map' ) );
+		add_shortcode( 'citykleta_bike_categories', array( $this, 'render_bike_categories' ) );
 
 		// Pieces of a single-bike layout — each resolves the bike it's about
 		// from the current query (Citykleta_Bike_Part_Widget::bike_id()), so
@@ -132,6 +133,28 @@ class Citykleta_Widget_Shortcodes {
 	 */
 	public function render_search( $atts ) {
 		return self::render_widget( 'Citykleta_Search_Widget', (array) $atts );
+	}
+
+	/**
+	 * [citykleta_bike_categories] — Citykleta_Bike_Terms_Widget: the bike
+	 * taxonomies as a horizontal list. Attributes are the widget's own
+	 * setting IDs, e.g. [citykleta_bike_categories taxonomy="bike_usage"
+	 * show_count="yes"].
+	 *
+	 * The require_once isn't redundant: widget classes are only loaded on
+	 * `elementor/widgets/register`, and render_widget()'s class_exists()
+	 * guard would return '' without a word if this ran before that — the
+	 * gotcha CLAUDE.md already documents for Bike Data.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function render_bike_categories( $atts ) {
+		if ( did_action( 'elementor/loaded' ) ) {
+			require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-bike-terms-widget.php';
+		}
+
+		return self::render_widget( 'Citykleta_Bike_Terms_Widget', (array) $atts );
 	}
 
 	/**

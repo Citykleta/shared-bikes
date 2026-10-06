@@ -83,20 +83,46 @@
 }
 
 .citykleta-bike-card {
-	display: block;
+	display: flex;
+	flex-direction: column;
 	border-radius: 3px;
 	overflow: hidden;
 	text-decoration: none;
 	color: #282120;
 	background: #fff;
-	box-shadow: 0 0 0 0.5px rgba(21, 27, 29, 0.12);
 	font-family: 'Inter', sans-serif;
-	transition: box-shadow 0.15s ease, transform 0.15s ease;
+	transition: box-shadow 0.18s ease;
 }
 
-.citykleta-bike-card:hover {
-	box-shadow: 0 4px 12px rgba(21, 27, 29, 0.15);
-	transform: translateY(-2px);
+/*
+ * La tarjeta no lleva sombra ni contorno, ni en reposo ni en hover: es
+ * plana, como la referencia. Lo único que la separa del fondo al pasar el
+ * mouse es el color de fondo del control Style → Card → Hover — y la foto no
+ * se mueve un píxel (antes había un translateY(-2px) que la hacía saltar).
+ *
+ * La transición de box-shadow se queda aunque acá no haya ninguna: si se
+ * añade una desde Style → Card, entra y sale suave en vez de aparecer de
+ * golpe.
+ */
+
+/*
+ * La tarjeta entera es un <a>, y el kit de Elementor trae
+ * `.elementor-kit-{id} a:hover { color: …; text-decoration: underline }`.
+ * Eso pesa 0,2,1, así que le gana tanto al `text-decoration: none` de la
+ * regla base (0,1,0) como a repetirlo en `.citykleta-bike-card:hover`
+ * (0,2,0) — probado: seguía subrayando. Al pasar el mouse salían de golpe
+ * el título, la ubicación y el precio subrayados y teñidos del color
+ * primario del kit, que es el estilo genérico de enlace filtrándose, no una
+ * decisión de esta tarjeta.
+ *
+ * Encadenar el contenedor sube a 0,3,1 y gana sin depender del orden de
+ * carga de las hojas ni de !important. Mismo tipo de choque que ya
+ * documenta search-bar.css con los bordes de los inputs.
+ */
+.citykleta-bike-grid a.citykleta-bike-card:hover,
+.citykleta-bike-grid a.citykleta-bike-card:focus {
+	color: #282120;
+	text-decoration: none;
 }
 
 /*
@@ -109,6 +135,7 @@
 .citykleta-bike-card--image-left,
 .citykleta-bike-card--image-right {
 	display: flex;
+	flex-direction: row;
 	align-items: stretch;
 }
 
@@ -126,6 +153,55 @@
 .citykleta-bike-card--image-right .citykleta-bike-card__body {
 	flex: 1;
 	min-width: 0;
+}
+
+/*
+ * La meta es hermana del body, así que en fila sería una tercera columna.
+ * Se pasa a grid: la imagen ocupa las dos filas, el body la primera (que
+ * absorbe el espacio sobrante) y la meta queda abajo, en la columna de texto.
+ */
+.citykleta-bike-card--image-left,
+.citykleta-bike-card--image-right {
+	display: grid;
+	grid-template-rows: 1fr auto;
+}
+
+.citykleta-bike-card--image-left {
+	grid-template-columns: 40% 1fr;
+}
+
+.citykleta-bike-card--image-right {
+	grid-template-columns: 1fr 40%;
+}
+
+.citykleta-bike-card--image-left .citykleta-bike-card__image {
+	grid-column: 1;
+	grid-row: 1 / span 2;
+}
+
+.citykleta-bike-card--image-right .citykleta-bike-card__image {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+}
+
+.citykleta-bike-card--image-left .citykleta-bike-card__body,
+.citykleta-bike-card--image-left .citykleta-bike-card__meta {
+	grid-column: 2;
+}
+
+.citykleta-bike-card--image-right .citykleta-bike-card__body,
+.citykleta-bike-card--image-right .citykleta-bike-card__meta {
+	grid-column: 1;
+}
+
+.citykleta-bike-card--image-left .citykleta-bike-card__body,
+.citykleta-bike-card--image-right .citykleta-bike-card__body {
+	grid-row: 1;
+}
+
+.citykleta-bike-card--image-left .citykleta-bike-card__meta,
+.citykleta-bike-card--image-right .citykleta-bike-card__meta {
+	grid-row: 2;
 }
 
 /*
@@ -169,7 +245,6 @@
 .citykleta-bike-card__image {
 	position: relative;
 	aspect-ratio: 3 / 2;
-	background: #f0ece0;
 }
 
 .citykleta-bike-card__image img {
@@ -205,40 +280,99 @@
 	color: #5a5250;
 }
 
-.citykleta-bike-card__image .citykleta-bike-card__owner {
-	position: absolute;
-	bottom: var(--citykleta-owner-offset, 0.5rem);
-	left: var(--citykleta-owner-offset, 0.5rem);
-	width: 20px;
-	height: 20px;
-	border-radius: 50%;
-	border: 2px solid #fff;
-	object-fit: cover;
-	box-shadow: 0 0 0 0.5px rgba(21, 27, 29, 0.15);
+.citykleta-bike-card__ownerline {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
 }
 
+.citykleta-bike-card__meta .citykleta-bike-card__owner {
+	width: 20px;
+	height: 20px;
+	flex: none;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+/*
+ * El bloque de texto. flex: 1 le da todo el espacio sobrante de la tarjeta,
+ * así la línea de meta (hermana, fuera de este bloque) queda siempre pegada
+ * al fondo y el hueco se reparte entre el contenido y la meta.
+ */
 .citykleta-bike-card__body {
+	flex: 1;
 	padding: 1rem;
 }
 
-.citykleta-bike-card__title {
-	font-family: 'Poppins', sans-serif;
-	font-weight: 600;
-	color: #151b1d;
-	margin: 0 0 0.25rem;
-	font-size: 1.05rem;
+/*
+ * Tipografía calcada de la referencia. Lo que la hacía verse distinta no
+ * era la familia sino las PROPORCIONES: antes el título era un bloque
+ * pesado de 1.05rem, la ubicación caía a 0.85rem y el precio heredaba
+ * 1rem en negrita, o sea tres tamaños peleando. La referencia es lo
+ * contrario — tres escalones muy juntos, interlineado corto y poco
+ * contraste, así que el bloque entero se lee de un golpe en vez de
+ * atraer la vista línea por línea.
+ *
+ * Poppins se queda en el título: es la tipografía de display del sistema
+ * (misma que single-bike.css y bike-request.css), y cambiarla acá habría
+ * desalineado la tarjeta del resto del sitio para imitar un detalle que
+ * la referencia no exige — lo que sí exige es la escala.
+ */
+.citykleta-bike-card .citykleta-bike-card__title {
+	margin: 0;
 }
 
-.citykleta-bike-card__location {
-	margin: 0 0 0.35rem;
-	font-size: 0.85rem;
+.citykleta-bike-card .citykleta-bike-card__location {
+	margin: 0;
+	font-size: 0.875rem;
+	line-height: 1.4;
 	color: #5a5250;
 }
 
-.citykleta-bike-card__price {
+.citykleta-bike-card .citykleta-bike-card__price {
 	margin: 0;
+	font-size: 0.875rem;
 	font-weight: 600;
-	color: #282120;
+	line-height: 1.4;
+	color: #151b1d;
+}
+
+/*
+ * Línea de metadatos: dueño · vistas. Es el escalón más bajo de la
+ * jerarquía — el más chico y el más claro — igual que en la referencia,
+ * donde esa fila se lee después de todo lo demás y nunca compite con el
+ * título.
+ *
+ * No hay conteo de guardados: el plugin no tiene favoritos, nada en el
+ * sitio permite a un visitante guardar una bici. El día que exista, entra
+ * acá como un ítem más y el separador se acomoda solo.
+ */
+.citykleta-bike-card .citykleta-bike-card__meta {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin: 0;
+	padding: 0 1rem 1rem;
+	font-size: 0.8rem;
+	line-height: 1.4;
+	color: #5a5250;
+}
+
+.citykleta-bike-card__views {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.citykleta-bike-card__meta-icon {
+	width: 1.05em;
+	height: 1.05em;
+	flex: none;
+}
+
+.citykleta-bike-card__meta-sep {
+	color: #c9c2b2;
 }
 
 .citykleta-bike-card__body > *:last-child {

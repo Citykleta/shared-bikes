@@ -826,8 +826,7 @@ class Citykleta_Bike_Location_Tags_Widget extends Citykleta_Bike_Part_Widget {
 		$settings = $this->get_settings_for_display();
 		$location = get_post_meta( $bike_id, 'location', true );
 
-		$types = get_the_terms( $bike_id, Citykleta_Bike_Type_Taxonomy::TAXONOMY );
-		$tags  = is_array( $types ) ? wp_list_pluck( $types, 'name' ) : array();
+		$tags = wp_list_pluck( Citykleta_Bike_Type_Taxonomy::bike_subtypes( $bike_id ), 'name' );
 
 		$show_location = $location && 'yes' === $settings['show_location'];
 		$show_tags     = $tags && 'yes' === $settings['show_tags'];
@@ -1594,8 +1593,13 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 	}
 
 	/**
-	 * The bike's classification, as rows: its type (synced from the app), its
-	 * usage (declared by hand in wp-admin), and whether it's electric.
+	 * The bike's classification, as rows: its type (the top level of bike_type,
+	 * declared by hand in wp-admin), its subtype (synced from the app), and
+	 * whether it's electric.
+	 *
+	 * The type row used to read a `bike_usage` term off the bike — which was
+	 * never assigned to any bike, so the row never appeared. It's derived from
+	 * the type's parent now, and shows for every bike with a placed type.
 	 *
 	 * "Eléctrica" used to be a loose tag next to the title/location — it
 	 * belongs here instead, alongside brand/model/wheel size: it's a spec of
@@ -1615,21 +1619,17 @@ class Citykleta_Bike_Specs_Widget extends Citykleta_Bike_Part_Widget {
 	 * @return array Label => comma-separated term names (or Sí/No for Eléctrica).
 	 */
 	private static function taxonomy_specs( $bike_id ) {
-		$taxonomies = array(
-			Citykleta_Bike_Type_Taxonomy::TAXONOMY  => 'Tipo',
-			Citykleta_Bike_Usage_Taxonomy::TAXONOMY => 'Uso',
+		$groups = array(
+			'Tipo'    => Citykleta_Bike_Type_Taxonomy::bike_types( $bike_id ),
+			'Subtipo' => Citykleta_Bike_Type_Taxonomy::bike_subtypes( $bike_id ),
 		);
 
 		$rows = array();
 
-		foreach ( $taxonomies as $taxonomy => $label ) {
-			$terms = get_the_terms( $bike_id, $taxonomy );
-
-			if ( ! $terms || is_wp_error( $terms ) ) {
-				continue;
+		foreach ( $groups as $label => $terms ) {
+			if ( $terms ) {
+				$rows[ $label ] = implode( ', ', wp_list_pluck( $terms, 'name' ) );
 			}
-
-			$rows[ $label ] = implode( ', ', wp_list_pluck( $terms, 'name' ) );
 		}
 
 		$is_electric = get_post_meta( $bike_id, 'is_electric', true );
@@ -2520,8 +2520,14 @@ class Citykleta_Bike_Data_Widget extends Citykleta_Bike_Part_Widget {
 		'size'         => array( 'Frame Size', 'Talla' ),
 		'wheel_size'   => array( 'Wheel Size', 'Tamaño de rueda' ),
 		'electric'     => array( 'Electric', 'Eléctrica' ),
-		'bike_type'    => array( 'Bike Type', 'Tipo' ),
-		'bike_usage'   => array( 'Usage Type', 'Uso' ),
+		// The two keys below kept their old names on purpose: they're saved in
+		// Elementor templates and shortcodes (field="bike_usage"), and renaming
+		// them would blank every placed widget. Both now read the bike_type
+		// tree: `bike_type` is the subtype (Road), `bike_usage` the top-level
+		// type above it (Urbano).
+		'bike_type'    => array( 'Bike Subtype', 'Subtipo' ),
+		'bike_usage'   => array( 'Bike Type', 'Tipo' ),
+		'bike_tags'    => array( 'Tags', 'Etiquetas' ),
 	);
 
 	/**
@@ -2773,8 +2779,13 @@ class Citykleta_Bike_Data_Widget extends Citykleta_Bike_Part_Widget {
 				return $views ? esc_html( (string) $views ) : '';
 
 			case 'bike_type':
+				return esc_html( implode( ', ', wp_list_pluck( Citykleta_Bike_Type_Taxonomy::bike_subtypes( $bike_id ), 'name' ) ) );
+
 			case 'bike_usage':
-				return esc_html( self::term_names( $bike_id, $field ) );
+				return esc_html( implode( ', ', wp_list_pluck( Citykleta_Bike_Type_Taxonomy::bike_types( $bike_id ), 'name' ) ) );
+
+			case 'bike_tags':
+				return esc_html( implode( ', ', Citykleta_Bike_Tag_Taxonomy::names( $bike_id ) ) );
 
 			default:
 				// brand / model / size / wheel_size — plain meta, same key.
@@ -2839,22 +2850,5 @@ class Citykleta_Bike_Data_Widget extends Citykleta_Bike_Part_Widget {
 		}
 
 		return implode( ', ', $links );
-	}
-
-	/**
-	 * A taxonomy's terms for this bike, as a comma-separated list.
-	 *
-	 * @param int    $bike_id  Bike post ID.
-	 * @param string $taxonomy Taxonomy slug.
-	 * @return string
-	 */
-	private static function term_names( $bike_id, $taxonomy ) {
-		$terms = get_the_terms( $bike_id, $taxonomy );
-
-		if ( ! $terms || is_wp_error( $terms ) ) {
-			return '';
-		}
-
-		return implode( ', ', wp_list_pluck( $terms, 'name' ) );
 	}
 }

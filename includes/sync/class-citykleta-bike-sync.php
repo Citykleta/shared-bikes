@@ -775,19 +775,61 @@ class Citykleta_Bike_Sync {
 
 		if ( ! empty( $item['bike_type'] ) ) {
 			// bike_type is a slug (see Citykleta_Bike_Type_Sync) — look up the
-			// matching term instead of creating one from the raw string.
+			// matching SUBTYPE (second level of bike_type) instead of creating
+			// one from the raw string. The bike gets its subtype only; its
+			// type is the subtype's parent, and WordPress includes children
+			// when anything queries by type.
 			$type_term = get_term_by( 'slug', sanitize_title( $item['bike_type'] ), Citykleta_Bike_Type_Taxonomy::TAXONOMY );
 
-			if ( $type_term ) {
+			if ( $type_term && 0 !== (int) $type_term->parent ) {
 				wp_set_object_terms( $post_id, array( $type_term->term_id ), Citykleta_Bike_Type_Taxonomy::TAXONOMY );
 			}
 		}
+
+		$this->sync_tags( $post_id, $item );
 
 		// Coordinates come as a nested object ({ lat, lng }), not flat lat/lng.
 		if ( isset( $item['coordinates']['lat'], $item['coordinates']['lng'] ) ) {
 			update_post_meta( $post_id, 'lat', floatval( $item['coordinates']['lat'] ) );
 			update_post_meta( $post_id, 'lng', floatval( $item['coordinates']['lng'] ) );
 		}
+	}
+
+	/**
+	 * Mirrors the bike's tags from the app onto the bike_tag taxonomy.
+	 *
+	 * Always rewrites the full set — including to empty — so a tag removed
+	 * in the app disappears here too instead of lingering from an older run.
+	 * Tags arrive by name (`tags: ["Kids", "Tandem"]`), and
+	 * wp_set_object_terms() with names creates any tag it hasn't seen yet,
+	 * so a tag added in the back office needs nothing done here.
+	 *
+	 * Electric is the exception: derived from `is_electric`, never read from
+	 * `tags`, so the two can't disagree — see Citykleta_Bike_Tag_Taxonomy.
+	 * Any "Electric" the app sends in `tags` is dropped for the same reason:
+	 * `is_electric` is the one source for that fact.
+	 *
+	 * @param int   $post_id Bike post ID.
+	 * @param array $item    Canonical bike row.
+	 */
+	private function sync_tags( $post_id, array $item ) {
+		$tags = array();
+
+		foreach ( isset( $item['tags'] ) && is_array( $item['tags'] ) ? $item['tags'] : array() as $tag ) {
+			$tag = is_string( $tag ) ? trim( sanitize_text_field( $tag ) ) : '';
+
+			if ( '' === $tag || 0 === strcasecmp( $tag, Citykleta_Bike_Tag_Taxonomy::ELECTRIC ) ) {
+				continue;
+			}
+
+			$tags[] = $tag;
+		}
+
+		if ( ! empty( $item['is_electric'] ) ) {
+			$tags[] = Citykleta_Bike_Tag_Taxonomy::ELECTRIC;
+		}
+
+		wp_set_object_terms( $post_id, array_values( array_unique( $tags ) ), Citykleta_Bike_Tag_Taxonomy::TAXONOMY );
 	}
 
 	/**

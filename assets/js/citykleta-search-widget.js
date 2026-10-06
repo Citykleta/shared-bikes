@@ -15,8 +15,8 @@
 	// desplegar Tom Select) ya no vive aquí fija — se lee del propio HTML
 	// (atributo data-description de cada <option>), que a su vez viene del
 	// campo "description" nativo del término de wp-admin → Bicicletas →
-	// Tipo de uso. La relación "uso -> tipos de bici" que de verdad filtra
-	// resultados vive en el servidor (Citykleta_Templates::usage_to_bike_types()).
+	// Bike types. El filtro de verdad se resuelve en el servidor
+	// (Citykleta_Templates::request_filters()): un tipo incluye a sus subtipos.
 	function initUsage( select ) {
 		if ( select.dataset.citykletaInit ) {
 			return;
@@ -41,6 +41,24 @@
 		new window.TomSelect( select, {
 			allowEmptyOption: true,
 			maxOptions: null,
+			/*
+			 * Without this, Tom Select's dropdown (.ts-dropdown, position:
+			 * absolute) stays nested inside .ts-wrapper, a flex item of
+			 * .citykleta-search-bar — a flex container with no explicit
+			 * width, sized to its own content. Chromium's intrinsic-width
+			 * calculation for that auto-sized container ends up counting the
+			 * open dropdown's 320px box even though it's positioned out of
+			 * flow, so the whole bar grows and re-centers the moment the
+			 * dropdown opens. Reparenting the dropdown to <body> (Tom Select
+			 * repositions it itself, including on scroll) removes it from
+			 * that ancestor chain entirely.
+			 */
+			dropdownParent: 'body',
+			// The <select> carries .citykleta-search-bar__usage; copying it
+			// onto the now-body-level .ts-dropdown is what lets
+			// search-bar-usage.css still scope its width/z-index override to
+			// just this field instead of every Tom Select dropdown on the page.
+			copyClassesToDropdown: true,
 			render: {
 				option: function ( data, escape ) {
 					var i = info[ data.value ];

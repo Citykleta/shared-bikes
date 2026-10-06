@@ -5,13 +5,26 @@
  * partida razonable si el usuario no toca nada.
  */
 
+/*
+ * Chrome/Safari paint a translucent black "tap highlight" over whatever was
+ * tapped (any element, not just links/buttons) before fading it out — on a
+ * touch-capable browser that's the "black border that shows for an instant
+ * and disappears" when tapping into a field. It's not a focus style at all
+ * (:focus-visible already has its own look, see the __input rule below), so
+ * it can't be fixed from there; this is the only thing that turns it off.
+ */
+.citykleta-search-bar,
+.citykleta-search-bar * {
+	-webkit-tap-highlight-color: transparent;
+}
+
 .citykleta-search-bar {
 	display: flex;
 	align-items: stretch;
 	background: #fff;
 	border-radius: 4px;
 	box-shadow: 0 0 6px rgba(21, 27, 29, 0.16);
-	padding: 10px 10px 10px 28px;
+	padding: 10px;
 	gap: 0;
 	max-width: 100%;
 	font-family: 'Inter', sans-serif;
@@ -25,10 +38,6 @@
 	padding: 0.5rem 1.5rem;
 	gap: 0.5rem;
 	box-sizing: border-box;
-}
-
-.citykleta-search-bar__field:first-child {
-	padding-left: 0;
 }
 
 .citykleta-search-bar__field--usage {
@@ -179,9 +188,7 @@
  * Colores invertidos respecto al resto del sitio a propósito (fondo oscuro,
  * ícono/texto amarillo, en vez del amarillo sólido que usan los demás
  * botones) — así se distingue como LA acción de la barra, no un botón más
- * entre los campos. Más grande que el alto normal del campo (64px, contra
- * el padding chico de la tarjeta) a propósito, para que se note como el
- * elemento principal de la barra.
+ * entre los campos.
  *
  * Gotcha (mismo patrón que search-bar__input más arriba): el Kit global de
  * Elementor trae su propia regla para CUALQUIER <button> del sitio
@@ -208,19 +215,19 @@
 }
 
 .citykleta-search-bar .citykleta-search-bar__button--icon {
-	width: 64px;
-	height: 64px;
+	width: 48px;
+	height: 48px;
 	border-radius: 999px;
-	font-size: 1.35rem;
+	font-size: 1.1rem;
 }
 
 .citykleta-search-bar .citykleta-search-bar__button--text {
-	padding: 0 1.75rem;
+	padding: 0 1.5rem;
 	border-radius: 999px;
 	font-family: 'Poppins', sans-serif;
 	font-weight: 600;
-	font-size: 0.95rem;
-	height: 64px;
+	font-size: 0.9rem;
+	height: 48px;
 }
 
 .citykleta-search-bar .citykleta-search-bar__button:hover {
@@ -239,10 +246,6 @@
 		flex-direction: column;
 		align-items: stretch;
 		border-radius: 20px;
-		/* En fila, el padding-left de la tarjeta es asimétrico a propósito
-		   (ver .citykleta-search-bar__field:first-child) — apilada, cada
-		   campo ya trae su propio padding simétrico, así que la tarjeta
-		   vuelve a un padding parejo. */
 		padding: 10px;
 	}
 
@@ -250,10 +253,6 @@
 		flex: 0 0 auto;
 		width: 100%;
 		padding: 0.6rem 0.75rem;
-	}
-
-	.citykleta-search-bar__field:first-child {
-		padding-left: 0.75rem;
 	}
 
 	/*

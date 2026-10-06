@@ -126,14 +126,19 @@ class Citykleta_Templates {
 		$usage = isset( $_GET['usage'] ) ? sanitize_title( wp_unslash( $_GET['usage'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		$type_ids  = self::usage_to_bike_types( $usage );
 		$tax_query = array();
 
-		if ( $type_ids ) {
+		// ?usage= names a bike type (Urbano, Carretera…) — or a single type,
+		// which works the same way. No translation table any more: a type's
+		// subtypes are its children, and a tax_query includes children by
+		// default, so filtering by "Urbano" finds every City bike, Folding
+		// bike… under it. An unknown slug filters nothing, as before.
+		if ( '' !== $usage && get_term_by( 'slug', $usage, Citykleta_Bike_Type_Taxonomy::TAXONOMY ) ) {
 			$tax_query[] = array(
-				'taxonomy' => Citykleta_Bike_Type_Taxonomy::TAXONOMY,
-				'field'    => 'term_id',
-				'terms'    => $type_ids,
+				'taxonomy'         => Citykleta_Bike_Type_Taxonomy::TAXONOMY,
+				'field'            => 'slug',
+				'terms'            => array( $usage ),
+				'include_children' => true,
 			);
 		}
 
@@ -629,32 +634,6 @@ class Citykleta_Templates {
 		}
 
 		return '<nav class="citykleta-pagination" aria-label="Paginación de resultados">' . $links . '</nav>';
-	}
-
-	/**
-	 * Translates a "usage type" (a `bike_usage` taxonomy term, managed from
-	 * wp-admin → Shared Bikes → Usage types) into the group of `bike_type`
-	 * IDs it corresponds to — the relationship is declared by the admin by
-	 * checking boxes when creating/editing each usage type (see
-	 * Citykleta_Bike_Usage_Taxonomy), it doesn't live hardcoded in the code.
-	 *
-	 * @param string $usage `bike_usage` term slug.
-	 * @return array List of `bike_type` term IDs (empty if the usage doesn't exist).
-	 */
-	public static function usage_to_bike_types( $usage ) {
-		if ( ! $usage ) {
-			return array();
-		}
-
-		$term = get_term_by( 'slug', $usage, Citykleta_Bike_Usage_Taxonomy::TAXONOMY );
-
-		if ( ! $term ) {
-			return array();
-		}
-
-		$type_ids = get_term_meta( $term->term_id, Citykleta_Bike_Usage_Taxonomy::META_KEY, true );
-
-		return is_array( $type_ids ) ? array_map( 'intval', $type_ids ) : array();
 	}
 
 	/**

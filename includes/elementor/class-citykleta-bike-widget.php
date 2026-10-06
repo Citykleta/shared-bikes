@@ -158,6 +158,33 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'show_owner_name',
+			array(
+				'label'     => 'Owner Name',
+				'type'      => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'  => 'Show',
+				'label_off' => 'Hide',
+				'default'   => 'yes',
+			)
+		);
+
+		/*
+		 * Citykleta_View_Stats counts these (one meta row per bike, not per
+		 * view). A bike nobody has opened prints nothing instead of a zero —
+		 * see render().
+		 */
+		$this->add_control(
+			'show_views',
+			array(
+				'label'     => 'View Count',
+				'type'      => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'  => 'Show',
+				'label_off' => 'Hide',
+				'default'   => 'yes',
+			)
+		);
+
+		$this->add_control(
 			'heading_image',
 			array(
 				'label'     => 'Image',
@@ -247,14 +274,42 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		/*
+		 * Hidden while "Filter From Page URL" is on, and that condition is
+		 * the whole point of it being here.
+		 *
+		 * Both this and "Bikes Per Page" set posts_per_page, but never at
+		 * the same time: render() reads this one for a fixed grid (and for
+		 * Destination Bikes), and "Bikes Per Page" only on the results-page
+		 * branch, where the grid paginates instead of stopping at a count.
+		 * With both visible at once, one of the two was always the dead one
+		 * — you could type in it all day and nothing moved, with nothing on
+		 * screen saying why. Now only the one that rules is shown.
+		 */
 		$this->add_control(
 			'count',
 			array(
-				'label'   => 'Bike Count',
-				'type'    => \Elementor\Controls_Manager::NUMBER,
-				'default' => 6,
-				'min'     => 1,
-				'max'     => 50,
+				'label'       => 'Bike Count',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'default'     => 6,
+				'min'         => 1,
+				'max'         => 50,
+				'description' => 'How many bikes the grid shows, total — it does not paginate. For a results page turn on Query → Filter From Page URL, and "Bikes Per Page" takes over.',
+				'conditions'  => array(
+					'relation' => 'or',
+					'terms'    => array(
+						array(
+							'name'     => 'source',
+							'operator' => '===',
+							'value'    => self::SOURCE_DESTINATION,
+						),
+						array(
+							'name'     => 'use_url_filters',
+							'operator' => '!==',
+							'value'    => 'yes',
+						),
+					),
+				),
 			)
 		);
 
@@ -283,12 +338,13 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		$this->add_control(
 			'posts_per_page',
 			array(
-				'label'     => 'Bikes Per Page',
-				'type'      => \Elementor\Controls_Manager::NUMBER,
-				'default'   => 10,
-				'min'       => 1,
-				'max'       => 50,
-				'condition' => array(
+				'label'       => 'Bikes Per Page',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'default'     => 10,
+				'min'         => 1,
+				'max'         => 50,
+				'description' => 'Replaces Bike Count while this mode is on: the grid shows this many per page and paginates for the rest.',
+				'condition'   => array(
 					'use_url_filters' => 'yes',
 				),
 			)
@@ -444,20 +500,10 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			'card_border_radius',
 			array(
 				'label'      => 'Border Radius',
-				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', '%' ),
-				'range'      => array(
-					'px' => array(
-						'min' => 0,
-						'max' => 60,
-					),
-					'%'  => array(
-						'min' => 0,
-						'max' => 50,
-					),
-				),
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-card' => 'border-radius: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-card' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				),
 			)
 		);
@@ -490,6 +536,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 				),
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-bike-card__body' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-card__meta' => 'padding: 0 {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				),
 			)
 		);
@@ -548,6 +595,9 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'     => 'Background Color',
 				'type'      => \Elementor\Controls_Manager::COLOR,
+				'global'    => array(
+					'default' => \Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_SECONDARY,
+				),
 				'selectors' => array(
 					'{{WRAPPER}} .citykleta-bike-card:hover' => 'background-color: {{VALUE}};',
 				),
@@ -602,6 +652,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'     => 'Color',
 				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#151b1d',
 				'selectors' => array(
 					'{{WRAPPER}} .citykleta-bike-card__title' => 'color: {{VALUE}};',
 				),
@@ -611,16 +662,39 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		$this->add_group_control(
 			\Elementor\Group_Control_Typography::get_type(),
 			array(
-				'name'     => 'title_typography',
-				'label'    => 'Typography',
-				'selector' => '{{WRAPPER}} .citykleta-bike-card__title',
+				'name'           => 'title_typography',
+				'label'          => 'Typography',
+				'selector'       => '{{WRAPPER}} .citykleta-bike-card__title',
+				'fields_options' => array(
+					'typography'     => array( 'default' => 'custom' ),
+					'font_family'    => array( 'default' => 'Poppins' ),
+					'font_weight'    => array( 'default' => '600' ),
+					'font_size'      => array(
+						'default' => array(
+							'unit' => 'rem',
+							'size' => 1,
+						),
+					),
+					'line_height'    => array(
+						'default' => array(
+							'unit' => 'em',
+							'size' => 1.3,
+						),
+					),
+					'letter_spacing' => array(
+						'default' => array(
+							'unit' => 'em',
+							'size' => -0.01,
+						),
+					),
+				),
 			)
 		);
 
 		$this->add_responsive_control(
 			'title_spacing',
 			array(
-				'label'      => 'Spacing',
+				'label'      => 'Spacing (top)',
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
 				'range'      => array(
@@ -630,7 +704,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 					),
 				),
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-card__title' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-card__title' => 'margin-top: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -667,9 +741,13 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 		$this->add_responsive_control(
 			'location_spacing',
 			array(
-				'label'      => 'Spacing',
+				'label'      => 'Spacing (top)',
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
+				'default'    => array(
+					'unit' => 'px',
+					'size' => 3,
+				),
 				'range'      => array(
 					'px' => array(
 						'min' => 0,
@@ -677,7 +755,7 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 					),
 				),
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-card__location' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-card__location' => 'margin-top: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -717,6 +795,10 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 				'label'      => 'Spacing (top)',
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
+				'default'    => array(
+					'unit' => 'px',
+					'size' => 6,
+				),
 				'range'      => array(
 					'px' => array(
 						'min' => 0,
@@ -724,7 +806,53 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 					),
 				),
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-card__price' => 'margin-top: {{SIZE}}{{UNIT}}; margin-bottom: 0;',
+					'{{WRAPPER}} .citykleta-bike-card__price' => 'margin-top: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'heading_meta',
+			array(
+				'label'     => 'Owner & Views',
+				'type'      => \Elementor\Controls_Manager::HEADING,
+				'separator' => 'before',
+			)
+		);
+
+		$this->add_control(
+			'meta_color',
+			array(
+				'label'     => 'Color',
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-bike-card__meta' => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'meta_typography',
+				'selector' => '{{WRAPPER}} .citykleta-bike-card__meta',
+			)
+		);
+
+		$this->add_responsive_control(
+			'meta_spacing',
+			array(
+				'label'      => 'Spacing (top)',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px', 'em', 'rem' ),
+				'range'      => array(
+					'px' => array(
+						'min' => 0,
+						'max' => 40,
+					),
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-bike-card__meta' => 'margin-top: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -757,58 +885,6 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 				),
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-bike-card__owner' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
-				),
-			)
-		);
-
-		$this->add_control(
-			'owner_photo_position',
-			array(
-				'label'                => 'Position',
-				'type'                 => \Elementor\Controls_Manager::CHOOSE,
-				'options'              => array(
-					'left'   => array(
-						'title' => 'Left',
-						'icon'  => 'eicon-h-align-left',
-					),
-					'center' => array(
-						'title' => 'Center',
-						'icon'  => 'eicon-h-align-center',
-					),
-					'right'  => array(
-						'title' => 'Right',
-						'icon'  => 'eicon-h-align-right',
-					),
-				),
-				'default'              => 'left',
-				// Uses the --citykleta-owner-offset variable (set by the
-				// owner_photo_padding control below) so position and spacing
-				// work together without clobbering each other.
-				'selectors_dictionary' => array(
-					'left'   => 'left: var(--citykleta-owner-offset, 0.5rem); right: auto; bottom: var(--citykleta-owner-offset, 0.5rem); transform: none;',
-					'center' => 'left: 50%; right: auto; bottom: var(--citykleta-owner-offset, 0.5rem); transform: translateX(-50%);',
-					'right'  => 'right: var(--citykleta-owner-offset, 0.5rem); left: auto; bottom: var(--citykleta-owner-offset, 0.5rem); transform: none;',
-				),
-				'selectors'            => array(
-					'{{WRAPPER}} .citykleta-bike-card__owner' => '{{VALUE}}',
-				),
-			)
-		);
-
-		$this->add_responsive_control(
-			'owner_photo_padding',
-			array(
-				'label'      => 'Edge Spacing',
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array(
-						'min' => 0,
-						'max' => 40,
-					),
-				),
-				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-card__owner' => '--citykleta-owner-offset: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -980,8 +1056,25 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 
 		while ( $query->have_posts() ) {
 			$query->the_post();
+			$this->render_card( $settings );
+		}
 
-			$price       = Citykleta_Bike_Meta::price_html( get_the_ID() );
+		echo '</div>';
+
+		if ( $use_url_filters ) {
+			echo Citykleta_Templates::pagination_links( $query, $args['paged'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped inside.
+		}
+
+		wp_reset_postdata();
+	}
+
+	/**
+	 * Prints one bike card for the post currently set up by the loop.
+	 *
+	 * @param array $settings Widget settings (display settings).
+	 */
+	protected function render_card( array $settings ) {
+		$price       = Citykleta_Bike_Meta::price_html( get_the_ID() );
 			$location    = get_post_meta( get_the_ID(), 'location', true );
 			$owner_name  = get_post_meta( get_the_ID(), 'owner_name', true );
 			$owner_photo = get_post_meta( get_the_ID(), 'owner_photo', true );
@@ -999,10 +1092,6 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 						<?php else : ?>
 							<div class="citykleta-bike-card__image-placeholder"></div>
 						<?php endif; ?>
-
-						<?php if ( $owner_photo && 'yes' === $settings['show_owner_photo'] ) : ?>
-							<img class="citykleta-bike-card__owner" src="<?php echo esc_url( $owner_photo ); ?>" alt="<?php echo esc_attr( $owner_name ); ?>" width="20" height="20" />
-						<?php endif; ?>
 					</div>
 				<?php endif; ?>
 
@@ -1016,17 +1105,59 @@ class Citykleta_Bike_Widget extends \Elementor\Widget_Base {
 					<?php if ( $price && 'yes' === $settings['show_price'] ) : ?>
 						<p class="citykleta-bike-card__price"><?php echo esc_html( $price ); ?></p>
 					<?php endif; ?>
+
+					<?php
+					/*
+					 * The meta line: who owns it, how many people looked.
+					 * Built as a list of already-escaped pieces so the
+					 * separator only appears BETWEEN them — with each piece
+					 * printing its own "·" a card with just one of the two
+					 * would end on a dangling dot.
+					 *
+					 * There is no saves/bookmarks count here because the
+					 * plugin has no such feature — nothing anywhere lets a
+					 * visitor save a bike. Inventing a zero would be worse
+					 * than leaving it out.
+					 */
+					$meta = array();
+
+					$owner_html = '';
+
+					if ( $owner_photo && 'yes' === $settings['show_owner_photo'] ) {
+						$owner_html .= '<img class="citykleta-bike-card__owner" src="' . esc_url( $owner_photo ) . '" alt="" width="20" height="20" loading="lazy" />';
+					}
+
+					if ( $owner_name && 'yes' === $settings['show_owner_name'] ) {
+						$owner_html .= esc_html( $owner_name );
+					}
+
+					if ( '' !== $owner_html ) {
+						$meta[] = '<span class="citykleta-bike-card__meta-item citykleta-bike-card__ownerline">' . $owner_html . '</span>';
+					}
+
+					if ( 'yes' === $settings['show_views'] ) {
+						$views = Citykleta_View_Stats::count( get_the_ID() );
+
+						// A bike nobody has opened yet shows nothing, rather
+						// than a "0 vistas" that reads as a warning label.
+						if ( $views > 0 ) {
+							$meta[] = '<span class="citykleta-bike-card__meta-item citykleta-bike-card__views">'
+								. '<svg class="citykleta-bike-card__meta-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+								. esc_html( number_format_i18n( $views ) )
+								. '<span class="screen-reader-text"> '
+								. esc_html( _n( 'vista', 'vistas', $views, 'citykleta-shared-bikes' ) )
+								. '</span></span>';
+						}
+					}
+					?>
+
 				</div>
+				<?php if ( $meta ) : ?>
+					<div class="citykleta-bike-card__meta">
+						<?php echo implode( '<span class="citykleta-bike-card__meta-sep">·</span>', $meta ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each piece escaped above. ?>
+					</div>
+				<?php endif; ?>
 			</a>
 			<?php
-		}
-
-		echo '</div>';
-
-		if ( $use_url_filters ) {
-			echo Citykleta_Templates::pagination_links( $query, $args['paged'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped inside.
-		}
-
-		wp_reset_postdata();
 	}
 }

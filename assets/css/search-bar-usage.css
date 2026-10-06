@@ -56,6 +56,34 @@
 	box-shadow: none;
 }
 
+/*
+ * Vendor's own `.ts-control,.ts-wrapper.single.input-active .ts-control`
+ * rule (tom-select.min.css) sets a hardcoded white background — four
+ * classes of specificity, which beats the plain two-class override above
+ * the moment the field is clicked (that's when Tom Select adds
+ * `.input-active`, swapping the selected pill for its editable input).
+ * Matching the same compound selector is the only way to win without
+ * `!important`. Kept transparent instead of matching the field's own
+ * background so it still reads right over whatever Background Color the
+ * widget's Style tab sets.
+ */
+.citykleta-search-bar__field--usage .ts-wrapper.single.input-active .ts-control {
+	background: transparent;
+}
+
+/*
+ * Same brand-yellow ring the plain text input uses on :focus-visible
+ * (search-bar.css) — Tom Select's own `.focus` class (added to `.ts-wrapper`
+ * while the control has keyboard/mouse focus) is the equivalent hook here,
+ * since the actual `<input>` Tom Select manages is hidden/tiny and isn't
+ * what visually represents "this field is focused".
+ */
+.citykleta-search-bar__field--usage .ts-wrapper.focus {
+	outline: 2px solid #fed94c;
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
 .citykleta-search-bar__field--usage .ts-control input {
 	font-family: 'Inter', sans-serif;
 	color: #282120;
@@ -77,16 +105,40 @@
 }
 
 /*
+ * Vendor caps the options list at 200px with its own scrollbar
+ * (.ts-dropdown-content{max-height:200px;overflow:hidden auto}) — sized for
+ * a dropdown with many entries. Ours only ever lists a handful of usage
+ * types, so that cap just hides the last one or two behind a scroll nobody
+ * expects on something this short; showing the full list is simpler.
+ */
+.ts-dropdown .ts-dropdown-content {
+	max-height: none;
+	overflow: visible;
+}
+
+/*
  * Tom Select fija el ancho del menú igual al del campo (lo pone inline
  * por JS al posicionarlo), y con la descripción de cada uso ese ancho no
  * alcanza para leer el texto — se ve encimado como en la captura. Se
  * fuerza un ancho propio con !important (sí le gana a un inline style
- * sin !important) y se deja min-width por si el campo es aún más angosto
- * en pantallas chicas.
+ * sin !important).
+ *
+ * Selector por `.citykleta-search-bar__usage` (copiada al dropdown vía
+ * `copyClassesToDropdown`, ver citykleta-search-widget.js), no por
+ * `.citykleta-search-bar__field--usage .ts-dropdown`: desde que el
+ * dropdown se reparenta a `<body>` (`dropdownParent: 'body'`, mismo
+ * archivo — evita que el menú abierto infle el ancho intrínseco de
+ * `.citykleta-search-bar`, que no tiene `width` propio), ya no es
+ * descendiente de ese campo.
+ *
+ * Ojo con `min-width`: un `100%` acá ya NO se resuelve contra los 160px
+ * del campo (eso era cuando el dropdown vivía adentro de él) sino contra
+ * el *viewport* — en una página con contenido más ancho que la pantalla
+ * (el mapa, por ejemplo) eso infla el menú a más de 1000px. `max-width`
+ * ya cubre el caso de pantalla angosta; no hace falta min-width.
  */
-.citykleta-search-bar__field--usage .ts-dropdown {
+.ts-dropdown.citykleta-search-bar__usage {
 	width: 320px !important;
-	min-width: 100%;
 	max-width: min(320px, 90vw);
 	/*
 	 * El widget de mapa (citykleta-map.css / leaflet.css) usa z-index hasta

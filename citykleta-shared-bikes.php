@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Citykleta Shared Bikes
  * Description: Integración de bicicletas compartidas de Citykleta.
- * Version: 0.2.9
+ * Version: 0.3.13
  * Author: Yasser
  * License: GPL-2.0-or-later
  * Text Domain: citykleta-shared-bikes
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Constantes del plugin.
-define( 'CITYKLETA_VERSION', '0.2.9' );
+define( 'CITYKLETA_VERSION', '0.3.26' );
 define( 'CITYKLETA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
 
@@ -27,7 +27,9 @@ require_once CITYKLETA_PATH . 'includes/post-types/class-bike-post-type.php';
 require_once CITYKLETA_PATH . 'includes/post-types/class-citykleta-destination-post-type.php';
 require_once CITYKLETA_PATH . 'includes/post-types/class-citykleta-template-post-type.php';
 require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-taxonomy.php';
-require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-usage-taxonomy.php';
+require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-tag-taxonomy.php';
+require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-migration.php';
+require_once CITYKLETA_PATH . 'includes/taxonomies/class-citykleta-bike-type-summaries.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-bike-meta.php';
 require_once CITYKLETA_PATH . 'includes/meta/class-citykleta-owner-contact.php';
 require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-type-sync.php';
@@ -47,6 +49,7 @@ require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber.p
 require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber-rest.php';
 require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-app-cta.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request.php';
+require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-contact-reveal.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-rest.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-form.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-notifier.php';
@@ -71,12 +74,23 @@ function citykleta_init() {
 	// editable con Elementor gratis — ver Citykleta_Template_Post_Type.
 	( new Citykleta_Template_Post_Type() )->register();
 
-	// Taxonomía de tipo de bicicleta (Road, MTB XC, Cargo bicycle, etc.).
+	// "Bike type": un árbol de dos niveles, como las categorías. Arriba los
+	// tipos (Urbano, Carretera...), escritos a mano; dentro, los subtipos
+	// (Road, MTB...), que crea el sync. Reemplazó a las taxonomías planas
+	// bike_usage + bike_type — ver Citykleta_Bike_Type_Taxonomy.
 	( new Citykleta_Bike_Type_Taxonomy() )->register();
 
-	// Taxonomía de tipo de uso (Urbano, Carretera...), administrable desde
-	// wp-admin, con su relación a tipos de bicicleta.
-	( new Citykleta_Bike_Usage_Taxonomy() )->register();
+	// Etiquetas sueltas (Tandem, Kids, Trailer, Electric), sincronizadas desde
+	// el campo `tags` de la API; Electric se deriva de is_electric.
+	( new Citykleta_Bike_Tag_Taxonomy() )->register();
+
+	// Pasa una sola vez al árbol bike_type (desde las taxonomías planas viejas,
+	// o desde el bike_kind provisional). Va después de registrarlas y antes del
+	// flush de rewrite del final de esta función, que la migración activa.
+	Citykleta_Bike_Type_Migration::maybe_run();
+
+	// Wikipedia summaries shown on each type/subtype archive page.
+	( new Citykleta_Bike_Type_Summaries() )->register();
 
 	// Registra los campos personalizados (modelo, ubicación, precio, etc.).
 	( new Citykleta_Bike_Meta() )->register();

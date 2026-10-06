@@ -201,15 +201,28 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'      => 'Map Height',
 				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
+				'size_units' => array( 'px', 'vh', 'em', 'rem' ),
 				'range'      => array(
-					'px' => array(
+					'px'  => array(
 						'min' => 200,
-						'max' => 900,
+						'max' => 1200,
+					),
+					'vh'  => array(
+						'min' => 20,
+						'max' => 100,
+					),
+					'em'  => array(
+						'min' => 10,
+						'max' => 80,
+					),
+					'rem' => array(
+						'min' => 10,
+						'max' => 80,
 					),
 				),
 				'default'    => array(
 					'size' => 400,
+					'unit' => 'px',
 				),
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-map' => 'height: {{SIZE}}{{UNIT}};',
@@ -261,6 +274,116 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 		$this->end_controls_section();
 
+		$this->start_controls_section(
+			'section_demo',
+			array(
+				'label'     => 'Demo Mode',
+				'condition' => array( 'source' => self::SOURCE_QUERY ),
+			)
+		);
+
+		$this->add_control(
+			'demo_mode',
+			array(
+				'label'       => 'Demo Mode',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'On',
+				'label_off'   => 'Off',
+				'default'     => '',
+				'description' => 'Picks one random bike at a time, centers the map on it and shows its card. Replaces centering on the visitor.',
+			)
+		);
+
+		$this->add_control(
+			'demo_interval',
+			array(
+				'label'       => 'Card Stays For (seconds)',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'min'         => 1,
+				'max'         => 300,
+				'default'     => 6,
+				'description' => 'Time the card stays up before the map starts moving to the next bike. The card is only replaced when the next one opens.',
+				'condition'   => array( 'demo_mode' => 'yes' ),
+			)
+		);
+
+		$this->add_control(
+			'demo_pool_size',
+			array(
+				'label'       => 'Bikes In The Tour',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'min'         => 2,
+				'max'         => 50,
+				'default'     => 8,
+				'description' => 'The tour visits only this many bikes, picked at random when the page loads and as varied by type as possible, then keeps looping over them.',
+				'condition'   => array( 'demo_mode' => 'yes' ),
+			)
+		);
+
+		$this->add_control(
+			'demo_preload',
+			array(
+				'label'       => 'Preload Map Tiles',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Yes',
+				'label_off'   => 'No',
+				'default'     => '',
+				'description' => 'Downloads the map around every bike in the tour when the page loads, so the first lap does not wait on the network. Uses data up front.',
+				'condition'   => array( 'demo_mode' => 'yes' ),
+			)
+		);
+
+		$this->add_control(
+			'demo_move_duration',
+			array(
+				'label'       => 'Movement Duration (seconds)',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'min'         => 0,
+				'max'         => 10,
+				'step'        => 0.1,
+				'default'     => 2,
+				'description' => 'How long the map takes to travel to the next bike. Higher is slower; 0 jumps instantly.',
+				'condition'   => array( 'demo_mode' => 'yes' ),
+			)
+		);
+
+		$this->add_control(
+			'demo_zoom_out',
+			array(
+				'label'       => 'Zoom Out Between Bikes',
+				'type'        => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'    => 'Yes',
+				'label_off'   => 'No',
+				'default'     => '',
+				'description' => 'Zooms out, glides to the next bike, then zooms back in. The movement duration is split across the three steps.',
+				'condition'   => array( 'demo_mode' => 'yes' ),
+			)
+		);
+
+		$this->add_control(
+			'demo_zoom_out_level',
+			array(
+				'label'       => 'Zoom Out Level',
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'range'       => array(
+					'px' => array(
+						'min' => 3,
+						'max' => 15,
+					),
+				),
+				'default'     => array( 'size' => 12 ),
+				'description' => 'Lower is farther away.',
+				'condition'   => array(
+					'demo_mode'     => 'yes',
+					'demo_zoom_out' => 'yes',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		$this->register_card_style_controls();
+
 		// Marker/cluster colors and the base map tile style used to live
 		// here as per-instance Content/Style controls; they're now global
 		// (Settings → Maps tab, see Citykleta_Settings::MAP_COLORS and
@@ -270,6 +393,213 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		// The bike marker itself (a circle showing the built-in glyph,
 		// colored by availability) isn't configurable at all anymore —
 		// see assets/css/citykleta-map.css.
+	}
+
+	/**
+	 * Card-style controls, keyed by control id: the CSS variable each one
+	 * feeds, its unit, and (for selects/colors) nothing more. The popup is
+	 * built in JS, so these are printed as inline custom properties on the map
+	 * container (see card_style_vars()) rather than as `selectors` — that way
+	 * they also reach a map rendered through [citykleta_map], where Elementor
+	 * never generates a stylesheet.
+	 */
+	const CARD_VARS = array(
+		'card_width'     => array( '--citykleta-card-width', 'px' ),
+		'card_aspect'    => array( '--citykleta-card-aspect', '' ),
+		'card_photo_pct' => array( '--citykleta-card-photo', '' ),
+		'card_radius'    => array( '--citykleta-card-radius', 'px' ),
+		'card_padding'   => array( '--citykleta-card-padding', 'px' ),
+		'card_bg'        => array( '--citykleta-card-bg', '' ),
+		'title_color'    => array( '--citykleta-card-title-color', '' ),
+		'title_size'     => array( '--citykleta-card-title-size', 'px' ),
+		'type_color'     => array( '--citykleta-card-type-color', '' ),
+		'type_size'      => array( '--citykleta-card-type-size', 'px' ),
+		'price_color'    => array( '--citykleta-card-price-color', '' ),
+		'price_size'     => array( '--citykleta-card-price-size', 'px' ),
+	);
+
+	/**
+	 * Style tab: the card that opens when a bike is clicked (or by Demo Mode).
+	 */
+	private function register_card_style_controls() {
+		$this->start_controls_section(
+			'section_card_style',
+			array(
+				'label' => 'Bike Card',
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'card_width',
+			array(
+				'label'      => 'Width',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array(
+					'px' => array(
+						'min' => 140,
+						'max' => 420,
+					),
+				),
+				'default'    => array( 'size' => 220 ),
+			)
+		);
+
+		$this->add_control(
+			'card_aspect',
+			array(
+				'label'   => 'Shape',
+				'type'    => \Elementor\Controls_Manager::SELECT,
+				'default' => '1 / 1',
+				'options' => array(
+					'1 / 1' => 'Square',
+					'4 / 5' => 'Portrait 4:5',
+					'3 / 4' => 'Portrait 3:4',
+					'5 / 4' => 'Landscape 5:4',
+					'4 / 3' => 'Landscape 4:3',
+				),
+			)
+		);
+
+		$this->add_control(
+			'card_photo_pct',
+			array(
+				'label'       => 'Photo Height',
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( '%' ),
+				'range'       => array(
+					'%' => array(
+						'min' => 25,
+						'max' => 85,
+					),
+				),
+				'default'     => array(
+					'size' => 60,
+					'unit' => '%',
+				),
+				'description' => 'Share of the card taken by the photo; the text gets the rest. Raise it if there is too much white space around the text.',
+			)
+		);
+
+		$this->add_control(
+			'card_radius',
+			array(
+				'label'      => 'Border Radius',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array(
+					'px' => array(
+						'min' => 0,
+						'max' => 30,
+					),
+				),
+			)
+		);
+
+		$this->add_control(
+			'card_padding',
+			array(
+				'label'      => 'Text Padding',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array(
+					'px' => array(
+						'min' => 0,
+						'max' => 30,
+					),
+				),
+			)
+		);
+
+		$this->add_control(
+			'card_bg',
+			array(
+				'label' => 'Background',
+				'type'  => \Elementor\Controls_Manager::COLOR,
+			)
+		);
+
+		foreach ( array(
+			'title' => 'Title',
+			'type'  => 'Type',
+			'price' => 'Price',
+		) as $key => $label ) {
+			$this->add_control(
+				$key . '_heading',
+				array(
+					'label'     => $label,
+					'type'      => \Elementor\Controls_Manager::HEADING,
+					'separator' => 'before',
+				)
+			);
+
+			$this->add_control(
+				$key . '_color',
+				array(
+					'label' => 'Color',
+					'type'  => \Elementor\Controls_Manager::COLOR,
+				)
+			);
+
+			$this->add_control(
+				$key . '_size',
+				array(
+					'label'      => 'Size',
+					'type'       => \Elementor\Controls_Manager::SLIDER,
+					'size_units' => array( 'px' ),
+					'range'      => array(
+						'px' => array(
+							'min' => 8,
+							'max' => 32,
+						),
+					),
+				)
+			);
+		}
+
+		$this->end_controls_section();
+	}
+
+	/**
+	 * The card controls as inline CSS custom properties. A control left
+	 * untouched prints nothing, so the stylesheet's own default stays in force
+	 * instead of a duplicate living here.
+	 *
+	 * @param array $settings Widget settings.
+	 * @return string
+	 */
+	private function card_style_vars( array $settings ) {
+		$css = '';
+
+		foreach ( self::CARD_VARS as $id => $var ) {
+			if ( ! isset( $settings[ $id ] ) ) {
+				continue;
+			}
+
+			$value = $settings[ $id ];
+
+			if ( is_array( $value ) ) {
+				$value = isset( $value['size'] ) ? $value['size'] : '';
+			}
+
+			if ( '' === $value || null === $value ) {
+				continue;
+			}
+
+			if ( 'card_aspect' === $id && ! preg_match( '#^\d+ / \d+$#', $value ) ) {
+				continue;
+			}
+
+			if ( is_numeric( $value ) ) {
+				$value .= $var[1];
+			}
+
+			// Colors and the aspect value only; sanitized, never raw.
+			$css .= $var[0] . ':' . preg_replace( '/[^#a-zA-Z0-9.,%() \/-]/', '', (string) $value ) . ';';
+		}
+
+		return $css;
 	}
 
 	/**
@@ -349,6 +679,21 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 			Citykleta_Settings::cluster_options()
 		);
 
+		if ( self::SOURCE_QUERY === $source && 'yes' === ( $settings['demo_mode'] ?? '' ) ) {
+			$options['demo'] = array(
+				'interval' => max( 1, (int) ( $settings['demo_interval'] ?? 6 ) ),
+				'pool'     => max( 2, (int) ( $settings['demo_pool_size'] ?? 8 ) ),
+				'preload'  => 'yes' === ( $settings['demo_preload'] ?? '' ),
+				'move'     => isset( $settings['demo_move_duration'] ) && is_numeric( $settings['demo_move_duration'] )
+					? max( 0, min( 10, (float) $settings['demo_move_duration'] ) )
+					: 2,
+			);
+
+			if ( 'yes' === ( $settings['demo_zoom_out'] ?? '' ) ) {
+				$options['demo']['zoomOut'] = (int) ( $settings['demo_zoom_out_level']['size'] ?? 12 );
+			}
+		}
+
 		if ( ! empty( $settings['zoom']['size'] ) ) {
 			$options['zoom'] = (int) $settings['zoom']['size'];
 		}
@@ -374,6 +719,7 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		$height_size  = isset( $settings['map_height']['size'] ) ? $settings['map_height']['size'] : '';
 		$height_unit  = ! empty( $settings['map_height']['unit'] ) ? $settings['map_height']['unit'] : 'px';
 		$height_style = is_numeric( $height_size ) ? 'height:' . $height_size . $height_unit . ';' : '';
+		$height_style .= $this->card_style_vars( $settings );
 
 		printf(
 			'<div id="citykleta-map-%1$s" class="citykleta-map%6$s" style="%4$s%5$s" data-bikes="%2$s" data-options="%3$s"></div>',

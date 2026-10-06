@@ -117,7 +117,7 @@ class Citykleta_Bike_Map_Data {
 				'available' => '1' === (string) $available,
 				'url'       => get_permalink(),
 				'image'     => has_post_thumbnail() ? get_the_post_thumbnail_url( get_the_ID(), 'medium' ) : '',
-			);
+			) + self::card_fields( get_the_ID() );
 		}
 
 		wp_reset_postdata();
@@ -159,6 +159,29 @@ class Citykleta_Bike_Map_Data {
 			// bici" link back to itself in the popup would be dead weight.
 			'url'       => '',
 			'image'     => has_post_thumbnail( $post_id ) ? get_the_post_thumbnail_url( $post_id, 'medium' ) : '',
+		) + self::card_fields( $post_id );
+	}
+
+	/**
+	 * The extra field the map card shows (type), kept in one place so query()
+	 * and for_bike() can't drift apart. The title already carries brand + model.
+	 *
+	 * "Type" is the top-level one (Urbano, Carretera…), the parent of the bike's
+	 * subtype; a bike whose subtype is still Unclassified falls back to the
+	 * subtype's own name rather than showing nothing.
+	 *
+	 * @param int $post_id Bike post ID.
+	 * @return array
+	 */
+	private static function card_fields( $post_id ) {
+		$types = wp_list_pluck( Citykleta_Bike_Type_Taxonomy::bike_types( $post_id ), 'name' );
+
+		if ( ! $types ) {
+			$types = wp_list_pluck( Citykleta_Bike_Type_Taxonomy::bike_subtypes( $post_id ), 'name' );
+		}
+
+		return array(
+			'type' => implode( ', ', $types ),
 		);
 	}
 

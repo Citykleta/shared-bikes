@@ -67,6 +67,7 @@ class Citykleta_Settings {
 		'{bike}'  => 'Bike title',
 		'{price}' => 'Price per day',
 		'{url}'   => 'Link to the bike page',
+		'{dates}' => 'Requested dates, with its own leading space (" del 20/09/2026 al 23/09/2026"), or nothing',
 	);
 
 	/**
@@ -74,7 +75,7 @@ class Citykleta_Settings {
 	 * copy is Spanish (like the templates), even though labels/identifiers
 	 * stay English.
 	 */
-	const DEFAULT_MESSAGE = 'Hola {owner}, vi tu bicicleta "{bike}" en Citykleta y me interesa alquilarla. ¿Está disponible? {url}';
+	const DEFAULT_MESSAGE = 'Hola {owner}, vi tu bicicleta "{bike}" en Citykleta y me interesa alquilarla{dates}. ¿Está disponible? {url}';
 
 	/**
 	 * Fixed path of every API resource the plugin syncs, keyed by the slug the
@@ -93,6 +94,9 @@ class Citykleta_Settings {
 	 *   staff router and sits behind auth.
 	 * - map_settings: GET /map-settings, see the map-config hand-off note in
 	 *   CLAUDE.md.
+	 * - contact_reveal: POST /contact/reveal, the one route here that is NOT
+	 *   anonymous: it needs the shared key (CITYKLETA_PLUGIN_KEY in wp-config.php,
+	 *   see Citykleta_Contact_Reveal). Not synced — called live per request.
 	 *
 	 * There is deliberately no 'bike_types' entry: the API's GET /bike-types is
 	 * mounted after verifyAuth and answers 401 without a staff session, so this
@@ -101,8 +105,9 @@ class Citykleta_Settings {
 	 * from the bike payload instead. See Citykleta_Bike_Type_Sync::run().
 	 */
 	const PATHS = array(
-		'bikes'        => '/bikesPublic/sync',
-		'map_settings' => '/map-settings',
+		'bikes'          => '/bikesPublic/sync',
+		'map_settings'   => '/map-settings',
+		'contact_reveal' => '/contact/reveal',
 	);
 
 	/**
@@ -1443,6 +1448,11 @@ class Citykleta_Settings {
 				'summary' => 'Same map, but follows the page\'s search too.',
 				'detail'  => 'Same <code>filters="url"</code> as the grid — put both on the same page and they stay in sync.',
 			),
+			array(
+				'code'    => '[citykleta_bike_categories]',
+				'summary' => 'Bike categories as a horizontal list.',
+				'detail'  => '<code>taxonomy="bike_type"</code> (the default: bike subtypes, each linking to its own term archive), <code>taxonomy="bike_usage"</code> (the top-level bike types, linking to the archive with <code>?usage=</code> applied) or <code>taxonomy="bike_tag"</code> (tags). Also <code>orderby</code>, <code>order</code>, <code>limit</code>, <code>show_count</code> (a type counts the bikes of all its subtypes) and <code>link</code>.',
+			),
 		);
 
 		// The single-bike pieces. Listed apart because they behave
@@ -1457,7 +1467,7 @@ class Citykleta_Settings {
 			array( '[citykleta_bike_specs]', 'Brand, model, size, wheel size, type, usage, electric.' ),
 			array( '[citykleta_bike_directions]', 'The address, as a line of text.' ),
 			array( '[citykleta_bike_request]', 'The two-step request form: period + verification code, then an optional message.' ),
-			array( '[citykleta_bike_data]', 'One single value. field="price|description|address|owner|availability|destinations|views|brand|model|size|wheel_size|electric|bike_type|bike_usage".' ),
+			array( '[citykleta_bike_data]', 'One single value. field="price|description|address|owner|availability|destinations|views|brand|model|size|wheel_size|electric|bike_type|bike_usage|bike_tags" (bike_type = the subtype, bike_usage = the type).' ),
 			array( '[citykleta_bike_location]', 'Small pickup map (the map widget, "Bike Data" mode).' ),
 		);
 		?>

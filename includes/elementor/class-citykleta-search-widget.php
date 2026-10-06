@@ -330,7 +330,13 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 				'options' => array(
 					'icon' => array(
 						'title' => 'Icon only',
-						'icon'  => 'eicon-editor-arrow-right',
+						// 'eicon-editor-arrow-right' isn't a real eicon in this
+						// Elementor version — it rendered as a blank glyph,
+						// which read as the two CHOOSE options being mismatched
+						// with their labels. 'eicon-search' actually exists and
+						// matches what this button really shows by default
+						// (a magnifying glass).
+						'icon'  => 'eicon-search',
 					),
 					'text' => array(
 						'title' => 'With text',
@@ -437,19 +443,17 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 			'container_padding',
 			array(
 				'label'      => 'Padding',
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array(
-						'min' => 0,
-						'max' => 40,
-					),
-				),
-				'default'    => array(
-					'size' => 10,
-				),
+				// DIMENSIONS, not a single SLIDER: the base CSS default
+				// (search-bar.css) is itself asymmetric — 28px on the left
+				// to clear the location icon, 10px everywhere else — so one
+				// linked number could never reproduce it, and the visual
+				// mismatch ("Dónde has less inner space than the other
+				// fields") this control is meant to fix needs independent
+				// sides to actually fix.
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-search-bar' => 'padding: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-search-bar' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				),
 			)
 		);
@@ -822,75 +826,30 @@ class Citykleta_Search_Widget extends \Elementor\Widget_Base {
 						>
 							<option value="">Todas</option>
 							<?php
-							$usage_terms = get_terms(
-								array(
-									'taxonomy'   => Citykleta_Bike_Usage_Taxonomy::TAXONOMY,
-									'hide_empty' => false,
-								)
-							);
+							// The top level of bike_type, in display order and without
+							// the "Unclassified" holding type (see
+							// Citykleta_Bike_Type_Taxonomy::top_level()).
+							$usage_terms = Citykleta_Bike_Type_Taxonomy::top_level();
 
-							// Sorted in PHP instead of via 'meta_key' in the query above —
-							// 'meta_key' turns into an INNER JOIN in WP_Term_Query, which
-							// silently drops any usage term that doesn't have a
-							// "display_order" meta value saved yet.
-							if ( ! is_wp_error( $usage_terms ) ) {
-								usort(
-									$usage_terms,
-									function ( $a, $b ) {
-										$order_a = (int) get_term_meta( $a->term_id, Citykleta_Bike_Usage_Taxonomy::META_KEY_ORDER, true );
-										$order_b = (int) get_term_meta( $b->term_id, Citykleta_Bike_Usage_Taxonomy::META_KEY_ORDER, true );
-
-										// 0 means "no order set" (default) — those go after
-										// everything with an explicit order, instead of tying
-										// for first place.
-										if ( 0 === $order_a && 0 !== $order_b ) {
-											return 1;
-										}
-										if ( 0 !== $order_a && 0 === $order_b ) {
-											return -1;
-										}
-
-										if ( $order_a === $order_b ) {
-											return strcasecmp( $a->name, $b->name );
-										}
-
-										return $order_a <=> $order_b;
-									}
-								);
-							}
-
-							if ( ! is_wp_error( $usage_terms ) ) :
+							if ( $usage_terms ) :
 								foreach ( $usage_terms as $usage_term ) :
-									// Appends the bike types included in this usage (checked by
-									// the admin on the term's edit screen, see
-									// Citykleta_Bike_Usage_Taxonomy::META_KEY) after the manual
+									// Appends the subtypes under this type after the manual
 									// description, so visitors see what's covered without the
-									// admin having to type it out by hand.
+									// admin typing it out — and it can't go stale, since it's
+									// read from the tree itself.
 									$description = $usage_term->description;
-									$type_ids    = get_term_meta( $usage_term->term_id, Citykleta_Bike_Usage_Taxonomy::META_KEY, true );
-									$type_ids    = is_array( $type_ids ) ? array_map( 'intval', $type_ids ) : array();
+									$types       = Citykleta_Bike_Type_Taxonomy::children( $usage_term->term_id );
 
-									if ( $type_ids ) {
-										$types = get_terms(
-											array(
-												'taxonomy'   => Citykleta_Bike_Type_Taxonomy::TAXONOMY,
-												'include'    => $type_ids,
-												'orderby'    => 'include',
-												'hide_empty' => false,
+									if ( $types ) {
+										$description = implode(
+											' ',
+											array_filter(
+												array(
+													$description,
+													'Inc. ' . implode( ', ', wp_list_pluck( $types, 'name' ) ),
+												)
 											)
 										);
-
-										if ( ! is_wp_error( $types ) && $types ) {
-											$description = implode(
-												' ',
-												array_filter(
-													array(
-														$description,
-														'Inc. ' . implode( ', ', wp_list_pluck( $types, 'name' ) ),
-													)
-												)
-											);
-										}
 									}
 
 									$description = rtrim( $description );
