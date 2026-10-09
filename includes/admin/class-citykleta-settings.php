@@ -366,8 +366,8 @@ class Citykleta_Settings {
 	/**
 	 * The default FAQ (Destinations tab), parsed into
 	 * { 'question' => string, 'answer' => string }[]. Read by
-	 * Citykleta_Destination_Post_Type::faq_for() for any destination that
-	 * hasn't switched on its own override.
+	 * Citykleta_Destination_Post_Type::faq_for() — every destination shows
+	 * this list; there is no per-destination override anymore.
 	 *
 	 * @return array
 	 */

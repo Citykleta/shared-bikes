@@ -25,7 +25,7 @@ includes/
                                         creado a mano en wp-admin (submenú de "Bicicletas"), pero la
                                         asignación por bici la calcula Citykleta_Destination_Matcher por
                                         geocerca, no un campo que se elige a mano. Incluye su propia caja
-                                        de campos (geocerca + FAQ). Ver sección "Destinos" más abajo.
+                                        de campos (geocerca, con mapa para elegirla). Ver sección "Destinos" más abajo.
   taxonomies/
     class-citykleta-bike-type-taxonomy.php → Taxonomía JERÁRQUICA bike_type: arriba los tipos
                                         (Urbano, Carretera…, a mano), dentro los subtipos
@@ -42,7 +42,11 @@ includes/
   requests/
     class-citykleta-bike-request.php  → CPT privado "citykleta_bike_req": una solicitud de alquiler
                                         (bici, fechas, contacto, estado). Calcado de Citykleta_Subscriber.
-    class-citykleta-bike-request-rest.php → POST /citykleta/v1/bike-requests, público, valida el payload.
+    class-citykleta-contact-reveal.php → Cliente de POST /contact/reveal del backend: canjea el código de
+                                        verificación por el teléfono del dueño. Lo único del plugin que
+                                        manda una llave (CITYKLETA_PLUGIN_KEY, en wp-config.php).
+    class-citykleta-bike-request-rest.php → POST /citykleta/v1/bike-requests, público, valida el payload
+                                        y verifica el código contra el backend antes de guardar nada.
     class-citykleta-bike-request-form.php → El formulario de la página individual + sus assets.
     class-citykleta-bike-request-notifier.php → Los correos (a Citykleta y, si se puede, al dueño).
   sync/
@@ -128,6 +132,42 @@ includes/
     class-citykleta-bike-terms-widget.php → Widget "Bike Categories": las taxonomías de bici
                                          (bike_type o bike_usage) como una lista horizontal de chips.
                                          Ver "Bike Categories" más abajo.
+    class-citykleta-chat-widget.php   → Widget "Group Chat": conversación de grupo simulada (sección de
+                                         comunidad), decorativa, sin datos detrás. Los mensajes se escriben en
+                                         un Repeater; citykleta-chat.js los reproduce uno a uno con "escribiendo…"
+                                         (al entrar en pantalla / al pasar el mouse — cae a pantalla en táctil —
+                                         / sin animación). El servidor los imprime todos visibles: sin JS o con
+                                         prefers-reduced-motion se ve el chat completo. Chat genérico a propósito,
+                                         sin nombre/logo/colores de WhatsApp. Sin shortcode (un repeater no cabe
+                                         en atributos). CSS en assets/css/chat.css (solo estructura). La barra de
+                                         mensajes imita la de Lovart: caja alta redondeada, texto arriba, botón
+                                         izquierdo y botón de enviar abajo, ambos con ícono elegible (ICONS).
+                                         La altura (`body_height`, ID conservado) es la del chat ENTERO.
+                                         Simplificado a pedido (2026-10): SIN cabecera ni horas; UN color y UNA
+                                         tipografía para todos los textos (en la raíz, nada abajo fija font-size
+                                         ni color — salvo el nombre del autor, teñido por persona); la barra no
+                                         tiene fondo propio, usa el del chat; borde del campo con grosor y color.
+                                         Tipo de fila: `message` (otro) / `me` / `system` — reemplazó al switch
+                                         `is_me`; filas viejas con is_me=yes se ven como "otro" hasta cambiarlas.
+    class-citykleta-dropdown-tabs-widget.php → Widget "Dropdown Tabs": pestañas que se cambian con un
+                                         selector tipo combobox (botón + listbox con ✓, teclado WAI-ARIA) en vez
+                                         de botones. Es un widget ANIDADO como el Tabs de Elementor
+                                         (extiende Widget_Nested_Base): cada fila del repeater trae su propio
+                                         contenedor, que se llena directo en el lienzo — ya no hay plantillas
+                                         guardadas (se quitaron en 2026-10; un widget viejo con `template` queda
+                                         sin contenedores y hay que volver a armarlo). Necesita el tipo JS del
+                                         editor, assets/js/citykleta-dropdown-tabs-editor.js (misma forma que
+                                         modules/nested-tabs de Elementor, dependiente del script `nested-elements`):
+                                         API interna de Elementor, tras actualizarlo comprobar que se pueden
+                                         añadir pestañas y llenarlas. Sin `support_improved_repeaters`: añadir
+                                         una pestaña re-renderiza el widget con content_template(). Todos los
+                                         paneles salen del servidor (print_panel() sella id/role/data-tab-index
+                                         con el filtro elementor/frontend/container/should_render) y solo el
+                                         primero lleva `is-active`; el CSS oculta el resto por clase, no por
+                                         `hidden` (el display del contenedor le gana). Al cambiar dispara
+                                         `resize` (mapas/carruseles ocultos se re-miden) y el evento
+                                         `citykleta:tab-change`. CSS/JS: dropdown-tabs.css, citykleta-dropdown-tabs.js.
+                                         Probado: render del front (por CLI, con hijos). SIN probar: el editor.
     class-citykleta-widget-shortcodes.php → [citykleta_search]/[citykleta_grid]/[citykleta_map]: los tres
                                          widgets de arriba, también como shortcodes (reusan su render()
                                          real, ver la sección "Archivo de bicis" más abajo).
@@ -243,7 +283,7 @@ De esas seis, **Sync**, **Communication**, **Destinations** y **Templates** tien
 **Frontend** es documentación (la tabla de shortcodes). **Templates** elige qué plantilla dibuja cada
 vista, ver "Varias plantillas por vista" más abajo. **Destinations** guarda
 el slug de URL (`citykleta_destination_slug`) y el FAQ por defecto (`citykleta_destination_faq_default`)
-— los destinos en sí (geocerca, FAQ propio) se administran como posts del CPT `destination`, ver la
+— los destinos en sí (geocerca) se administran como posts del CPT `destination`, ver la
 sección "Destinos" más abajo.
 
 **Pestañas extensibles desde otros plugins:** la lista de pestañas se lee por `Citykleta_Settings::tabs()`,
@@ -291,7 +331,7 @@ por separado, nunca uno compartido entre formularios distintos.
   | `GET /bikesPublic/` | `listBikes` | no |
   | `GET /reviews/bike/:bikeId` | reseñas de una bici | **no — sin explotar** |
   | `GET /reviews/owner/:userId` | reputación de un dueño | **no — sin explotar** |
-  | `POST /contact/reveal` | teléfono del dueño a cambio de un código | **no — sin conectar** |
+  | `POST /contact/reveal` | teléfono del dueño a cambio de un código (**con llave**) | **sí** — `Citykleta_Contact_Reveal` |
   | `/auth`, `/health`, `/.well-known/…` | sesión e infraestructura | no |
 
   Las tres últimas de interés (`/reviews/*` y `/contact/reveal`) están verificadas en vivo: las de
@@ -1568,6 +1608,16 @@ avanzar). En pantallas táctiles (`hover: none`) no hay flechas: se desliza.
 una etiqueta, un destino, "esta página" (archivo de tipo/etiqueta → ese término; página de destino → su
 geocerca; ficha de bici → bicis del mismo subtipo sin ella; otra página → todas) o una consulta libre
 (ubicación). `build_rows()` devuelve filas `title/url/args`, y `render()` las dibuja igual en todos los casos.
+**Fuente "For you" (valor guardado `nearby`)**: el servidor imprime las bicis con `lat`/`lng` (hasta 100, cada
+ítem con `data-id`/`data-lat`/`data-lng`) y `citykleta-bike-rows.js` elige en el navegador: primero las bicis que
+ese navegador ya abrió (como mucho un tercio de la fila) y luego las más cercanas dentro de "Maximum Distance
+(km)" (50 por defecto). El historial lo escribe `citykleta-view-stats.js` en `localStorage`
+(`citykleta_recent_bikes`, IDs de más reciente a más viejo, máx. 20) en cada ficha de bici, aunque esa vista no
+se cuente otra vez en la sesión. Ni la posición ni el historial salen del dispositivo. Cualquiera de los dos
+puede faltar (ubicación denegada, nada visitado); sin ninguno, o con nada cerca, la fila nace `hidden` y el
+widget no dibuja nada. El título es "Sugerencias para ti" (editable); **ya no se nombra el barrio** — esa
+versión (geocercas de Destination en `data-citykleta-places`) se quitó. `Citykleta_Destination_Matcher::geofences()`
+sigue público. Navegadores solo dan la ubicación en HTTPS o localhost. Sin verificar en vivo.
 **Botones de flecha:** panel Style → Arrows completo (tamaño, ícono propio prev/next, colores normal/hover,
 borde, radio desde cuadrado hasta círculo, sombra, distancia al borde, "siempre / al pasar el mouse" vía
 `prefix_class`, ancho del degradado); sus defaults viven en los controles, no en `bike-rows.css`.
@@ -1772,7 +1822,7 @@ en `single-bike.php`.
 **Ya no pide nombre ni correo/teléfono (2026-09).** El código de verificación es el identificador
 único de la persona dentro de la plataforma — quien ya se verificó tiene un nombre y un contacto en
 algún sitio, así que preguntárselos de nuevo en este formulario era pedir dos veces lo mismo. Ver
-`Citykleta_Bike_Request_Rest::resolve_identity()` para cómo (y cuánto de) eso se resuelve hoy.
+`Citykleta_Bike_Request_Rest::reveal()` para cómo (y cuánto de) eso se resuelve hoy.
 
 **Es una SOLICITUD, no una reserva, y la distinción es dura, no un matiz de redacción:**
 
@@ -1848,27 +1898,69 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
     solicitud no puede perder sus fechas en silencio por un archivo que falta. Y el formulario encola
     Flatpickr él mismo en vez de confiar en `Citykleta_Elementor`: se puede soltar en una página que no
     tenga ningún buscador.
-- **Código de verificación: hoy se captura sin validar — pero la ruta para validarlo YA EXISTE.**
+- **Código de verificación: se valida contra el backend y de ahí sale el WhatsApp al dueño (2026-10).**
   El paso 1 pide un código y ofrece un enlace "Verificarme ahora" (URL configurable en el widget, abre
   en pestaña nueva con `rel="noopener noreferrer"` para que el formulario a medio llenar siga ahí al
-  volver). Se guarda tal cual se escribió (`Citykleta_Bike_Request::META_VERIFICATION_CODE`, visible en
-  la ficha de la solicitud) para que lo revise quien la atiende.
+  volver). Al enviar, `Citykleta_Bike_Request_Rest::capture()` llama a `POST /contact/reveal` vía
+  `Citykleta_Contact_Reveal::request()` — **después** de validar fechas (cada reveal queda en el log del
+  backend y gasta el cupo de consultas del código, así que unas fechas malas no deben gastarlo) y
+  **antes** de guardar nada. Validar el código y traer el teléfono del dueño son la misma llamada.
 
-  **Corrección (2026-09): este documento afirmaba que `citykleta-sharing-api` "no expone ninguna ruta
-  pública para verificar a una persona". Es falso** — existe
-  **`POST /contact/reveal`**, montada *antes* del `verifyAuth` global y con este plugin como consumidor
-  previsto de primera clase (ver la sección siguiente). Ese código es precisamente lo que consume:
-  `identity_verification.contact_code`. Conectarlo cierra el círculo entero — validar el código y
-  obtener el teléfono del dueño son **la misma llamada**.
-- **`Citykleta_Bike_Request_Rest::resolve_identity( $bike_id, $code )` es donde ese lookup entraría
-  (2026-09).** Hoy devuelve siempre `{name:'', contact:'', contact_type:''}` — sin campo de nombre ni
-  contacto en el formulario, y sin la llave del plugin (`x-citykleta-plugin-key`) guardada en Settings,
-  no hay de dónde sacarlos. Expone el filtro `citykleta_resolve_request_identity` (mismo patrón de seam
-  que `citykleta_bike_request_captured`) para que la llamada real a `/contact/reveal` se conecte sin
-  tocar la ruta REST otra vez. **Ojo:** esa ruta solo devuelve el *nombre* del solicitante — el teléfono
-  que trae es el del **dueño**, no el del solicitante — así que conectarla resuelve la identidad pero
-  todavía no da un correo/teléfono al que responderle; sigue sin existir ese dato en ningún lado hasta
-  que la app lo exponga.
+  **El backend responde con `{ message }` y nada más (sin campo `code`), así que el resultado se
+  distingue por status** (leído de `citykleta-sharing-api`: `contactRoutes.ts`, `authMiddleware.ts`,
+  `verificationServiceImpl.ts`, `errorsObjects.ts`):
+
+  | Status | Qué es | Qué hace el plugin |
+  |---|---|---|
+  | 200 | código bueno → `{requester:{name}, owner:{name,phone}}` | guarda la solicitud verificada y devuelve un enlace `wa.me` |
+  | 403 | código inexistente / no aprobado / cuenta cerrada (el backend las responde igual a propósito) | **rechaza**; el JS vuelve al paso 1 donde está el campo |
+  | 429 | ese código ya consultó demasiados dueños distintos hoy | **rechaza** con el mensaje del backend |
+  | 400 | la bici no existe o está retirada en la app | **rechaza** ("ya no está disponible") |
+  | 401 | llave mal puesta: cae en el `verifyAuth` de la sesión | guarda **sin verificar** + `error_log`; es error NUESTRO, no del visitante |
+  | otro / red caída / 8 s | backend no responde | guarda **sin verificar** + `error_log` |
+
+  **Guardar sin verificar es a propósito:** perder la solicitud por una caída nuestra (la conexión en
+  Cuba lo hace probable) cuesta más que una solicitud con el código sin comprobar. En wp-admin esas
+  salen con **"NOT verified"** en rojo y la causa (`META_VERIFIED` / `META_VERIFICATION_NOTE`). Tampoco
+  se verifica si no se escribió código (la pieza tiene un switch `require_code`) o si la bici no tiene
+  `external_id` numérico (una hecha a mano).
+
+  **La llave va en `wp-config.php`, no en la base de datos:**
+  `define( 'CITYKLETA_PLUGIN_KEY', '…' );` — mismo valor que el `WORDPRESS_PLUGIN_KEY` del `.env` del
+  backend. Se descartó un campo en Settings porque dejaría una credencial en cada volcado de la base y
+  en el HTML de wp-admin. **Sin la constante todo sigue funcionando pero nada se verifica** (cada
+  solicitud sale "NOT verified: CITYKLETA_PLUGIN_KEY is not defined"), así que si en wp-admin todas
+  salen sin verificar, mirar eso primero. La ruta es fija en `Citykleta_Settings::PATHS['contact_reveal']`.
+
+  **El teléfono del dueño NO se guarda en la solicitud.** Viaja una sola vez, dentro del enlace `wa.me`
+  de la respuesta REST, hacia el navegador del visitante que se verificó. Guardar una copia saltaría el
+  registro y el límite que el backend le pone a cada reveal. Consecuencia: si el visitante cierra la
+  pestaña antes de apretar el botón, el enlace se perdió (hay que repetir la solicitud), y
+  `render_owner_actions()` en wp-admin sigue dependiendo del contacto manual de `Citykleta_Owner_Contact`.
+  El mensaje sale de la plantilla de Settings → Communication, con el placeholder nuevo `{dates}`
+  (` del 20/11/2026 al 23/11/2026`, con su espacio inicial para que vacío no deje hueco).
+  **Ojo:** `/contact/reveal` solo devuelve el nombre del *solicitante*, no cómo contactarlo — el teléfono
+  que trae es el del dueño. Sigue sin existir un correo/teléfono al que responderle al solicitante.
+
+  Verificado: el cliente contra un servidor falso que imita los status/cuerpos reales (los 9 casos de
+  arriba, más llave mala y backend caído), la ruta REST viva por `curl` (rama sin verificar), y el JS en el
+  navegador con respuestas simuladas (403 → paso 1 con el mensaje; 201 verificado → botón de WhatsApp).
+  **Pendiente de verlo con el backend real**: hace falta definir la constante y un código verificado.
+- **Total estimado en vivo (2026-10).** Al elegir las dos fechas, el formulario muestra
+  `$13 USD × 3 días` y `Total estimado $39 USD` (`citykleta-bike-request.js`, `updateTotal()`; el precio
+  viaja en `data-price` de la raíz). **Es "estimado" a propósito, y es el mínimo posible:** el backend cobra
+  *estilo hotel* (`getRentalDays()` en `reservationServiceImpl.ts`: días de calendario entre las fechas, más
+  uno si la devolución es a partir de una hora de corte, y nunca menos de uno), y este formulario pide
+  fechas pero no horas, así que no puede saber el total real. Cuenta los días de calendario con ese mismo
+  mínimo de 1, y el bloque dice "El propietario confirma el total final". Si algún día el formulario pide
+  hora de devolución, el cálculo exacto pasa a ser el de `getRentalDays()` (la hora de corte la define el
+  ajuste `rental_cutoff_hour` del backend, que no es público). Para que se entere de los cambios,
+  `initRange()` ahora dispara un `change` en los campos ocultos al elegir fechas (Flatpickr asigna `.value`
+  por script y eso no emite evento).
+- **El título del formulario es una etiqueta pequeña, no un titular**, y el botón del paso 1 dice "Pedir
+  esta bici". **Ojo:** una plantilla ya guardada desde el editor de Elementor conserva
+  `"next_text":"Continuar"` en su `_elementor_data` — el default nuevo solo llega a plantillas nuevas o a un
+  `Reset`; en una existente se cambia en el widget → Content → Buttons → Continue.
 - **`citykleta_bike_request_captured`** (`$post_id`, `$bike_id`, `$data`) es el punto de acoplamiento,
   igual que `citykleta_subscriber_captured` lo es para HubSpot. `Citykleta_Bike_Request_Notifier` se
   engancha ahí para los correos, y es donde entraría el push de la Fase 2.
@@ -1918,7 +2010,8 @@ tiene ni puede tener" un canal hacia el dueño, y sobre esa premisa se construy�
 teléfono, en su propio meta `_citykleta_owner_contact` (nunca en `owner_phone`, que es campo
 sincronizado y lo pisaría el día que la API mande `phone`). **La premisa era falsa.** La caja sigue
 siendo útil como respaldo (un dueño sin verificación aprobada, o un visitante sin código), pero
-**no es el camino principal** — el camino principal es `/contact/reveal`, y está sin conectar.
+**no es el camino principal** — el camino principal es `/contact/reveal`, ya conectado (ver "Código de
+verificación" más arriba).
 
 Mientras tanto: con un **correo** el dueño recibe aviso automático; con un **teléfono** no hay nada que
 mandar solo (WhatsApp no da API de envío a este plugin), así que la ficha de la solicitud ofrece un
@@ -1974,6 +2067,14 @@ un destino sin trucos), no como término de taxonomía.
   y radio en km (`citykleta_destination_radius_km`), editables en su propia caja de campos
   (`Citykleta_Destination_Post_Type::render_meta_box()`). Un radio en `0` (el default de un destino
   nuevo) hace que ese destino se ignore — todavía no tiene geocerca usable.
+  **Encima de esos campos hay un mapa** (`assets/js/citykleta-destination-picker.js`, encolado por
+  `enqueue_picker_assets()` solo en la pantalla de edición de un destino): clic o arrastrar el pin
+  rellena lat/lng, el círculo sigue al radio, y las bicis salen como puntos — amarillos dentro de la
+  geocerca, grises fuera, con el conteo. Los inputs siguen siendo lo que se guarda; el mapa solo los
+  escribe. Reusa Leaflet y `Citykleta_Settings::tile_layer()`, no `citykleta-map.js` (ese solo dibuja
+  bicis, no tiene modo de elegir un punto). El pin es un `divIcon`: el pin por defecto de Leaflet es un
+  PNG en `assets/css/images/`, que no viene con el vendor. Sin `leaflet.js` el mapa no aparece y los
+  campos funcionan igual.
 - **`Citykleta_Destination_Matcher`** corre dentro de `Citykleta_Bike_Sync::run()`, pero **después** del
   loop de `upsert_bike()` (a diferencia de `Citykleta_Bike_Type_Sync`/`Citykleta_Map_Settings_Sync`, que
   corren antes) — necesita el `lat`/`lng` que la bici recién guardó. Para cada bici con coordenadas
@@ -1994,14 +2095,14 @@ un destino sin trucos), no como término de taxonomía.
 - **Precio promedio** — calculado en PHP sobre los resultados de la misma query de bicis del destino
   (`array_sum/count` sobre `Citykleta_Bike_Meta::price_amount()`), no con un `AVG()` en SQL aparte: la lista de bicis de un
   destino es chica (geocerca local), no vale la pena una segunda consulta.
-- **FAQ genérico + override por destino** — `Citykleta_Settings` tiene una pestaña nueva **Destinations**
+- **FAQ, uno solo para todos los destinos** — `Citykleta_Settings` tiene una pestaña **Destinations**
   con un textarea de formato libre ("una pregunta por línea: `Pregunta :: Respuesta`", el mismo truco de
-  "textarea plano en vez de repeater JS" que ya usa la plantilla de WhatsApp) que guarda el FAQ por
-  defecto (`citykleta_destination_faq_default`, parseado por
-  `Citykleta_Destination_Post_Type::parse_faq_text()`). Cada destino tiene un switch ("Custom FAQ") + su
-  propio textarea en el mismo formato — apagado por defecto (usa el genérico), encendido reemplaza la
-  lista **entera** (nunca se mezclan las dos). `Citykleta_Destination_Post_Type::faq_for( $post_id )`
-  resuelve cuál mostrar.
+  "textarea plano en vez de repeater JS" que ya usa la plantilla de WhatsApp) que guarda el FAQ
+  (`citykleta_destination_faq_default`, parseado por `Citykleta_Destination_Post_Type::parse_faq_text()`).
+  Hubo un FAQ propio por destino (switch "Custom FAQ" + textarea "FAQ items") y **se quitó en 2026-10**
+  por pedido del usuario; ningún destino lo usaba (verificado en la base: todos apagados y vacíos). Las
+  metas viejas `citykleta_destination_faq_override` / `_faq_items_raw` pueden seguir en la base, nadie
+  las lee. `faq_for( $post_id )` conserva su firma y devuelve siempre el FAQ de Settings.
 - **El CPT es idéntico a una Página, a propósito.** `supports` no es una lista escrita a mano:
   sale de `array_keys( get_all_post_type_supports( 'page' ) )` más `'elementor'` (ver
   `Citykleta_Destination_Post_Type::page_supports()`). Así hereda lo que una página tenga en
@@ -2033,13 +2134,16 @@ un destino sin trucos), no como término de taxonomía.
   `single-bike.php` ya existe y muestra la ficha **completa**, y el muro terminó siendo global
   (el de descarga de la app, ver esa sección). Queda como decisión abierta si conviene volver
   a esconder algo, ahora que la conversión también puede ser una solicitud.
-- **Conectar `POST /contact/reveal`** — lo de mayor rendimiento por trabajo invertido de esta lista.
-  La ruta existe, la llave está configurada en el backend, y el formulario **ya le pide al visitante el
-  código que consume**. Conectarlo valida el código (hoy se guarda sin comprobar) y consigue el teléfono
-  del dueño en la misma llamada, lo que vuelve opcional el `Citykleta_Owner_Contact` manual. Hace falta
-  guardar la llave en Settings (no en código) y decidir el momento: al enviar la solicitud, o al
-  confirmarla desde wp-admin — la segunda opción no gasta cupo del límite por dueño en solicitudes que
-  nadie va a atender. Ver "El contacto del dueño" más arriba.
+- **Probar `POST /contact/reveal` con el backend real** — ya está conectado (ver "Código de
+  verificación" en "Solicitudes de bicicleta"), pero solo se probó contra un servidor falso. Falta
+  definir `CITYKLETA_PLUGIN_KEY` en `wp-config.php` y usar un código de una verificación aprobada. Se
+  decidió hacer el reveal **al enviar** la solicitud (no al confirmarla desde wp-admin): gasta cupo del
+  límite por dueño aunque nadie atienda la solicitud, a cambio de que el visitante reciba el WhatsApp en el
+  momento. Si ese cupo molesta, la alternativa es moverlo a wp-admin.
+- **Formato del teléfono del dueño** — `whatsapp_url()` solo deja los dígitos, y `wa.me` exige el
+  número internacional. El dueño de la bici 292 en este LocalWP tiene `+53 53003003`, pero si el
+  backend manda un móvil cubano de 8 dígitos sin `53`, el enlace no abre el chat correcto.
+  Comprobarlo con un `owner.mobile` real de `/contact/reveal`.
 - **Reseñas y reputación en la ficha de la bici** — `GET /reviews/bike/:bikeId` y
   `GET /reviews/owner/:userId` son públicas, responden 200 sin autenticación, y no las consume nada.
   En un marketplace P2P la reputación del dueño es de lo que más mueve una conversión, y sería otra

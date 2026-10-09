@@ -1,0 +1,299 @@
+/**
+ * "Group Chat" widget (Citykleta_Chat_Widget).
+ *
+ * Structure only: colors, sizes and radii come from the widget's own controls
+ * (their defaults live there, not here — one source of truth).
+ *
+ * Every text inherits the root's font and color (one Typography and one Text
+ * Color control), so no element below sets its own font-size or color — the
+ * only exception is the author name, tinted per person.
+ */
+
+.citykleta-chat {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	font-size: 0.9375rem;
+	line-height: 1.35;
+}
+
+/* Conversation */
+
+/* The Height control sizes the whole chat; the conversation takes whatever
+   the message bar (when shown) leaves. min-height: 0 lets it shrink below its
+   content and scroll instead of overflowing the box. */
+.citykleta-chat__body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	/* The fixed window of the conversation: the Conversation Padding lives
+	   here. The messages scroll in __scroll, inside it, and are clipped at its
+	   padding edge — that is what keeps the padding visible while scrolling. */
+	overflow: hidden;
+}
+
+.citykleta-chat__scroll {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	gap: 2px;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: thin;
+}
+
+/* Few messages sit at the bottom, like a real chat. An empty first flex item
+   with margin-top: auto does it and keeps the area scrollable, which
+   justify-content: flex-end would not. A pseudo-element rather than
+   :first-child, because during playback the first message is hidden. */
+.citykleta-chat__scroll::before {
+	content: "";
+	margin-top: auto;
+}
+
+/* On the whole chat, not just the conversation: the message bar must sit on
+   exactly the same background (dots included), not on a plainer one. */
+.citykleta-chat-pattern-yes .citykleta-chat {
+	background-image: radial-gradient(rgba(21, 27, 29, 0.07) 1px, transparent 1.4px);
+	background-size: 16px 16px;
+}
+
+.citykleta-chat__row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.375rem;
+}
+
+.citykleta-chat__row.is-out {
+	justify-content: flex-end;
+	/* Room for the bubble's tail, which sticks out 7px past the bubble. With
+	   the bubble flush right, it overflowed and showed a horizontal scrollbar. */
+	padding-right: 7px;
+}
+
+/* Same for the tail on the left when there is no avatar column to hold it. */
+.citykleta-chat:not(.has-avatars) .citykleta-chat__row.is-in {
+	padding-left: 7px;
+}
+
+/* Space Between People: before the first bubble of each person and before a
+   notice. The control sets the variable; 8px is the same default. */
+.citykleta-chat__row.is-first,
+.citykleta-chat__system {
+	margin-top: var(--citykleta-chat-sender-gap, 8px);
+}
+
+.citykleta-chat__avatar {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	object-fit: cover;
+	background-color: var(--citykleta-chat-author);
+	color: #fff;
+	font-size: 0.6875rem;
+	font-weight: 600;
+}
+
+.citykleta-chat__avatar.is-empty {
+	visibility: hidden;
+}
+
+.citykleta-chat__bubble {
+	position: relative;
+	max-width: 80%;
+	padding: 0.375rem 0.5rem 0.375rem 0.5625rem;
+	border-radius: var(--citykleta-chat-radius, 10px);
+	box-shadow: 0 1px 0.5px rgba(21, 27, 29, 0.13);
+	overflow-wrap: anywhere;
+}
+
+/* The tail on the first bubble of each run. background: inherit takes the
+   bubble's color, whatever the control sets it to. */
+.citykleta-chat__row.is-first .citykleta-chat__bubble::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	width: 8px;
+	height: 12px;
+	background: inherit;
+}
+
+.citykleta-chat__row.is-in.is-first .citykleta-chat__bubble {
+	border-top-left-radius: 0;
+}
+
+.citykleta-chat__row.is-in.is-first .citykleta-chat__bubble::before {
+	left: -7px;
+	clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.citykleta-chat__row.is-out.is-first .citykleta-chat__bubble {
+	border-top-right-radius: 0;
+}
+
+.citykleta-chat__row.is-out.is-first .citykleta-chat__bubble::before {
+	right: -7px;
+	clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.citykleta-chat__author {
+	display: block;
+	margin-bottom: 1px;
+	color: var(--citykleta-chat-author);
+	font-weight: 600;
+}
+
+.citykleta-chat__text {
+	white-space: pre-line;
+}
+
+/* Read ticks of a "me" bubble, tucked in the bottom-right corner. */
+.citykleta-chat__meta {
+	display: inline-flex;
+	float: right;
+	margin: 0.4375rem 0 -0.25rem 0.625rem;
+	line-height: 1;
+}
+
+.citykleta-chat__system {
+	align-self: center;
+	max-width: 85%;
+	padding: 0.3125rem 0.75rem;
+	border-radius: 8px;
+	text-align: center;
+}
+
+/* Typing indicator */
+
+.citykleta-chat__typing[hidden] {
+	display: none;
+}
+
+.citykleta-chat__typing .citykleta-chat__author:empty {
+	display: none;
+}
+
+.citykleta-chat__dots {
+	display: inline-flex;
+	gap: 4px;
+	padding: 0.3125rem 0.125rem;
+}
+
+.citykleta-chat__dots span {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	animation: citykleta-chat-dot 1.2s infinite ease-in-out;
+}
+
+.citykleta-chat__dots span:nth-child(2) {
+	animation-delay: 0.15s;
+}
+
+.citykleta-chat__dots span:nth-child(3) {
+	animation-delay: 0.3s;
+}
+
+@keyframes citykleta-chat-dot {
+	0%,
+	60%,
+	100% {
+		transform: translateY(0);
+		opacity: 0.45;
+	}
+
+	30% {
+		transform: translateY(-3px);
+		opacity: 1;
+	}
+}
+
+/* Playback states, set by citykleta-chat.js only. */
+
+.citykleta-chat .citykleta-chat__item.is-pending {
+	display: none;
+}
+
+.citykleta-chat .citykleta-chat__item.is-entering {
+	animation: citykleta-chat-in 0.28s ease-out;
+}
+
+@keyframes citykleta-chat-in {
+	from {
+		transform: translateY(6px) scale(0.98);
+		opacity: 0;
+	}
+
+	to {
+		transform: none;
+		opacity: 1;
+	}
+}
+
+/* Message bar (decorative) */
+
+/* A tall rounded field: placeholder on top, buttons along the bottom edge.
+   No background of its own — bar and field show the chat's background. Border
+   width/color and radius come from the Message Bar style controls. */
+.citykleta-chat__footer {
+	flex: none;
+}
+
+.citykleta-chat__composer {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.875rem 0.75rem 0.75rem 1.125rem;
+	border: 1px solid transparent;
+}
+
+.citykleta-chat__input {
+	display: block;
+}
+
+.citykleta-chat__actions {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.citykleta-chat__attach,
+.citykleta-chat__send {
+	display: grid;
+	place-items: center;
+	flex: none;
+	line-height: 1;
+}
+
+.citykleta-chat__send {
+	margin-left: auto;
+	border-radius: 50%;
+}
+
+/* Elementor renders a chosen icon as an inline SVG or an <i> font glyph;
+   both follow the button's font-size and color. */
+.citykleta-chat__attach svg,
+.citykleta-chat__send svg {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+}
+
+.citykleta-chat__attach i,
+.citykleta-chat__send i {
+	font-size: 1em;
+	color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.citykleta-chat__dots span,
+	.citykleta-chat .citykleta-chat__item.is-entering {
+		animation: none;
+	}
+}

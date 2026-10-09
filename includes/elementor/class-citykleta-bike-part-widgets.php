@@ -1797,7 +1797,7 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 			array(
 				'label'   => 'Continue',
 				'type'    => \Elementor\Controls_Manager::TEXT,
-				'default' => 'Continuar',
+				'default' => 'Pedir esta bici',
 			)
 		);
 

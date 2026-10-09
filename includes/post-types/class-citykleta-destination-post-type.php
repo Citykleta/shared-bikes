@@ -35,17 +35,13 @@ class Citykleta_Destination_Post_Type {
 	const POST_TYPE = 'destination';
 
 	/**
-	 * Post meta keys. `faq_items_raw` stores the textarea's raw text as-is
-	 * (same "Question :: Answer" per line format Citykleta_Settings' default
-	 * FAQ field uses) — parsed on read by self::parse_faq_text(), not stored
-	 * pre-parsed, so there's one parser instead of two places that could
-	 * drift apart.
+	 * Post meta keys: the geofence. (A per-destination FAQ override lived here
+	 * too — `citykleta_destination_faq_override` / `_faq_items_raw` — and was
+	 * removed: every destination shows the default FAQ from Settings.)
 	 */
-	const META_LAT          = 'citykleta_destination_lat';
-	const META_LNG          = 'citykleta_destination_lng';
-	const META_RADIUS_KM    = 'citykleta_destination_radius_km';
-	const META_FAQ_OVERRIDE = 'citykleta_destination_faq_override';
-	const META_FAQ_RAW      = 'citykleta_destination_faq_items_raw';
+	const META_LAT       = 'citykleta_destination_lat';
+	const META_LNG       = 'citykleta_destination_lng';
+	const META_RADIUS_KM = 'citykleta_destination_radius_km';
 
 	/**
 	 * Connects the class to WordPress hooks.
@@ -56,6 +52,30 @@ class Citykleta_Destination_Post_Type {
 
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 		add_action( 'save_post_' . self::POST_TYPE, array( $this, 'save_meta' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_picker_assets' ) );
+	}
+
+	/**
+	 * Loads Leaflet and the geofence picker, only on a destination's edit screen.
+	 *
+	 * Leaflet is a vendor file that is not in the repo (see the "Mapa de bicis"
+	 * notes in CLAUDE.md); without it the box keeps working as plain number
+	 * inputs, which is why the picker JS is skipped instead of failing.
+	 */
+	public function enqueue_picker_assets() {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( ! $screen || 'post' !== $screen->base || self::POST_TYPE !== $screen->post_type ) {
+			return;
+		}
+
+		if ( ! file_exists( CITYKLETA_PATH . 'assets/js/leaflet.js' ) ) {
+			return;
+		}
+
+		wp_enqueue_style( 'leaflet', CITYKLETA_URL . 'assets/css/leaflet.css', array(), CITYKLETA_VERSION );
+		wp_enqueue_script( 'leaflet', CITYKLETA_URL . 'assets/js/leaflet.js', array(), CITYKLETA_VERSION, true );
+		wp_enqueue_script( 'citykleta-destination-picker', CITYKLETA_URL . 'assets/js/citykleta-destination-picker.js', array( 'leaflet' ), CITYKLETA_VERSION, true );
 	}
 
 	/**
@@ -140,8 +160,8 @@ class Citykleta_Destination_Post_Type {
 	}
 
 	/**
-	 * Registers the scalar fields (not the FAQ textarea — see self::META_FAQ_RAW)
-	 * so they're readable via the REST API, same pattern as Citykleta_Bike_Meta.
+	 * Registers the geofence fields so they're readable via the REST API, same
+	 * pattern as Citykleta_Bike_Meta.
 	 */
 	private function register_meta() {
 		foreach ( array( self::META_LAT, self::META_LNG, self::META_RADIUS_KM ) as $key ) {
@@ -156,18 +176,6 @@ class Citykleta_Destination_Post_Type {
 				)
 			);
 		}
-
-		register_post_meta(
-			self::POST_TYPE,
-			self::META_FAQ_OVERRIDE,
-			array(
-				'type'          => 'boolean',
-				'single'        => true,
-				'default'       => false,
-				'show_in_rest'  => true,
-				'auth_callback' => array( $this, 'can_manage' ),
-			)
-		);
 	}
 
 	/**
@@ -195,20 +203,41 @@ class Citykleta_Destination_Post_Type {
 
 	/**
 	 * Renders the fields box: the geofence used by Citykleta_Destination_Matcher,
-	 * plus the FAQ override switch and its textarea.
+	 * with a map to pick it on.
 	 *
 	 * @param WP_Post $post The destination being edited.
 	 */
 	public function render_meta_box( $post ) {
 		wp_nonce_field( 'citykleta_save_destination_meta', 'citykleta_destination_meta_nonce' );
 
-		$lat      = get_post_meta( $post->ID, self::META_LAT, true );
-		$lng      = get_post_meta( $post->ID, self::META_LNG, true );
-		$radius   = get_post_meta( $post->ID, self::META_RADIUS_KM, true );
-		$override = get_post_meta( $post->ID, self::META_FAQ_OVERRIDE, true );
-		$faq_raw  = get_post_meta( $post->ID, self::META_FAQ_RAW, true );
+		$lat    = get_post_meta( $post->ID, self::META_LAT, true );
+		$lng    = get_post_meta( $post->ID, self::META_LNG, true );
+		$radius = get_post_meta( $post->ID, self::META_RADIUS_KM, true );
+
+		// Bikes as plain points, so the radius can be judged against real
+		// coverage while picking it. Only lat/lng travel to the page.
+		$bike_points = array();
+		foreach ( Citykleta_Bike_Map_Data::query( array( 'count' => -1 ) ) as $bike ) {
+			if ( isset( $bike['lat'], $bike['lng'] ) ) {
+				$bike_points[] = array( (float) $bike['lat'], (float) $bike['lng'] );
+			}
+		}
+
+		$picker_options = array_merge(
+			Citykleta_Settings::tile_layer(),
+			array(
+				'bikes' => $bike_points,
+			)
+		);
 		?>
 		<table class="form-table">
+			<tr>
+				<th>Map</th>
+				<td>
+					<div class="citykleta-destination-picker" data-options="<?php echo esc_attr( wp_json_encode( $picker_options ) ); ?>" style="height:380px;width:100%;max-width:900px;border:1px solid #c3c4c7;border-radius:4px;"></div>
+					<p class="description">Click the map (or drag the pin) to set the center; the circle follows the radius below. Yellow dots are bikes inside the geofence, grey ones are outside. <span class="citykleta-destination-picker__count"></span></p>
+				</td>
+			</tr>
 			<tr>
 				<th><label for="citykleta_destination_lat">Latitude</label></th>
 				<td>
@@ -227,20 +256,6 @@ class Citykleta_Destination_Post_Type {
 				<td>
 					<input type="number" step="any" min="0" id="citykleta_destination_radius_km" name="citykleta_destination_radius_km" value="<?php echo esc_attr( $radius ); ?>" class="regular-text" />
 					<p class="description">A bike inside this radius from the center above belongs to this destination. Recomputed on every sync — see Citykleta_Destination_Matcher. 0 = geofence not set yet, this destination is ignored.</p>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="citykleta_destination_faq_override">Custom FAQ</label></th>
-				<td>
-					<label><input type="checkbox" id="citykleta_destination_faq_override" name="citykleta_destination_faq_override" value="1" <?php checked( $override, '1' ); ?> /> Use this destination's own FAQ instead of the default one</label>
-					<p class="description">Off = shows the default FAQ (Settings → Destinations). On = shows only the list below, in full — the two are never merged.</p>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="citykleta_destination_faq_items">FAQ items</label></th>
-				<td>
-					<textarea id="citykleta_destination_faq_items" name="citykleta_destination_faq_items" rows="6" class="large-text"><?php echo esc_textarea( $faq_raw ); ?></textarea>
-					<p class="description">One question per line: "Question :: Answer". Only used when "Custom FAQ" above is checked.</p>
 				</td>
 			</tr>
 		</table>
@@ -273,10 +288,6 @@ class Citykleta_Destination_Post_Type {
 		update_post_meta( $post_id, self::META_LAT, $lat );
 		update_post_meta( $post_id, self::META_LNG, $lng );
 		update_post_meta( $post_id, self::META_RADIUS_KM, max( 0.0, $radius ) );
-		update_post_meta( $post_id, self::META_FAQ_OVERRIDE, isset( $_POST['citykleta_destination_faq_override'] ) ? '1' : '0' );
-
-		$faq_raw = isset( $_POST['citykleta_destination_faq_items'] ) ? sanitize_textarea_field( wp_unslash( $_POST['citykleta_destination_faq_items'] ) ) : '';
-		update_post_meta( $post_id, self::META_FAQ_RAW, $faq_raw );
 	}
 
 	/**
@@ -313,22 +324,16 @@ class Citykleta_Destination_Post_Type {
 	}
 
 	/**
-	 * The FAQ list a destination page should show: its own override if
-	 * turned on and non-empty, otherwise Citykleta_Settings' global default.
+	 * The FAQ list a destination page should show: always Citykleta_Settings'
+	 * default (Settings → Destinations) since the per-destination override was
+	 * removed. Keeps the destination parameter so callers don't change if a
+	 * per-destination source comes back.
 	 *
-	 * @param int $post_id Destination ID.
+	 * @param int $post_id Destination ID (unused).
 	 * @return array { 'question' => string, 'answer' => string }[].
 	 */
 	public static function faq_for( $post_id ) {
-		$override = '1' === (string) get_post_meta( $post_id, self::META_FAQ_OVERRIDE, true );
-
-		if ( $override ) {
-			$items = self::parse_faq_text( get_post_meta( $post_id, self::META_FAQ_RAW, true ) );
-
-			if ( $items ) {
-				return $items;
-			}
-		}
+		unset( $post_id );
 
 		return Citykleta_Settings::destination_faq_default();
 	}

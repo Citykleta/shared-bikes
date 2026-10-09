@@ -17,6 +17,29 @@
 		return;
 	}
 
+	// Remembers, in this browser only, which bikes the visitor has opened (most
+	// recent first, capped) so the "for you" row in Bike Rows can bring them
+	// back. It runs before the once-per-session guard below: reopening a bike
+	// should refresh its place in the list even when it isn't counted again.
+	try {
+		var recentKey = 'citykleta_recent_bikes';
+		var recent = JSON.parse( localStorage.getItem( recentKey ) || '[]' );
+		var id = parseInt( config.bikeId, 10 );
+
+		if ( ! Array.isArray( recent ) ) {
+			recent = [];
+		}
+
+		recent = recent.filter( function ( value ) {
+			return value !== id;
+		} );
+		recent.unshift( id );
+
+		localStorage.setItem( recentKey, JSON.stringify( recent.slice( 0, 20 ) ) );
+	} catch ( e ) {
+		// Private mode or blocked storage: the row just won't have history.
+	}
+
 	var storageKey = 'citykleta_viewed_' + config.bikeId;
 
 	try {

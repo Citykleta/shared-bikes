@@ -133,6 +133,16 @@
 				if ( toInput ) {
 					toInput.value = selectedDates[1] ? instance.formatDate( selectedDates[1], 'Y-m-d' ) : '';
 				}
+
+				// Setting .value from script fires no event, so whoever listens
+				// to these fields (the request form's live price estimate) would
+				// never find out the range changed. A native-date fallback fires
+				// its own 'change', this keeps the Flatpickr path consistent with it.
+				[ fromInput, toInput ].forEach( function ( hidden ) {
+					if ( hidden ) {
+						hidden.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+					}
+				} );
 			},
 		} );
 

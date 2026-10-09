@@ -1,8 +1,10 @@
 /*
  * Drives the "request this bike" form on a bike's page. The form is always
  * visible (no open/close toggle) — submitting posts to the plugin REST API
- * (Citykleta_Bike_Request_Rest), which stores the request and emails Citykleta
- * (and the owner, when there's an address on file).
+ * (Citykleta_Bike_Request_Rest), which checks the verification code with the
+ * app, stores the request, emails Citykleta (and the owner, when there's an
+ * address on file) and answers with a WhatsApp link to the owner when the code
+ * checked out.
  *
  * Nothing is remembered between visits, unlike the app-download wall: asking
  * for a bike twice — different dates, or a follow-up — is two real requests,
@@ -54,6 +56,44 @@
 			} );
 		}
 
+		/*
+		 * Live estimate under the dates: "$7 USD × 3 días" and the total.
+		 *
+		 * An ESTIMATE, and the lowest the app could charge: it bills hotel-style
+		 * (calendar days between the dates, plus one when the bike comes back
+		 * after a cutoff hour), and this form collects dates but no hours. So it
+		 * shows the calendar days, never fewer than one — the same floor the app
+		 * applies — and the markup says the owner confirms the final total.
+		 */
+		var price    = parseFloat( root.getAttribute( 'data-price' ) );
+		var totalBox = root.querySelector( '.citykleta-bike-request__total' );
+		var money    = new Intl.NumberFormat( 'es', { maximumFractionDigits: 2 } );
+
+		function updateTotal() {
+			if ( ! totalBox || isNaN( price ) ) {
+				return;
+			}
+
+			var start = from && from.value ? Date.parse( from.value + 'T00:00:00Z' ) : NaN;
+			var end   = to && to.value ? Date.parse( to.value + 'T00:00:00Z' ) : NaN;
+
+			// Only quote once the range is complete: a lone start date is not a rental.
+			if ( isNaN( start ) || isNaN( end ) || end < start ) {
+				totalBox.hidden = true;
+				return;
+			}
+
+			var days = Math.max( 1, Math.round( ( end - start ) / 86400000 ) );
+
+			totalBox.querySelector( '.citykleta-bike-request__total-calc' ).textContent =
+				'$' + money.format( price ) + ' USD × ' + days + ( 1 === days ? ' día' : ' días' );
+			totalBox.querySelector( '.citykleta-bike-request__total-amount' ).textContent =
+				'$' + money.format( price * days ) + ' USD';
+			totalBox.hidden = false;
+		}
+
+		form.addEventListener( 'change', updateTotal );
+
 		function showError( message ) {
 			if ( submit ) {
 				submit.disabled = false;
@@ -63,6 +103,32 @@
 				error.textContent = message || 'No se pudo enviar. Inténtalo de nuevo.';
 				error.hidden      = false;
 			}
+		}
+
+		/*
+		 * Swaps the form for the confirmation. When the server verified the
+		 * code and the owner has a phone it also returns a ready-made wa.me
+		 * link: show it as the next step. Only a https://wa.me/ URL is ever
+		 * put in the href, whatever the response says.
+		 */
+		function showDone( data ) {
+			var link = done.querySelector( '.citykleta-bike-request__whatsapp' );
+			var text = done.querySelector( '.citykleta-bike-request__done-text' );
+			var url  = data && 'string' === typeof data.whatsapp_url ? data.whatsapp_url : '';
+
+			if ( link && 0 === url.indexOf( 'https://wa.me/' ) ) {
+				link.href   = url;
+				link.hidden = false;
+
+				if ( text ) {
+					text.textContent = data.owner_name
+						? 'Tu código está verificado. Escríbele ahora a ' + data.owner_name + ' para coordinar.'
+						: 'Tu código está verificado. Escríbele ahora al propietario para coordinar.';
+				}
+			}
+
+			form.hidden = true;
+			done.hidden = false;
 		}
 
 		/*
@@ -136,14 +202,20 @@
 			} )
 				.then( function ( response ) {
 					return response.json().then( function ( data ) {
-						return { ok: response.ok, data: data };
+						return { ok: response.ok, status: response.status, data: data };
 					} );
 				} )
 				.then( function ( result ) {
 					if ( result.ok && result.data && result.data.ok ) {
-						form.hidden = true;
-						done.hidden = false;
+						showDone( result.data );
 						return;
+					}
+
+					// 403 = the app rejected the code. The code field lives on
+					// step 1, so bring the visitor back to where they can fix it
+					// instead of leaving the error on a step with nothing to edit.
+					if ( 403 === result.status ) {
+						goToStep( 1 );
 					}
 
 					showError( result.data && result.data.message );

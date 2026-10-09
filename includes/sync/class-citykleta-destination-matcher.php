@@ -89,7 +89,7 @@ class Citykleta_Destination_Matcher {
 	 *
 	 * @return array { 'post_id' => int, 'lat' => float, 'lng' => float, 'radius_km' => float }[].
 	 */
-	private function geofences() {
+	public function geofences() {
 		$posts = get_posts(
 			array(
 				'post_type'      => Citykleta_Destination_Post_Type::POST_TYPE,

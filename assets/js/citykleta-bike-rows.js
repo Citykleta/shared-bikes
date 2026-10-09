@@ -65,13 +65,27 @@
 		return 6371 * 2 * Math.atan2( Math.sqrt( a ), Math.sqrt( 1 - a ) );
 	}
 
-	// "Nearby" rows: the server prints every bike that has coordinates and the
-	// row stays hidden until the visitor shares a position — the position is
-	// only used here, in the browser, and never sent anywhere. Denied or
-	// unavailable: the row simply doesn't appear, rather than claiming
-	// "near you" over an arbitrary order.
+	// Bikes this browser opened before, most recent first (written by
+	// citykleta-view-stats.js on each bike page). Stays on the device.
+	function visitedIds() {
+		try {
+			var list = JSON.parse( localStorage.getItem( 'citykleta_recent_bikes' ) || '[]' );
+
+			return Array.isArray( list ) ? list : [];
+		} catch ( e ) {
+			return [];
+		}
+	}
+
+	// "For you" rows: the server prints every bike that has coordinates and the
+	// row stays hidden until the browser has picked from them — first the bikes
+	// the visitor already opened (a third of the row at most, so it never turns
+	// into just a history), then the nearest ones within "Maximum Distance".
+	// Position and history are only read here and never sent anywhere. Either
+	// may be missing (location denied, nothing visited yet); with neither, or
+	// with nothing close enough, the whole widget stays hidden.
 	function initNearby( section ) {
-		if ( section.dataset.citykletaNearbyReady || ! navigator.geolocation ) {
+		if ( section.dataset.citykletaNearbyReady ) {
 			return;
 		}
 
@@ -84,32 +98,82 @@
 		section.dataset.citykletaNearbyReady = '1';
 
 		var limit = parseInt( section.dataset.citykletaNearby, 10 ) || 12;
+		var radius = parseFloat( section.dataset.citykletaRadius ) || 50;
 
-		navigator.geolocation.getCurrentPosition( function ( pos ) {
+		function arrange( position ) {
 			var items = Array.prototype.slice.call( track.querySelectorAll( '.citykleta-bike-row__item' ) );
+			var visited = visitedIds();
+			var picked = [];
+
+			// 1. Visited bikes, in the order the visitor opened them.
+			visited.forEach( function ( id ) {
+				if ( picked.length >= Math.ceil( limit / 3 ) ) {
+					return;
+				}
+
+				items.some( function ( item ) {
+					if ( parseInt( item.dataset.id, 10 ) === id ) {
+						picked.push( item );
+						return true;
+					}
+
+					return false;
+				} );
+			} );
+
+			// 2. The nearest of the rest.
+			if ( position ) {
+				items.forEach( function ( item ) {
+					var lat = parseFloat( item.dataset.lat );
+					var lng = parseFloat( item.dataset.lng );
+
+					item._citykletaDistance = isNaN( lat ) || isNaN( lng ) ?
+						Infinity :
+						distanceKm( position.coords.latitude, position.coords.longitude, lat, lng );
+				} );
+
+				items
+					.filter( function ( item ) {
+						return picked.indexOf( item ) === -1 && item._citykletaDistance <= radius;
+					} )
+					.sort( function ( a, b ) {
+						return a._citykletaDistance - b._citykletaDistance;
+					} )
+					.forEach( function ( item ) {
+						picked.push( item );
+					} );
+			}
+
+			picked = picked.slice( 0, limit );
+
+			// Nothing to suggest: the widget stays hidden rather than showing an
+			// empty row.
+			if ( ! picked.length ) {
+				return;
+			}
 
 			items.forEach( function ( item ) {
-				var lat = parseFloat( item.dataset.lat );
-				var lng = parseFloat( item.dataset.lng );
-
-				item._citykletaDistance = isNaN( lat ) || isNaN( lng ) ?
-					Infinity :
-					distanceKm( pos.coords.latitude, pos.coords.longitude, lat, lng );
+				item.hidden = true;
 			} );
 
-			items.sort( function ( a, b ) {
-				return a._citykletaDistance - b._citykletaDistance;
-			} );
-
-			items.forEach( function ( item, i ) {
+			picked.forEach( function ( item ) {
+				item.hidden = false;
 				track.appendChild( item );
-				item.hidden = i >= limit || Infinity === item._citykletaDistance;
 			} );
 
 			section.hidden = false;
 			track.scrollLeft = 0;
 			track.dispatchEvent( new Event( 'scroll' ) );
-		}, function () {}, { timeout: 8000, maximumAge: 300000 } );
+		}
+
+		if ( ! navigator.geolocation ) {
+			arrange( null );
+			return;
+		}
+
+		navigator.geolocation.getCurrentPosition( arrange, function () {
+			arrange( null );
+		}, { timeout: 8000, maximumAge: 300000 } );
 	}
 
 	function initAll( root ) {

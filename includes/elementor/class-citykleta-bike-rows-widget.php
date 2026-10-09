@@ -189,14 +189,15 @@ class Citykleta_Bike_Rows_Widget extends Citykleta_Bike_Widget {
 			$row = $this->current_page_row();
 		} elseif ( 'nearby' === $source ) {
 			/*
-			 * Every bike that has coordinates is printed and the visitor's
-			 * browser sorts them by distance once it has their position (see
-			 * citykleta-bike-rows.js). The server can't know where the visitor
-			 * is, and the position never leaves their device. Bikes without
-			 * lat/lng can't be ranked, so they're left out.
+			 * "For you": every bike that has coordinates is printed and the
+			 * visitor's browser picks from them (see citykleta-bike-rows.js) —
+			 * first the bikes they opened before (remembered in their own
+			 * localStorage), then the nearest ones. The server can't know either
+			 * thing, and neither the position nor the history leaves the device.
+			 * Bikes without lat/lng can't be ranked, so they're left out.
 			 */
 			$row = array(
-				'title'  => 'Bicicletas cerca de ti',
+				'title'  => 'Sugerencias para ti',
 				'url'    => '',
 				'nearby' => true,
 				'args'   => array(
@@ -388,7 +389,7 @@ class Citykleta_Bike_Rows_Widget extends Citykleta_Bike_Widget {
 					'type'        => 'A type or subtype',
 					'tag'         => 'A tag',
 					'destination' => 'A destination',
-					'nearby'      => 'Nearby (visitor\'s location)',
+					'nearby'      => 'For you (visited + nearby)',
 					'current'     => 'This page',
 					'query'       => 'Custom query',
 				),
@@ -446,6 +447,19 @@ class Citykleta_Bike_Rows_Widget extends Citykleta_Bike_Widget {
 				'placeholder' => 'E.g. Vedado',
 				'description' => 'Leave empty for bikes from any location. Matches partial text.',
 				'condition'   => array( 'rows_source' => 'query' ),
+			)
+		);
+
+		$this->add_control(
+			'nearby_radius',
+			array(
+				'label'       => 'Maximum Distance (km)',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'default'     => 50,
+				'min'         => 1,
+				'max'         => 500,
+				'description' => 'Nearby bikes farther than this from the visitor are left out. Bikes the visitor opened before are shown regardless. If nothing is left — nothing visited and nobody close — the widget draws nothing at all.',
+				'condition'   => array( 'rows_source' => 'nearby' ),
 			)
 		);
 
@@ -1024,7 +1038,8 @@ class Citykleta_Bike_Rows_Widget extends Citykleta_Bike_Widget {
 				$query->the_post();
 				if ( ! empty( $row['nearby'] ) ) {
 					printf(
-						'<div class="citykleta-bike-row__item" data-lat="%s" data-lng="%s">',
+						'<div class="citykleta-bike-row__item" data-id="%d" data-lat="%s" data-lng="%s">',
+						(int) get_the_ID(),
 						esc_attr( (string) get_post_meta( get_the_ID(), 'lat', true ) ),
 						esc_attr( (string) get_post_meta( get_the_ID(), 'lng', true ) )
 					);
@@ -1042,9 +1057,13 @@ class Citykleta_Bike_Rows_Widget extends Citykleta_Bike_Widget {
 			$chevron = '<svg class="citykleta-bike-row__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"/></svg>';
 			$name    = esc_html( $row['title'] );
 
-			$rows_html .= ! empty( $row['nearby'] )
-				? '<section class="citykleta-bike-row" data-citykleta-nearby="' . (int) $limit . '" hidden>'
-				: '<section class="citykleta-bike-row">';
+			$section_attrs = '';
+
+			if ( ! empty( $row['nearby'] ) ) {
+				$section_attrs = ' data-citykleta-nearby="' . (int) $limit . '" data-citykleta-radius="' . esc_attr( (string) max( 1, (float) $settings['nearby_radius'] ) ) . '" hidden';
+			}
+
+			$rows_html .= '<section class="citykleta-bike-row"' . $section_attrs . '>';
 
 			if ( '' !== $name ) {
 				$rows_html .= '<' . $row_tag . ' class="citykleta-bike-row__title">'
@@ -1067,11 +1086,8 @@ class Citykleta_Bike_Rows_Widget extends Citykleta_Bike_Widget {
 			$rows_html .= '</div></section>';
 		}
 
+		// Nothing to show: print nothing at all, also inside the editor.
 		if ( '' === $rows_html ) {
-			if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
-				echo '<p>Bike Rows: no type has bikes to show yet.</p>';
-			}
-
 			return;
 		}
 

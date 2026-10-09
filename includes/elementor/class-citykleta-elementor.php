@@ -25,6 +25,66 @@ class Citykleta_Elementor {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_rows_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_chat_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_dropdown_tabs_assets' ) );
+		add_action( 'elementor/editor/before_enqueue_scripts', array( $this, 'enqueue_dropdown_tabs_editor_script' ) );
+	}
+
+	/**
+	 * Dropdown Tabs, editor side: teaches the canvas that the widget holds one
+	 * container per tab. Depends on Elementor's own `nested-elements` script —
+	 * the same hook Elementor's Nested Tabs uses — so it loads after that
+	 * module and can extend its view.
+	 */
+	public function enqueue_dropdown_tabs_editor_script() {
+		wp_enqueue_script(
+			'citykleta-dropdown-tabs-editor',
+			CITYKLETA_URL . 'assets/js/citykleta-dropdown-tabs-editor.js',
+			array( 'nested-elements' ),
+			CITYKLETA_VERSION,
+			true
+		);
+	}
+
+	/**
+	 * Dropdown Tabs widget: structure CSS and the selector script.
+	 */
+	public function enqueue_dropdown_tabs_assets() {
+		wp_enqueue_style(
+			'citykleta-dropdown-tabs',
+			CITYKLETA_URL . 'assets/css/dropdown-tabs.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_script(
+			'citykleta-dropdown-tabs',
+			CITYKLETA_URL . 'assets/js/citykleta-dropdown-tabs.js',
+			array(),
+			CITYKLETA_VERSION,
+			true
+		);
+	}
+
+	/**
+	 * Group Chat widget: its structure CSS and the playback script. Early, for
+	 * the same reason as enqueue_styles().
+	 */
+	public function enqueue_chat_assets() {
+		wp_enqueue_style(
+			'citykleta-chat',
+			CITYKLETA_URL . 'assets/css/chat.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_script(
+			'citykleta-chat',
+			CITYKLETA_URL . 'assets/js/citykleta-chat.js',
+			array(),
+			CITYKLETA_VERSION,
+			true
+		);
 	}
 
 	/**
@@ -321,6 +381,15 @@ class Citykleta_Elementor {
 		// that the next Citykleta_Bike_Type_Sync run would make stale.
 		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-bike-terms-widget.php';
 		$widgets_manager->register( new Citykleta_Bike_Terms_Widget() );
+
+		// A mock group conversation for the community section. Decorative,
+		// no data behind it.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-chat-widget.php';
+		$widgets_manager->register( new Citykleta_Chat_Widget() );
+
+		// Tabs switched from a dropdown; each tab shows a saved template.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-dropdown-tabs-widget.php';
+		$widgets_manager->register( new Citykleta_Dropdown_Tabs_Widget() );
 
 		// The pieces a single-bike layout is built from. They resolve the
 		// bike from the current query themselves, which is what lets one

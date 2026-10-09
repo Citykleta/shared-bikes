@@ -485,15 +485,10 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 		$this->add_control(
 			'card_radius',
 			array(
-				'label'      => 'Border Radius',
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array(
-						'min' => 0,
-						'max' => 30,
-					),
-				),
+				'label'       => 'Border Radius',
+				'type'        => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units'  => array( 'px', '%' ),
+				'description' => 'Top left, top right, bottom right, bottom left. The photo follows the corners.',
 			)
 		);
 
@@ -579,7 +574,23 @@ class Citykleta_Map_Widget extends \Elementor\Widget_Base {
 
 			$value = $settings[ $id ];
 
-			if ( is_array( $value ) ) {
+			if ( is_array( $value ) && isset( $value['top'] ) ) {
+				// A four-sides control (Border Radius): CSS shorthand, corners in
+				// the order Elementor lists them (top-left, top-right,
+				// bottom-right, bottom-left). Untouched = all blank = no output.
+				$unit  = isset( $value['unit'] ) && '%' === $value['unit'] ? '%' : 'px';
+				$sides = array();
+				$any   = false;
+
+				foreach ( array( 'top', 'right', 'bottom', 'left' ) as $side ) {
+					$number  = isset( $value[ $side ] ) && is_numeric( $value[ $side ] ) ? $value[ $side ] : 0;
+					$any     = $any || ( isset( $value[ $side ] ) && is_numeric( $value[ $side ] ) );
+					$sides[] = $number . $unit;
+				}
+
+				$value = $any ? implode( ' ', $sides ) : '';
+			} elseif ( is_array( $value ) ) {
+				// A slider (or an older saved Border Radius that was one).
 				$value = isset( $value['size'] ) ? $value['size'] : '';
 			}
 

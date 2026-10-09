@@ -13,11 +13,21 @@
 	margin-top: 1rem;
 }
 
-.citykleta-bike-request__title {
+/*
+ * El título es una etiqueta, no un titular: lo que decide en esta tarjeta es el
+ * precio (otro widget, arriba), y un <h2> a tamaño de página le quitaba el
+ * protagonismo. Va encadenado con el contenedor porque `.elementor-kit-N h2`
+ * pesa más que una sola clase; los controles de Style → Form Title siguen
+ * mandando encima de esto (su selector pesa 3 clases).
+ */
+.citykleta-bike-request .citykleta-bike-request__title {
 	font-family: 'Poppins', sans-serif;
 	font-weight: 600;
-	font-size: 1rem;
-	color: #151b1d;
+	font-size: 0.8rem;
+	line-height: 1.3;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #5a5250;
 	margin: 0 0 0.85rem;
 }
 
@@ -53,6 +63,12 @@
 .citykleta-bike-request__form {
 	display: grid;
 	gap: 0.85rem;
+}
+
+/* Al enviar, el JS oculta el formulario con [hidden]; sin esto el display:grid
+   de arriba lo dejaba a la vista debajo de la confirmación. */
+.citykleta-bike-request__form[hidden] {
+	display: none;
 }
 
 /* --- Pasos --- */
@@ -118,6 +134,50 @@
 
 .citykleta-bike-request__next:hover {
 	background: #fac114;
+}
+
+/* --- Total estimado --- */
+
+.citykleta-bike-request__total {
+	display: grid;
+	gap: 0.25rem;
+	padding: 0.75rem 0.9rem;
+	border: 1px solid #e5e0d3;
+	border-radius: 8px;
+	background: #fffbea;
+	color: #5a5250;
+	font-size: 0.85rem;
+	line-height: 1.4;
+}
+
+/* display:grid de arriba pisaría el atributo hidden. */
+.citykleta-bike-request__total[hidden] {
+	display: none;
+}
+
+.citykleta-bike-request__total-sum {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 0 0.75rem;
+	color: #151b1d;
+}
+
+/* Sin esto, en una tarjeta angosta el importe y su etiqueta se parten en dos líneas. */
+.citykleta-bike-request__total-sum > span,
+.citykleta-bike-request__total-amount {
+	white-space: nowrap;
+}
+
+.citykleta-bike-request__total-amount {
+	font-family: 'Poppins', sans-serif;
+	font-size: 1.25rem;
+	font-weight: 600;
+}
+
+.citykleta-bike-request__total-note {
+	font-size: 0.75rem;
 }
 
 /* --- Enlace de verificación --- */
@@ -245,6 +305,38 @@
 
 .citykleta-bike-request__done p {
 	margin: 0;
+}
+
+/*
+ * Botón de WhatsApp de la confirmación. Mismo lenguaje que "Enviar solicitud".
+ * Es un <a>, y el kit de Elementor pinta todos los enlaces
+ * (.elementor-kit-N a, 0,1,1; su :hover pesa 0,2,1), así que el selector va
+ * encadenado con el contenedor para ganar sin !important.
+ */
+.citykleta-bike-request .citykleta-bike-request__whatsapp {
+	display: block;
+	margin-top: 0.85rem;
+	padding: 0.75rem 1rem;
+	border-radius: 8px;
+	background: #fed94c;
+	color: #151b1d;
+	font-family: 'Poppins', sans-serif;
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.2;
+	text-align: center;
+	text-decoration: none;
+}
+
+.citykleta-bike-request .citykleta-bike-request__whatsapp:hover {
+	background: #fac114;
+	color: #151b1d;
+	text-decoration: none;
+}
+
+/* El display de arriba pisaría el atributo hidden. */
+.citykleta-bike-request .citykleta-bike-request__whatsapp[hidden] {
+	display: none;
 }
 
 .citykleta-bike-request__done-title {

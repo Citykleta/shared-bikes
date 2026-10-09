@@ -85,18 +85,27 @@ class Citykleta_Bike_Request_Rest {
 			return $this->error( 'La fecha de fin va antes que la de inicio.' );
 		}
 
-		$identity = $this->resolve_identity( $bike_id, $code );
+		// Verify the code BEFORE saving anything, and after the cheap checks
+		// above: every reveal is logged by the API and counts against the
+		// code's per-owner allowance, so bad dates must not spend it.
+		$reveal = $this->reveal( $bike_id, $code );
+
+		// The API says the person is not who they claim (or has asked too much,
+		// or the bike is gone): there is nothing to store, tell the visitor.
+		if ( isset( $reveal['reject'] ) ) {
+			return $this->error( $reveal['reject']['message'], $reveal['reject']['http'] );
+		}
 
 		$post_id = Citykleta_Bike_Request::create(
 			array(
 				'bike_id'            => $bike_id,
-				'name'               => $identity['name'],
-				'contact'            => $identity['contact'],
-				'contact_type'       => $identity['contact_type'],
+				'name'               => $reveal['requester_name'],
 				'from'               => $from,
 				'to'                 => $to,
 				'message'            => sanitize_textarea_field( (string) $request->get_param( 'message' ) ),
 				'verification_code'  => $code,
+				'verified'           => $reveal['verified'],
+				'verification_note'  => $reveal['note'],
 				'source'             => esc_url_raw( (string) $request->get_param( 'source' ) ),
 			)
 		);
@@ -126,55 +135,106 @@ class Citykleta_Bike_Request_Rest {
 		 */
 		do_action( 'citykleta_bike_request_captured', $post_id, $bike_id, Citykleta_Bike_Request::get_data( $post_id ) );
 
-		return new WP_REST_Response( array( 'ok' => true ), 201 );
+		$payload = array(
+			'ok'           => true,
+			'verified'     => $reveal['verified'],
+			'owner_name'   => '',
+			'whatsapp_url' => '',
+		);
+
+		// The owner's number goes to the visitor ONLY as part of a ready-made
+		// wa.me link, once, in this response — it is never stored on the request
+		// (the API logs and rate-limits each reveal; keeping a copy here would
+		// sidestep that). Without a number the request is still saved and the
+		// form falls back to "we'll get in touch".
+		if ( $reveal['verified'] ) {
+			$owner_name = '' !== $reveal['owner_name'] ? $reveal['owner_name'] : (string) get_post_meta( $bike_id, 'owner_name', true );
+
+			$message = Citykleta_Settings::whatsapp_message(
+				array(
+					'{owner}' => $owner_name,
+					'{bike}'  => (string) get_the_title( $bike_id ),
+					'{price}' => Citykleta_Bike_Meta::price_html( $bike_id ),
+					'{url}'   => (string) get_permalink( $bike_id ),
+					'{dates}' => Citykleta_Bike_Request::dates_phrase( $from, $to ),
+				)
+			);
+
+			$payload['owner_name']   = $owner_name;
+			$payload['whatsapp_url'] = Citykleta_Settings::whatsapp_url( $reveal['owner_phone'], $message );
+		}
+
+		return new WP_REST_Response( $payload, 201 );
 	}
 
 	/**
-	 * Resolves who is behind a verification code, so the form doesn't have to
-	 * ask for a name or a contact it already has on file elsewhere.
+	 * Checks the verification code with the app and gets the owner's contact in
+	 * the same call (`POST /contact/reveal`, see Citykleta_Contact_Reveal).
 	 *
-	 * **Not connected yet.** citykleta-sharing-api has exactly the route this
-	 * needs — `POST /contact/reveal` (`{ contact_code, bike_id }` →
-	 * `{ requester: { name, verified_at }, owner: { name, phone } }`, see
-	 * CLAUDE.md's "El contacto del dueño" section) — but calling it needs the
-	 * plugin's shared key (`x-citykleta-plugin-key`) stored somewhere in
-	 * Settings, and there is no field for it today. Until that's wired up,
-	 * this returns an unresolved identity and the code is the only thing
-	 * staff has to go on — the same "captured, never validated" situation
-	 * Citykleta_Bike_Request::META_VERIFICATION_CODE already documents.
-	 *
-	 * A `citykleta_resolve_request_identity` filter is exposed instead of a
-	 * hard call to that endpoint, so the actual HTTP request (and where its
-	 * key lives) can be added without touching this REST route again — same
-	 * seam pattern as `citykleta_bike_request_captured` for the notifier.
-	 * Note that `/contact/reveal` only returns the requester's name (plus a
-	 * phone for the OWNER, not the requester) — there is still no way to get
-	 * an email/phone to reply to the requester on, unless the app grows one.
+	 * Three possible outcomes, decided by the visitor's code and the API's health:
+	 * - **Rejected** (`reject` key): the API said the code is not valid, that this
+	 *   code asked about too many owners, or that the bike is gone. Nothing is
+	 *   stored and the visitor sees why.
+	 * - **Verified**: the code checked out; the owner's phone comes back so the
+	 *   response can carry a WhatsApp link.
+	 * - **Unverified**: no code was typed, or the check could not run (API down,
+	 *   key missing, bike not from the sync). The request is saved anyway —
+	 *   losing it over our own outage would cost more than a code staff has to
+	 *   look at by hand — and flagged so wp-admin says it was NOT verified.
 	 *
 	 * @param int    $bike_id Requested bike post ID.
 	 * @param string $code    Verification code as typed on the form.
-	 * @return array{name:string,contact:string,contact_type:string}
+	 * @return array{verified:bool,note:string,requester_name:string,owner_name:string,owner_phone:string,reject?:array{message:string,http:int}}
 	 */
-	private function resolve_identity( $bike_id, $code ) {
-		$identity = array(
-			'name'         => '',
-			'contact'      => '',
-			'contact_type' => '',
+	private function reveal( $bike_id, $code ) {
+		$outcome = array(
+			'verified'       => false,
+			'note'           => '',
+			'requester_name' => '',
+			'owner_name'     => '',
+			'owner_phone'    => '',
 		);
 
 		if ( '' === $code ) {
-			return $identity;
+			$outcome['note'] = 'No code was typed';
+			return $outcome;
 		}
 
-		/**
-		 * Filters the identity resolved from a verification code.
-		 *
-		 * @param array  $identity {name, contact, contact_type}, empty until
-		 *                         something hooks this.
-		 * @param string $code     Verification code as typed.
-		 * @param int    $bike_id  Requested bike post ID.
-		 */
-		return apply_filters( 'citykleta_resolve_request_identity', $identity, $code, $bike_id );
+		$result = Citykleta_Contact_Reveal::request( $code, (string) get_post_meta( $bike_id, 'external_id', true ) );
+
+		switch ( $result['status'] ) {
+			case Citykleta_Contact_Reveal::STATUS_OK:
+				$outcome['verified']       = true;
+				$outcome['requester_name'] = $result['requester_name'];
+				$outcome['owner_name']     = $result['owner_name'];
+				$outcome['owner_phone']    = $result['owner_phone'];
+				return $outcome;
+
+			case Citykleta_Contact_Reveal::STATUS_INVALID_CODE:
+				$outcome['reject'] = array(
+					'message' => $result['message'],
+					'http'    => 403,
+				);
+				return $outcome;
+
+			case Citykleta_Contact_Reveal::STATUS_LIMIT:
+				$outcome['reject'] = array(
+					'message' => $result['message'],
+					'http'    => 429,
+				);
+				return $outcome;
+
+			case Citykleta_Contact_Reveal::STATUS_BIKE_GONE:
+				$outcome['reject'] = array(
+					'message' => $result['message'],
+					'http'    => 400,
+				);
+				return $outcome;
+
+			default:
+				$outcome['note'] = $result['note'];
+				return $outcome;
+		}
 	}
 
 	/**
@@ -203,18 +263,19 @@ class Citykleta_Bike_Request_Rest {
 	}
 
 	/**
-	 * A 400 with a message the form shows to the visitor.
+	 * An error response with a message the form shows to the visitor.
 	 *
 	 * @param string $message Message in Spanish, like the rest of the front-end.
+	 * @param int    $status  HTTP status, 400 unless a more specific one applies.
 	 * @return WP_REST_Response
 	 */
-	private function error( $message ) {
+	private function error( $message, $status = 400 ) {
 		return new WP_REST_Response(
 			array(
 				'ok'      => false,
 				'message' => $message,
 			),
-			400
+			$status
 		);
 	}
 }

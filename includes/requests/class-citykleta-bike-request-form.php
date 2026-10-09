@@ -139,9 +139,10 @@ class Citykleta_Bike_Request_Form {
 			'require_code'  => 'yes',
 			'verify_url'    => '',
 			'verify_text'   => 'Verificarme ahora',
-			'next_text'     => 'Continuar',
+			'next_text'     => 'Pedir esta bici',
 			'submit_text'   => 'Enviar solicitud',
 			'back_text'     => 'Atrás',
+			'whatsapp_text' => 'Escribir al propietario por WhatsApp',
 		);
 	}
 
@@ -169,8 +170,13 @@ class Citykleta_Bike_Request_Form {
 		$args  = array_merge( self::defaults(), $args );
 		$today = current_time( 'Y-m-d' );
 		$uid   = 'citykleta-req-' . wp_rand( 1000, 999999 );
+		$price = Citykleta_Bike_Meta::price_amount( $bike_id );
 		?>
-		<div class="citykleta-bike-request" data-bike="<?php echo (int) $bike_id; ?>">
+		<div
+			class="citykleta-bike-request"
+			data-bike="<?php echo (int) $bike_id; ?>"
+			<?php echo null !== $price ? 'data-price="' . esc_attr( (string) $price ) . '"' : ''; ?>
+		>
 
 			<?php if ( 'yes' === $args['show_title'] && '' !== $args['title'] ) : ?>
 				<h2 class="citykleta-bike-request__title"><?php echo esc_html( $args['title'] ); ?></h2>
@@ -217,7 +223,29 @@ class Citykleta_Bike_Request_Form {
 						</div>
 					<?php endif; ?>
 
-					<?php if ( 'yes' === $args['show_code'] ) : ?>
+					<?php
+						/*
+						 * Live estimate, filled in by citykleta-bike-request.js once
+						 * both dates are picked. "Estimado" on purpose: the app
+						 * charges hotel-style (calendar days, plus one when the
+						 * bike comes back after a cutoff hour — see
+						 * getRentalDays() in citykleta-sharing-api), and this form
+						 * has dates but no hours, so it can only quote the minimum.
+						 * Not printed at all for a bike with no price.
+						 */
+						?>
+						<?php if ( null !== $price ) : ?>
+							<div class="citykleta-bike-request__total" aria-live="polite" hidden>
+								<span class="citykleta-bike-request__total-calc"></span>
+								<span class="citykleta-bike-request__total-sum">
+									<span>Total estimado</span>
+									<strong class="citykleta-bike-request__total-amount"></strong>
+								</span>
+								<small class="citykleta-bike-request__total-note">El propietario confirma el total final.</small>
+							</div>
+						<?php endif; ?>
+
+						<?php if ( 'yes' === $args['show_code'] ) : ?>
 						<label class="citykleta-bike-request__field citykleta-bike-request__field--code">
 							<span><?php echo esc_html( $args['code_label'] ); ?></span>
 							<input
@@ -276,13 +304,27 @@ class Citykleta_Bike_Request_Form {
 				<p class="citykleta-bike-request__error" role="alert" hidden></p>
 
 				<p class="citykleta-bike-request__note">
-					Esto es una solicitud, no una reserva confirmada: te escribimos para coordinar con el propietario.
+					Sin pago online: lo coordinas directo con el propietario. Esto es una solicitud, no una reserva confirmada.
 				</p>
 			</form>
 
 			<div class="citykleta-bike-request__done" role="status" hidden>
 				<p class="citykleta-bike-request__done-title">¡Solicitud enviada!</p>
-				<p>Te contactamos pronto para coordinar con el propietario.</p>
+				<p class="citykleta-bike-request__done-text">Te contactamos pronto para coordinar con el propietario.</p>
+				<?php
+				/*
+				 * Filled in and un-hidden by citykleta-bike-request.js only when
+				 * the server returned a wa.me link (code verified AND the owner
+				 * has a phone). Without it the paragraph above is all there is.
+				 */
+				?>
+				<a
+					class="citykleta-bike-request__whatsapp"
+					href="#"
+					target="_blank"
+					rel="noopener noreferrer"
+					hidden
+				><?php echo esc_html( $args['whatsapp_text'] ); ?></a>
 			</div>
 
 		</div>
