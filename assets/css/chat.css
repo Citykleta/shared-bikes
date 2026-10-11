@@ -257,6 +257,33 @@
 	display: block;
 }
 
+/* Playback: a caret while a "me" message is being typed, and a small press on
+   the send button when it goes out. */
+.citykleta-chat__input.is-typing::after {
+	content: "";
+	display: inline-block;
+	width: 1px;
+	height: 1em;
+	margin-left: 1px;
+	background: currentColor;
+	vertical-align: text-bottom;
+	animation: citykleta-chat-caret 1s steps(1) infinite;
+}
+
+@keyframes citykleta-chat-caret {
+	50% {
+		opacity: 0;
+	}
+}
+
+.citykleta-chat__send {
+	transition: transform 0.12s ease-out;
+}
+
+.citykleta-chat__send.is-pressed {
+	transform: scale(0.88);
+}
+
 .citykleta-chat__actions {
 	display: flex;
 	align-items: center;
@@ -296,4 +323,27 @@
 	.citykleta-chat .citykleta-chat__item.is-entering {
 		animation: none;
 	}
+}
+
+/* Images outside the chat that its messages reveal (see "Reveal Images").
+   citykleta-chat.js adds these classes to the page's own elements, and only
+   when the chat is going to play: without JS, with reduced motion or in the
+   Elementor editor nothing is ever hidden. */
+.citykleta-stage-item {
+	transition-property: opacity, transform;
+	transition-duration: var(--citykleta-stage-duration, 700ms);
+	transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.citykleta-stage-item.is-stage-hidden {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.citykleta-stage--scale.is-stage-hidden {
+	transform: scale(0.92);
+}
+
+.citykleta-stage--rise.is-stage-hidden {
+	transform: translateY(1.5rem);
 }

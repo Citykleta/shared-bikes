@@ -157,6 +157,18 @@ class Citykleta_Chat_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		$repeater->add_control(
+			'reveal',
+			array(
+				'label'       => 'Reveal Images',
+				'type'        => \Elementor\Controls_Manager::TEXT,
+				'default'     => '',
+				'placeholder' => '1, 4   ·   all   ·   #phrase',
+				'description' => 'Shown when this message appears. A number is the position inside the images container (1 = first); "all" = every image still hidden; anything else is a CSS selector. Empty = nothing.',
+				'separator'   => 'before',
+			)
+		);
+
 		$this->add_control(
 			'messages',
 			array(
@@ -300,10 +312,66 @@ class Citykleta_Chat_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'stage_target',
+			array(
+				'label'       => 'Images Container',
+				'type'        => \Elementor\Controls_Manager::TEXT,
+				'default'     => '#community-pics-grid',
+				'placeholder' => '#community-pics-grid',
+				'description' => 'CSS selector of the container (put its CSS ID in Elementor → Advanced) whose children are revealed by the "Reveal Images" field of each message. They stay visible in the editor.',
+				'separator'   => 'before',
+				'condition'   => array( 'trigger!' => 'none' ),
+			)
+		);
+
+		$this->add_control(
+			'stage_effect',
+			array(
+				'label'     => 'Image Entrance',
+				'type'      => \Elementor\Controls_Manager::SELECT,
+				'default'   => 'scale',
+				'options'   => array(
+					'scale' => 'Fade + grow',
+					'rise'  => 'Fade + rise',
+					'fade'  => 'Fade',
+				),
+				'condition' => array( 'trigger!' => 'none' ),
+			)
+		);
+
+		$this->add_control(
+			'stage_duration',
+			array(
+				'label'     => 'Image Duration (ms)',
+				'type'      => \Elementor\Controls_Manager::NUMBER,
+				'default'   => 700,
+				'min'       => 100,
+				'max'       => 3000,
+				'step'      => 50,
+				'condition' => array( 'trigger!' => 'none' ),
+			)
+		);
+
+		$this->add_control(
+			'stage_stagger',
+			array(
+				'label'       => 'Delay Between Images (ms)',
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'default'     => 150,
+				'min'         => 0,
+				'max'         => 1500,
+				'step'        => 50,
+				'description' => 'When one message reveals several images.',
+				'condition'   => array( 'trigger!' => 'none' ),
+			)
+		);
+
+		$this->add_control(
 			'loop',
 			array(
 				'label'     => 'Loop',
 				'type'      => \Elementor\Controls_Manager::SWITCHER,
+				'separator' => 'before',
 				'condition' => array( 'trigger!' => 'none' ),
 			)
 		);
@@ -938,6 +1006,14 @@ class Citykleta_Chat_Widget extends \Elementor\Widget_Base {
 			$attrs['data-pause']      = (string) absint( $settings['pause'] );
 			$attrs['data-loop']       = 'yes' === $settings['loop'] ? 'yes' : 'no';
 			$attrs['data-loop-delay'] = (string) max( 1, absint( $settings['loop_delay'] ) );
+
+			$stage = isset( $settings['stage_target'] ) ? trim( (string) $settings['stage_target'] ) : '';
+			if ( '' !== $stage ) {
+				$attrs['data-stage']          = $stage;
+				$attrs['data-stage-effect']   = in_array( $settings['stage_effect'], array( 'scale', 'rise', 'fade' ), true ) ? $settings['stage_effect'] : 'scale';
+				$attrs['data-stage-duration'] = (string) absint( $settings['stage_duration'] );
+				$attrs['data-stage-stagger']  = (string) absint( $settings['stage_stagger'] );
+			}
 		}
 
 		echo '<div';
@@ -960,8 +1036,13 @@ class Citykleta_Chat_Widget extends \Elementor\Widget_Base {
 
 			$type = isset( $message['msg_type'] ) ? $message['msg_type'] : self::TYPE_OTHER;
 
+			$reveal_attr = '';
+			if ( $animated && ! empty( $message['reveal'] ) ) {
+				$reveal_attr = ' data-reveal="' . esc_attr( trim( (string) $message['reveal'] ) ) . '"';
+			}
+
 			if ( self::TYPE_SYSTEM === $type ) {
-				printf( '<div class="citykleta-chat__item citykleta-chat__system">%s</div>', esc_html( $text ) );
+				printf( '<div class="citykleta-chat__item citykleta-chat__system"%2$s>%1$s</div>', esc_html( $text ), $reveal_attr ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 				$previous = null;
 				continue;
 			}
@@ -974,11 +1055,12 @@ class Citykleta_Chat_Widget extends \Elementor\Widget_Base {
 			$previous = $key;
 
 			printf(
-				'<div class="citykleta-chat__item citykleta-chat__row %1$s%2$s" style="--citykleta-chat-author: %3$s;"%4$s>',
+				'<div class="citykleta-chat__item citykleta-chat__row %1$s%2$s" style="--citykleta-chat-author: %3$s;"%4$s%5$s>',
 				$mine ? 'is-out' : 'is-in',
 				$first ? ' is-first' : '',
 				esc_attr( self::author_color( $author ) ),
-				$mine ? '' : ' data-author="' . esc_attr( $author ) . '"'
+				$mine ? '' : ' data-author="' . esc_attr( $author ) . '"',
+				$reveal_attr // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			);
 
 			if ( ! $mine && $avatars ) {

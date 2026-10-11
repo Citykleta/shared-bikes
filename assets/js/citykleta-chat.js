@@ -17,6 +17,124 @@
 	var reduceMotion = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
 	var canHover = window.matchMedia && window.matchMedia( '(hover: hover)' ).matches;
 
+	function toArray( list ) {
+		return Array.prototype.slice.call( list );
+	}
+
+	// The images of a container. A boxed Elementor container wraps them in
+	// .e-con-inner, so look one level in when that is its only child.
+	function stageChildren( container ) {
+		var kids = toArray( container.children );
+		if ( 1 === kids.length && kids[ 0 ].classList.contains( 'e-con-inner' ) ) {
+			kids = toArray( kids[ 0 ].children );
+		}
+		return kids;
+	}
+
+	// "1, 4" / "all" / "#phrase" → elements. A number is a position inside the
+	// grid, "all" is the whole grid, anything else a CSS selector.
+	function resolveReveal( value, grid ) {
+		var found = [];
+		value.split( ',' ).forEach( function ( raw ) {
+			var token = raw.trim();
+			if ( ! token ) {
+				return;
+			}
+			if ( /^\d+$/.test( token ) ) {
+				if ( grid[ token - 1 ] ) {
+					found.push( grid[ token - 1 ] );
+				}
+			} else if ( 'all' === token.toLowerCase() ) {
+				found = found.concat( grid );
+			} else {
+				try {
+					found = found.concat( toArray( document.querySelectorAll( token ) ) );
+				} catch ( e ) {
+					// An invalid selector typed in the editor: ignore it.
+				}
+			}
+		} );
+		return found;
+	}
+
+	// The images outside the chat that its messages reveal. Everything a message
+	// can reveal starts hidden; null when there is nothing to drive (no container,
+	// no message with the field, or the Elementor editor, where the images must
+	// stay visible so the page can be designed).
+	function buildStage( root, items ) {
+		var selector = root.getAttribute( 'data-stage' );
+		if ( ! selector || document.body.classList.contains( 'elementor-editor-active' ) ) {
+			return null;
+		}
+
+		var container = null;
+		try {
+			container = document.querySelector( selector );
+		} catch ( e ) {
+			container = null;
+		}
+		if ( ! container ) {
+			return null;
+		}
+
+		var grid = stageChildren( container );
+		var effect = root.getAttribute( 'data-stage-effect' ) || 'scale';
+		var duration = parseInt( root.getAttribute( 'data-stage-duration' ), 10 );
+		var stagger = parseInt( root.getAttribute( 'data-stage-stagger' ), 10 );
+		duration = isNaN( duration ) ? 700 : duration;
+		stagger = isNaN( stagger ) ? 150 : stagger;
+
+		var plan = items.map( function ( item ) {
+			return resolveReveal( item.getAttribute( 'data-reveal' ) || '', grid );
+		} );
+		var all = [];
+		plan.forEach( function ( list ) {
+			list.forEach( function ( el ) {
+				if ( -1 === all.indexOf( el ) ) {
+					all.push( el );
+				}
+			} );
+		} );
+		if ( ! all.length ) {
+			return null;
+		}
+
+		function hide( el ) {
+			el.style.transitionDelay = '';
+			el.classList.add( 'is-stage-hidden' );
+		}
+
+		all.forEach( function ( el ) {
+			el.classList.add( 'citykleta-stage-item', 'citykleta-stage--' + effect );
+			el.style.setProperty( '--citykleta-stage-duration', duration + 'ms' );
+			hide( el );
+		} );
+
+		return {
+			reveal: function ( item ) {
+				var shown = 0;
+				plan[ items.indexOf( item ) ].forEach( function ( el ) {
+					if ( el.classList.contains( 'is-stage-hidden' ) ) {
+						el.style.transitionDelay = shown * stagger + 'ms';
+						el.classList.remove( 'is-stage-hidden' );
+						shown++;
+					}
+				} );
+			},
+			reset: function () {
+				all.forEach( hide );
+			},
+			// Leave the images exactly as they were (the chat is being replaced).
+			release: function () {
+				all.forEach( function ( el ) {
+					el.style.transitionDelay = '';
+					el.style.removeProperty( '--citykleta-stage-duration' );
+					el.classList.remove( 'is-stage-hidden', 'citykleta-stage-item', 'citykleta-stage--' + effect );
+				} );
+			},
+		};
+	}
+
 	function initChat( root ) {
 		if ( root._citykletaChat ) {
 			root._citykletaChat.stop();
@@ -39,10 +157,14 @@
 
 		var typing = body.querySelector( '.citykleta-chat__typing' );
 		var typingAuthor = typing ? typing.querySelector( '.citykleta-chat__author' ) : null;
+		var input = root.querySelector( '.citykleta-chat__input' );
+		var send = root.querySelector( '.citykleta-chat__send' );
+		var placeholder = input ? input.textContent : '';
 		var speed = parseFloat( root.getAttribute( 'data-speed' ) ) || 1;
 		var pause = parseInt( root.getAttribute( 'data-pause' ), 10 );
 		var loop = 'yes' === root.getAttribute( 'data-loop' );
 		var loopDelay = ( parseInt( root.getAttribute( 'data-loop-delay' ), 10 ) || 8 ) * 1000;
+		var stage = buildStage( root, items );
 
 		if ( isNaN( pause ) ) {
 			pause = 900;
@@ -138,6 +260,9 @@
 			hideTyping();
 			item.classList.remove( 'is-pending' );
 			item.classList.add( 'is-entering' );
+			if ( stage ) {
+				stage.reveal( item );
+			}
 			state.index++;
 			scrollDown();
 			schedule( next, pause / speed );
@@ -159,15 +284,69 @@
 				schedule( function () {
 					reveal( item );
 				}, typingTime( item ) );
+			} else if ( input && item.classList.contains( 'is-out' ) ) {
+				typeIntoComposer( item );
 			} else {
-				// "Me" or a notice: no typing bubble, just a short beat.
+				// A notice (or "me" with the message bar hidden): just a short beat.
 				schedule( function () {
 					reveal( item );
 				}, 350 / speed );
 			}
 		}
 
+		// "Me" messages are typed into the message bar first, then "sent": the
+		// visitor gets the feeling that they are the one writing.
+		function typeIntoComposer( item ) {
+			var textEl = item.querySelector( '.citykleta-chat__text' );
+			var chars = Array.from( textEl ? textEl.textContent : '' );
+			var count = 0;
+
+			function finish() {
+				if ( send ) {
+					send.classList.add( 'is-pressed' );
+				}
+				schedule( function () {
+					resetComposer();
+					reveal( item );
+				}, 180 / speed );
+			}
+
+			function step() {
+				count++;
+				input.textContent = chars.slice( 0, count ).join( '' );
+				if ( count < chars.length ) {
+					schedule( step, ( 35 + Math.random() * 45 ) / speed );
+				} else {
+					schedule( finish, 450 / speed );
+				}
+			}
+
+			if ( ! chars.length ) {
+				reveal( item );
+				return;
+			}
+
+			input.textContent = '';
+			input.classList.add( 'is-typing' );
+			schedule( step, 500 / speed );
+		}
+
+		function resetComposer() {
+			if ( ! input ) {
+				return;
+			}
+			input.textContent = placeholder;
+			input.classList.remove( 'is-typing' );
+			if ( send ) {
+				send.classList.remove( 'is-pressed' );
+			}
+		}
+
 		function restart() {
+			resetComposer();
+			if ( stage ) {
+				stage.reset();
+			}
 			items.forEach( function ( item ) {
 				item.classList.add( 'is-pending' );
 				item.classList.remove( 'is-entering' );
@@ -185,6 +364,9 @@
 		// so the first message is already there.
 		if ( 'hover' === trigger ) {
 			items[ 0 ].classList.remove( 'is-pending' );
+			if ( stage ) {
+				stage.reveal( items[ 0 ] );
+			}
 			state.index = 1;
 		}
 
@@ -225,6 +407,10 @@
 			stop: function () {
 				pausePlayback();
 				state.fn = null;
+				resetComposer();
+				if ( stage ) {
+					stage.release();
+				}
 				cleanups.forEach( function ( fn ) {
 					fn();
 				} );

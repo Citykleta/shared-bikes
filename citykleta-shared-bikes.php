@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Constantes del plugin.
-define( 'CITYKLETA_VERSION', '0.3.37' );
+define( 'CITYKLETA_VERSION', '0.3.39' );
 define( 'CITYKLETA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
 

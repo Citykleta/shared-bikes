@@ -147,6 +147,13 @@ includes/
                                          tipografía para todos los textos (en la raíz, nada abajo fija font-size
                                          ni color — salvo el nombre del autor, teñido por persona); la barra no
                                          tiene fondo propio, usa el del chat; borde del campo con grosor y color.
+                                         Dirige imágenes ajenas al chat (2026-10): campo "Reveal Images" por
+                                         mensaje (`1, 4` = posiciones dentro del contenedor, `all` = todas las que
+                                         falten, otro texto = selector CSS) + "Images Container" (selector,
+                                         por defecto `#community-pics-grid`), entrada y retraso. citykleta-chat.js
+                                         esconde esos elementos SOLO si el chat va a reproducirse (no en el editor,
+                                         sin JS ni con movimiento reducido) y los muestra al salir cada mensaje; al
+                                         repetirse el chat vuelven a esconderse. Sin verificar en vivo.
                                          Tipo de fila: `message` (otro) / `me` / `system` — reemplazó al switch
                                          `is_me`; filas viejas con is_me=yes se ven como "otro" hasta cambiarlas.
     class-citykleta-dropdown-tabs-widget.php → Widget "Dropdown Tabs": pestañas que se cambian con un
