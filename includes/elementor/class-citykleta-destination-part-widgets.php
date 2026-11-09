@@ -580,3 +580,273 @@ class Citykleta_Destination_Faq_Widget extends Citykleta_Destination_Part_Widget
 		<?php
 	}
 }
+
+/**
+ * Weather forecast at the destination's geofence center (Citykleta_Weather).
+ */
+class Citykleta_Destination_Weather_Widget extends Citykleta_Destination_Part_Widget {
+
+	/**
+	 * Spanish weekday abbreviations, by date( 'w' ). Written out instead of
+	 * read from the site locale: the visitor-facing text is Spanish whatever
+	 * language wp-admin runs in.
+	 */
+	const WEEKDAYS = array( 'Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb' );
+
+	/**
+	 * Internal widget name.
+	 *
+	 * @return string
+	 */
+	public function get_name() {
+		return 'citykleta_destination_weather';
+	}
+
+	/**
+	 * Title shown in the Elementor editor.
+	 *
+	 * @return string
+	 */
+	public function get_title() {
+		return 'Destination Weather';
+	}
+
+	/**
+	 * Widget icon in the Elementor panel.
+	 *
+	 * @return string
+	 */
+	public function get_icon() {
+		return 'eicon-flash';
+	}
+
+	/**
+	 * Keywords used to find it when searching in Elementor.
+	 *
+	 * @return array
+	 */
+	public function get_keywords() {
+		return array_merge( parent::get_keywords(), array( 'weather', 'tiempo', 'clima', 'forecast' ) );
+	}
+
+	/**
+	 * Controls shown in Elementor's left panel.
+	 */
+	protected function register_controls() {
+		$this->start_controls_section( 'section_content', array( 'label' => 'Content' ) );
+
+		$this->add_control(
+			'days',
+			array(
+				'label'   => 'Days',
+				'type'    => \Elementor\Controls_Manager::NUMBER,
+				'min'     => 1,
+				'max'     => Citykleta_Weather::MAX_DAYS,
+				'default' => 3,
+			)
+		);
+
+		$this->add_control(
+			'show_label',
+			array(
+				'label'   => 'Show Description',
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
+				'default' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'show_rain',
+			array(
+				'label'   => 'Show Chance Of Rain',
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
+				'default' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'show_uv',
+			array(
+				'label'   => 'Show UV Index',
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
+				'default' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'credit_note',
+			array(
+				'type'            => \Elementor\Controls_Manager::RAW_HTML,
+				'raw'             => 'Forecast from Open-Meteo, at this destination\'s geofence center, refreshed every 3 hours on the server. The "Open-Meteo" credit under it is required by its license (CC BY 4.0).',
+				'content_classes' => 'elementor-descriptor',
+			)
+		);
+
+		$this->end_controls_section();
+
+		$this->start_controls_section(
+			'section_style_days',
+			array(
+				'label' => 'Days',
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_responsive_control(
+			'gap',
+			array(
+				'label'      => 'Gap',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px', 'rem' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-weather__days' => 'gap: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'day_bg',
+			array(
+				'label'     => 'Background',
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-weather__day' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			array(
+				'name'     => 'day_border',
+				'selector' => '{{WRAPPER}} .citykleta-weather__day',
+			)
+		);
+
+		$this->add_responsive_control(
+			'day_radius',
+			array(
+				'label'      => 'Border Radius',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-weather__day' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'day_padding',
+			array(
+				'label'      => 'Padding',
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'rem' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-weather__day' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'text_color',
+			array(
+				'label'     => 'Text Color',
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-weather' => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'text_typography',
+				'label'    => 'Typography',
+				'selector' => '{{WRAPPER}} .citykleta-weather',
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'temp_typography',
+				'label'    => 'Temperature Typography',
+				'selector' => '{{WRAPPER}} .citykleta-weather__temp',
+			)
+		);
+
+		$this->end_controls_section();
+	}
+
+	/**
+	 * Prints the forecast, or nothing when there is no geofence center or no
+	 * forecast to show (never an error to the visitor).
+	 */
+	protected function render() {
+		$destination_id = $this->destination_id();
+
+		if ( ! $destination_id ) {
+			$this->render_editor_note( 'Destination Weather: shown on a destination page.' );
+			return;
+		}
+
+		$lat = (float) get_post_meta( $destination_id, Citykleta_Destination_Post_Type::META_LAT, true );
+		$lng = (float) get_post_meta( $destination_id, Citykleta_Destination_Post_Type::META_LNG, true );
+
+		// 0,0 is what an empty field saves as.
+		if ( 0.0 === $lat && 0.0 === $lng ) {
+			$this->render_editor_note( 'Destination Weather: this destination has no geofence center yet.' );
+			return;
+		}
+
+		$settings = $this->get_settings_for_display();
+		$days     = Citykleta_Weather::daily( $lat, $lng, (int) $settings['days'] );
+
+		if ( ! $days ) {
+			$this->render_editor_note( 'Destination Weather: no forecast available right now (Open-Meteo unreachable?).' );
+			return;
+		}
+
+		$zone     = new DateTimeZone( Citykleta_Weather::TIMEZONE );
+		$today    = wp_date( 'Y-m-d', null, $zone );
+		$tomorrow = wp_date( 'Y-m-d', time() + DAY_IN_SECONDS, $zone );
+		?>
+		<div class="citykleta-weather">
+			<ul class="citykleta-weather__days">
+				<?php
+				foreach ( $days as $day ) :
+					$about = Citykleta_Weather::describe( $day['code'] );
+
+					if ( $day['date'] === $today ) {
+						$name = 'Hoy';
+					} elseif ( $day['date'] === $tomorrow ) {
+						$name = 'Mañana';
+					} else {
+						$stamp = strtotime( $day['date'] . ' 12:00:00 UTC' );
+						$name  = self::WEEKDAYS[ (int) gmdate( 'w', $stamp ) ] . ' ' . gmdate( 'j', $stamp );
+					}
+					?>
+					<li class="citykleta-weather__day">
+						<span class="citykleta-weather__name"><?php echo esc_html( $name ); ?></span>
+						<?php if ( $about['icon'] ) : ?>
+							<span class="citykleta-weather__icon" role="img" aria-label="<?php echo esc_attr( $about['label'] ); ?>"><?php echo esc_html( $about['icon'] ); ?></span>
+						<?php endif; ?>
+						<span class="citykleta-weather__temp"><?php echo esc_html( round( $day['max'] ) ); ?>° <span class="citykleta-weather__min"><?php echo esc_html( round( $day['min'] ) ); ?>°</span></span>
+						<?php if ( 'yes' === $settings['show_label'] && $about['label'] ) : ?>
+							<span class="citykleta-weather__label"><?php echo esc_html( $about['label'] ); ?></span>
+						<?php endif; ?>
+						<?php if ( 'yes' === $settings['show_rain'] && null !== $day['rain'] ) : ?>
+							<span class="citykleta-weather__rain">Lluvia <?php echo esc_html( round( $day['rain'] ) ); ?>%</span>
+						<?php endif; ?>
+						<?php if ( 'yes' === $settings['show_uv'] && null !== $day['uv'] ) : ?>
+							<span class="citykleta-weather__uv">UV <?php echo esc_html( round( $day['uv'] ) ); ?></span>
+						<?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+			<p class="citykleta-weather__credit">Pronóstico: <a href="<?php echo esc_url( Citykleta_Weather::CREDIT_URL ); ?>" target="_blank" rel="noopener noreferrer">Open-Meteo</a></p>
+		</div>
+		<?php
+	}
+}

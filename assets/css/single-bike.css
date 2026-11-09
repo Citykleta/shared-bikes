@@ -123,6 +123,87 @@
 	display: block;
 }
 
+/*
+ * Mosaico y cuadrícula: sin Splide, todas las fotos a la vista. Las reglas
+ * encadenan dos clases para ganarle a `.citykleta-bike-single__gallery`
+ * (aspect-ratio, overflow, fondo del carrusel). El radio va en cada foto, no
+ * en el contenedor, porque con separación el contenedor no las recorta.
+ * Radio, separación y proporciones: controles del widget.
+ */
+
+.citykleta-bike-single__gallery.citykleta-bike-single__gallery--mosaic,
+.citykleta-bike-single__gallery.citykleta-bike-single__gallery--grid {
+	display: grid;
+	gap: 8px;
+	overflow: visible;
+	background: none;
+}
+
+.citykleta-bike-single__gallery--mosaic .citykleta-bike-single__shot,
+.citykleta-bike-single__gallery--grid .citykleta-bike-single__shot {
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	border-radius: 6px;
+	background: #f0ece0;
+}
+
+/* Mosaico: la primera foto manda, las demás se reparten el resto. */
+.citykleta-bike-single__gallery--mosaic.is-count-1 {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-2,
+.citykleta-bike-single__gallery--mosaic.is-count-3,
+.citykleta-bike-single__gallery--mosaic.is-count-4 {
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-3 {
+	grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-4 {
+	grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-5 {
+	grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+	grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-3 .citykleta-bike-single__shot:first-child {
+	grid-row: 1 / span 2;
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-4 .citykleta-bike-single__shot:first-child {
+	grid-row: 1 / span 3;
+}
+
+.citykleta-bike-single__gallery--mosaic.is-count-5 .citykleta-bike-single__shot:first-child {
+	grid-row: 1 / span 2;
+}
+
+/* Móvil: la foto principal a todo el ancho, el resto en pares debajo. */
+@media (max-width: 600px) {
+	.citykleta-bike-single__gallery.citykleta-bike-single__gallery--mosaic {
+		aspect-ratio: auto;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-rows: none;
+	}
+
+	.citykleta-bike-single__gallery--mosaic .citykleta-bike-single__shot {
+		grid-row: auto;
+		aspect-ratio: 1;
+	}
+
+	.citykleta-bike-single__gallery--mosaic .citykleta-bike-single__shot:first-child {
+		grid-column: 1 / -1;
+		grid-row: auto;
+		aspect-ratio: 4 / 3;
+	}
+}
+
 .citykleta-bike-single__gallery-nav {
 	position: absolute;
 	top: 50%;

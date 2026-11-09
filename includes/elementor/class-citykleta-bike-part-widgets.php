@@ -527,6 +527,20 @@ class Citykleta_Bike_Gallery_Widget extends Citykleta_Bike_Part_Widget {
 	protected function register_controls() {
 		$this->start_controls_section( 'section_content', array( 'label' => 'Gallery' ) );
 
+		$this->add_control(
+			'layout',
+			array(
+				'label'   => 'Layout',
+				'type'    => \Elementor\Controls_Manager::SELECT,
+				'default' => 'carousel',
+				'options' => array(
+					'carousel' => 'Carousel',
+					'mosaic'   => 'Mosaic',
+					'grid'     => 'Grid',
+				),
+			)
+		);
+
 		$this->add_responsive_control(
 			'ratio',
 			array(
@@ -540,8 +554,83 @@ class Citykleta_Bike_Gallery_Widget extends Citykleta_Bike_Part_Widget {
 					),
 				),
 				'default'    => array( 'size' => 1.33 ),
+				'condition'  => array( 'layout' => 'carousel' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-bike-single__gallery' => 'aspect-ratio: {{SIZE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'mosaic_ratio',
+			array(
+				'label'     => 'Aspect Ratio',
+				'type'      => \Elementor\Controls_Manager::SLIDER,
+				'range'     => array(
+					'px' => array(
+						'min'  => 0.8,
+						'max'  => 3,
+						'step' => 0.05,
+					),
+				),
+				'default'   => array( 'size' => 1.6 ),
+				'condition' => array( 'layout' => 'mosaic' ),
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-bike-single__gallery--mosaic' => 'aspect-ratio: {{SIZE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'columns',
+			array(
+				'label'     => 'Columns',
+				'type'      => \Elementor\Controls_Manager::SELECT,
+				'default'   => '3',
+				'options'   => array(
+					'1' => '1',
+					'2' => '2',
+					'3' => '3',
+					'4' => '4',
+				),
+				'condition' => array( 'layout' => 'grid' ),
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-bike-single__gallery--grid' => 'grid-template-columns: repeat({{VALUE}}, minmax(0, 1fr));',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'tile_ratio',
+			array(
+				'label'     => 'Photo Ratio',
+				'type'      => \Elementor\Controls_Manager::SLIDER,
+				'range'     => array(
+					'px' => array(
+						'min'  => 0.5,
+						'max'  => 2.5,
+						'step' => 0.05,
+					),
+				),
+				'default'   => array( 'size' => 1.33 ),
+				'condition' => array( 'layout' => 'grid' ),
+				'selectors' => array(
+					'{{WRAPPER}} .citykleta-bike-single__gallery--grid .citykleta-bike-single__shot' => 'aspect-ratio: {{SIZE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'gap',
+			array(
+				'label'      => 'Gap',
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 32 ) ),
+				'default'    => array( 'size' => 8 ),
+				'condition'  => array( 'layout!' => 'carousel' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .citykleta-bike-single__gallery--mosaic, {{WRAPPER}} .citykleta-bike-single__gallery--grid' => 'gap: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -554,7 +643,7 @@ class Citykleta_Bike_Gallery_Widget extends Citykleta_Bike_Part_Widget {
 				'size_units' => array( 'px' ),
 				'range'      => array( 'px' => array( 'min' => 0, 'max' => 40 ) ),
 				'selectors'  => array(
-					'{{WRAPPER}} .citykleta-bike-single__gallery' => 'border-radius: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .citykleta-bike-single__gallery, {{WRAPPER}} .citykleta-bike-single__shot' => 'border-radius: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -571,6 +660,31 @@ class Citykleta_Bike_Gallery_Widget extends Citykleta_Bike_Part_Widget {
 
 		if ( ! $images ) {
 			$this->render_editor_note( 'Bike Gallery: this bike has no photos yet.' );
+			return;
+		}
+
+		$layout = $this->get_settings_for_display( 'layout' );
+
+		// Mosaic and grid are plain markup (no Splide, no JS): every photo is
+		// visible at once, so there is nothing to slide to.
+		if ( 'mosaic' === $layout || 'grid' === $layout ) {
+			$shown = 'mosaic' === $layout ? array_slice( $images, 0, 5 ) : $images;
+			?>
+			<div class="citykleta-bike-single__gallery citykleta-bike-single__gallery--<?php echo esc_attr( $layout ); ?> is-count-<?php echo (int) count( $shown ); ?>" role="list" aria-label="Fotos de la bici">
+				<?php foreach ( $shown as $index => $image_id ) : ?>
+					<div class="citykleta-bike-single__shot" role="listitem">
+						<?php
+						echo wp_get_attachment_image(
+							$image_id,
+							( 'mosaic' === $layout && 0 !== $index ) ? 'medium_large' : 'large',
+							false,
+							array( 'loading' => 0 === $index ? 'eager' : 'lazy' )
+						);
+						?>
+					</div>
+				<?php endforeach; ?>
+			</div>
+			<?php
 			return;
 		}
 
@@ -1703,6 +1817,24 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 		);
 
 		$this->add_control(
+			'name_label',
+			array(
+				'label'   => 'Name Label',
+				'type'    => \Elementor\Controls_Manager::TEXT,
+				'default' => 'Tu nombre',
+			)
+		);
+
+		$this->add_control(
+			'email_label',
+			array(
+				'label'   => 'Email Label',
+				'type'    => \Elementor\Controls_Manager::TEXT,
+				'default' => 'Tu correo',
+			)
+		);
+
+		$this->add_control(
 			'dates_label',
 			array(
 				'label'   => 'Rental Period Label',
@@ -1720,102 +1852,13 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 			)
 		);
 
-		$this->end_controls_section();
-
-		/*
-		 * Step 1 asks for the code; step 2 (name, contact, message) only opens
-		 * after it. Nothing here validates the code — the plugin has no route
-		 * to validate it against, see
-		 * Citykleta_Bike_Request::META_VERIFICATION_CODE — which is also why
-		 * "Required" is a choice and not a given.
-		 */
-		$this->start_controls_section( 'section_verification', array( 'label' => 'Verification' ) );
-
 		$this->add_control(
-			'show_code',
+			'whatsapp_text',
 			array(
-				'label'     => 'Verification Code Field',
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'  => 'Show',
-				'label_off' => 'Hide',
-				'default'   => 'yes',
-			)
-		);
-
-		$this->add_control(
-			'code_label',
-			array(
-				'label'     => 'Field Label',
-				'type'      => \Elementor\Controls_Manager::TEXT,
-				'default'   => 'Código de verificación',
-				'condition' => array( 'show_code' => 'yes' ),
-			)
-		);
-
-		$this->add_control(
-			'require_code',
-			array(
-				'label'       => 'Required',
-				'type'        => \Elementor\Controls_Manager::SWITCHER,
-				'label_on'    => 'Yes',
-				'label_off'   => 'No',
-				'default'     => 'yes',
-				'description' => 'Blocks the step until a code is typed. It is stored as typed — nothing checks whether it is real.',
-				'condition'   => array( 'show_code' => 'yes' ),
-			)
-		);
-
-		$this->add_control(
-			'verify_url',
-			array(
-				'label'         => 'Verification Site URL',
-				'type'          => \Elementor\Controls_Manager::URL,
-				'placeholder'   => 'https://…',
-				'description'   => 'Opens in a new tab so the half-filled form is still here on the way back. Leave empty to hide the link.',
-				'options'       => false,
-				'default'       => array( 'url' => '' ),
-				'condition'     => array( 'show_code' => 'yes' ),
-			)
-		);
-
-		$this->add_control(
-			'verify_text',
-			array(
-				'label'     => 'Link Text',
-				'type'      => \Elementor\Controls_Manager::TEXT,
-				'default'   => 'Verificarme ahora',
-				'condition' => array( 'show_code' => 'yes' ),
-			)
-		);
-
-		$this->end_controls_section();
-
-		$this->start_controls_section( 'section_buttons', array( 'label' => 'Buttons' ) );
-
-		$this->add_control(
-			'next_text',
-			array(
-				'label'   => 'Continue',
-				'type'    => \Elementor\Controls_Manager::TEXT,
-				'default' => 'Pedir esta bici',
-			)
-		);
-
-		$this->add_control(
-			'back_text',
-			array(
-				'label'   => 'Back',
-				'type'    => \Elementor\Controls_Manager::TEXT,
-				'default' => 'Atrás',
-			)
-		);
-
-		$this->add_control(
-			'submit_text',
-			array(
-				'label'   => 'Submit',
-				'type'    => \Elementor\Controls_Manager::TEXT,
-				'default' => 'Enviar solicitud',
+				'label'       => 'Button Text',
+				'type'        => \Elementor\Controls_Manager::TEXT,
+				'default'     => 'Escribir por WhatsApp',
+				'description' => 'The button opens a WhatsApp chat with the owner, with the message from Bikes → Settings → Communication already written. Nothing is sent from the site.',
 			)
 		);
 
@@ -1837,9 +1880,9 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 	 */
 	private function register_style_controls() {
 		$card   = '{{WRAPPER}} .citykleta-bike-single__price-card';
-		$fields = '{{WRAPPER}} .citykleta-bike-request__field input, {{WRAPPER}} .citykleta-bike-request__field textarea, {{WRAPPER}} .citykleta-bike-request__input';
+		$fields = '{{WRAPPER}} .citykleta-bike-request__field input, {{WRAPPER}} .citykleta-bike-request__input';
 		$labels = '{{WRAPPER}} .citykleta-bike-request__field > span, {{WRAPPER}} .citykleta-bike-request__label';
-		$primary = '{{WRAPPER}} .citykleta-bike-request__submit, {{WRAPPER}} .citykleta-bike-request__next';
+		$primary = '{{WRAPPER}} .citykleta-bike-request__whatsapp';
 
 		// --- Card -----------------------------------------------------------
 		$this->start_controls_section(
@@ -1983,7 +2026,6 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 				'separator'  => 'before',
 				'selectors'  => array(
 					'{{WRAPPER}} .citykleta-bike-request__form' => 'gap: {{SIZE}}{{UNIT}};',
-					'{{WRAPPER}} .citykleta-bike-request__step' => 'gap: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -2055,11 +2097,11 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 
 		$this->end_controls_section();
 
-		// --- Primary buttons (Continue / Submit) ----------------------------
+		// --- WhatsApp button ------------------------------------------------
 		$this->start_controls_section(
 			'section_style_button',
 			array(
-				'label' => 'Buttons',
+				'label' => 'WhatsApp Button',
 				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
 			)
 		);
@@ -2104,7 +2146,7 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 				'label'     => 'Text Color',
 				'type'      => \Elementor\Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}} .citykleta-bike-request__submit:hover, {{WRAPPER}} .citykleta-bike-request__next:hover' => 'color: {{VALUE}};',
+					'{{WRAPPER}} .citykleta-bike-request__whatsapp:hover' => 'color: {{VALUE}};',
 				),
 			)
 		);
@@ -2115,7 +2157,7 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 				'label'     => 'Background Color',
 				'type'      => \Elementor\Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}} .citykleta-bike-request__submit:hover, {{WRAPPER}} .citykleta-bike-request__next:hover' => 'background-color: {{VALUE}};',
+					'{{WRAPPER}} .citykleta-bike-request__whatsapp:hover' => 'background-color: {{VALUE}};',
 				),
 			)
 		);
@@ -2158,71 +2200,6 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 			array(
 				'name'     => 'button_shadow',
 				'selector' => $primary,
-			)
-		);
-
-		$this->add_control(
-			'back_heading',
-			array(
-				'label'     => 'Back Button',
-				'type'      => \Elementor\Controls_Manager::HEADING,
-				'separator' => 'before',
-			)
-		);
-
-		$this->add_control(
-			'back_color',
-			array(
-				'label'     => 'Text Color',
-				'type'      => \Elementor\Controls_Manager::COLOR,
-				'selectors' => array( '{{WRAPPER}} .citykleta-bike-request__back' => 'color: {{VALUE}};' ),
-			)
-		);
-
-		$this->add_control(
-			'back_border_color',
-			array(
-				'label'     => 'Border Color',
-				'type'      => \Elementor\Controls_Manager::COLOR,
-				'selectors' => array( '{{WRAPPER}} .citykleta-bike-request__back' => 'border-color: {{VALUE}};' ),
-			)
-		);
-
-		$this->end_controls_section();
-
-		// --- Verify link -----------------------------------------------------
-		$this->start_controls_section(
-			'section_style_verify',
-			array(
-				'label'     => 'Verification Link',
-				'tab'       => \Elementor\Controls_Manager::TAB_STYLE,
-				'condition' => array( 'show_code' => 'yes' ),
-			)
-		);
-
-		$this->add_control(
-			'verify_color',
-			array(
-				'label'     => 'Color',
-				'type'      => \Elementor\Controls_Manager::COLOR,
-				'selectors' => array( '{{WRAPPER}} .citykleta-bike-request__verify' => 'color: {{VALUE}};' ),
-			)
-		);
-
-		$this->add_control(
-			'verify_color_hover',
-			array(
-				'label'     => 'Hover Color',
-				'type'      => \Elementor\Controls_Manager::COLOR,
-				'selectors' => array( '{{WRAPPER}} .citykleta-bike-request__verify:hover' => 'color: {{VALUE}};' ),
-			)
-		);
-
-		$this->add_group_control(
-			\Elementor\Group_Control_Typography::get_type(),
-			array(
-				'name'     => 'verify_typography',
-				'selector' => '{{WRAPPER}} .citykleta-bike-request__verify',
 			)
 		);
 
@@ -2277,9 +2254,9 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 		<div class="citykleta-bike-single__aside">
 			<div class="citykleta-bike-single__price-card">
 				<?php
-				// Solicitud, no reserva: acá no se procesa ningún pago — el
-				// dueño coordina el cobro (en efectivo) al recibirla. Ver
-				// includes/requests/class-citykleta-bike-request.php.
+				// Contacto, no reserva: acá no se procesa ningún pago ni se envía
+				// nada — el botón abre un chat de WhatsApp con el dueño, que
+				// coordina el cobro (en efectivo) por su cuenta.
 				Citykleta_Bike_Request_Form::render( $bike_id, self::form_args( $settings ) );
 				?>
 			</div>
@@ -2313,19 +2290,15 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 		 */
 		$text_keys = array(
 			'title',
+			'name_label',
+			'email_label',
 			'dates_label',
 			'dates_hint',
-			'code_label',
-			'verify_text',
-			'next_text',
-			'back_text',
-			'submit_text',
+			'whatsapp_text',
 		);
 
 		$switcher_keys = array(
 			'show_title',
-			'show_code',
-			'require_code',
 		);
 
 		$args = array();
@@ -2340,13 +2313,6 @@ class Citykleta_Bike_Request_Widget extends Citykleta_Bike_Part_Widget {
 			if ( isset( $settings[ $key ] ) ) {
 				$args[ $key ] = $settings[ $key ];
 			}
-		}
-
-		// Elementor's URL control stores {url, is_external, nofollow}; the form
-		// only needs the address — it always opens the link in a new tab with
-		// rel="noopener noreferrer", which is not a per-link decision here.
-		if ( isset( $settings['verify_url']['url'] ) ) {
-			$args['verify_url'] = $settings['verify_url']['url'];
 		}
 
 		return $args;

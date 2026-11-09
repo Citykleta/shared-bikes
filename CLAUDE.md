@@ -41,13 +41,16 @@ includes/
                                         Ver "Solicitudes de bicicleta" más abajo.
   requests/
     class-citykleta-bike-request.php  → CPT privado "citykleta_bike_req": una solicitud de alquiler
-                                        (bici, fechas, contacto, estado). Calcado de Citykleta_Subscriber.
+                                        (bici, fechas, contacto, estado). Cada solicitud hecha en el sitio
+                                        queda aquí, y el widget "Citykleta Stats" las cuenta.
     class-citykleta-contact-reveal.php → Cliente de POST /contact/reveal del backend: canjea el código de
                                         verificación por el teléfono del dueño. Lo único del plugin que
-                                        manda una llave (CITYKLETA_PLUGIN_KEY, en wp-config.php).
+                                        manda una llave (Settings → Sync → API access). APARCADO: el
+                                        formulario actual no lo llama (ver "Solicitudes de bicicleta").
     class-citykleta-bike-request-rest.php → POST /citykleta/v1/bike-requests, público, valida el payload
-                                        y verifica el código contra el backend antes de guardar nada.
-    class-citykleta-bike-request-form.php → El formulario de la página individual + sus assets.
+                                        (nombre + correo + fechas) y guarda el lead. No verifica nada.
+    class-citykleta-bike-request-form.php → El formulario de la página individual (un solo paso, botón de
+                                        WhatsApp) + sus assets.
     class-citykleta-bike-request-notifier.php → Los correos (a Citykleta y, si se puede, al dueño).
   sync/
     class-citykleta-bike-type-sync.php → Trae /bike-types y crea/actualiza los términos de la
@@ -99,22 +102,13 @@ includes/
                                         (citykleta_search_stats) término => {count, zero, label, last}, sin
                                         una fila por búsqueda. Dueña del widget "Citykleta Stats" en el
                                         dashboard de wp-admin (wp_add_dashboard_widget, ya no una página
-                                        propia bajo Shared Bikes): arriba el embudo del muro de descarga
-                                        (Vistas → Inscripciones → Descargas, con desglose por día), debajo
-                                        las dos tablas de búsquedas (más buscadas / sin resultados). El
-                                        embudo lee las vistas de Citykleta_View_Stats::site_total() y los
-                                        agregados de sign-up/descarga de Citykleta_Subscriber; esta clase
-                                        solo los maqueta.
-  subscribers/
-    class-citykleta-subscriber.php    → CPT privado "citykleta_subscriber": la lista de leads del muro de
-                                        descarga (email, nombre, consentimiento + timestamp, source, estado
-                                        de sync, downloaded_at). Staging para HubSpot; ver sección "Muro de
-                                        descarga de la app" más abajo.
-    class-citykleta-subscriber-rest.php → Endpoints REST del muro: POST /citykleta/v1/subscribers (captura el
-                                        sign-up) y POST /citykleta/v1/subscribers/{id}/download (marca la
-                                        descarga). Públicos, validan payload (mismo criterio que view-stats).
-    class-citykleta-app-cta.php       → Shortcode [citykleta_app_download]: botón → formulario de sign-up →
-                                        enlaces a las tiendas. URLs de tienda por atributos (ios/android/button).
+                                        propia bajo Shared Bikes): arriba el embudo de solicitudes de bici
+                                        (Vistas de bicis → Solicitudes → Confirmadas, las nuevas sin atender /
+                                        contactadas / cerradas, y solicitudes por día), debajo las dos tablas
+                                        de búsquedas (más buscadas / sin resultados). El embudo lee las
+                                        vistas de Citykleta_View_Stats::site_total() y los conteos de
+                                        Citykleta_Bike_Request (count(), count( $status ),
+                                        requests_by_day()); esta clase solo los maqueta.
   elementor/
     class-citykleta-elementor.php     → Registra los widgets de Elementor (no hace nada si Elementor no
                                          está activo) y encola su CSS desde temprano (wp_enqueue_scripts).
@@ -156,6 +150,23 @@ includes/
                                          repetirse el chat vuelven a esconderse. Sin verificar en vivo.
                                          Tipo de fila: `message` (otro) / `me` / `system` — reemplazó al switch
                                          `is_me`; filas viejas con is_me=yes se ven como "otro" hasta cambiarlas.
+    class-citykleta-story-widget.php  → Widget "Scroll Story" (`citykleta_story`): la pestaña Comunidad. Una
+                                         historia por escenas DENTRO de una tarjeta que hace scroll propio (al
+                                         terminar, sigue la página). Portada (foto completa, texto a la izquierda)
+                                         → slides (repeater) → cierre (foto a tarjeta completa, texto centrado
+                                         abajo, botón). La foto de portada SE CONVIERTE en la imagen del slide 1:
+                                         zoom sobre la persona (banda "Person In The Photo", % del ancho) con el
+                                         borde superior fijo, mientras su ventana se cierra a la mitad izquierda;
+                                         por eso el campo de foto del slide 1 se ignora. Luego las imágenes
+                                         alternan lado (izq., der.…), cada una entra y sale por su lado, y el texto
+                                         va en la mitad libre. Los textos entran por debajo de la tarjeta y salen
+                                         por arriba, al ritmo del scroll (sin transiciones). `*palabra*` en un
+                                         título = resaltado amarillo. Fotos por defecto en assets/images/story/
+                                         (cover.webp, closing.webp). La altura es una variable CSS
+                                         (`--citykleta-story-height`) para que el layout sin JS (escenas en lista)
+                                         pueda anularla. CSS/JS: story.css, citykleta-story.js. Nace de la maqueta
+                                         de 2026-11; render probado con stubs (HTML real + CSS/JS del plugin), el
+                                         editor de Elementor SIN probar.
     class-citykleta-dropdown-tabs-widget.php → Widget "Dropdown Tabs": pestañas que se cambian con un
                                          selector tipo combobox (botón + listbox con ✓, teclado WAI-ARIA) en vez
                                          de botones. Es un widget ANIDADO como el Tabs de Elementor
@@ -293,14 +304,6 @@ el slug de URL (`citykleta_destination_slug`) y el FAQ por defecto (`citykleta_d
 — los destinos en sí (geocerca) se administran como posts del CPT `destination`, ver la
 sección "Destinos" más abajo.
 
-**Pestañas extensibles desde otros plugins:** la lista de pestañas se lee por `Citykleta_Settings::tabs()`,
-que aplica el filtro `citykleta_settings_tabs` (slug => label) — un plugin aparte puede agregar la suya
-sin tocar este código. El cuerpo de una pestaña externa lo dibuja la action
-`citykleta_settings_render_tab_{slug}` (el plugin externo imprime ahí su propio `<form>`, con su propio
-`OPTION_GROUP` y `settings_fields()`, siguiendo la misma regla de "un option group por formulario"). Lo
-usa el conector de HubSpot para colgar su pestaña "HubSpot" acá manteniendo su código separado. Las tres
-pestañas internas siguen renderizándose con su rama propia en `render_page()`; el `else` final delega en
-esa action para cualquier slug externo.
 Cada pestaña registra sus secciones/campos bajo su propio "page" interno (`self::PAGE_SLUG . '-sync'` /
 `'-maps'` / `'-comm'`), así que `do_settings_sections()` únicamente muestra los campos de la pestaña
 activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso Sync y Communication (las
@@ -320,7 +323,9 @@ por separado, nunca uno compartido entre formularios distintos.
 - **Sync** (antes toda la página se llamaba así) — URL base de la API, frecuencia, slug de la URL,
   estado de la última sincronización y el botón "Sync now". **Lo único editable de la conexión es la
   URL base**: el *path* de cada recurso vive en código, en `Citykleta_Settings::PATHS`, y se resuelve
-  con `get_endpoint_url( $key )`. Los campos de path por recurso (`citykleta_path_{key}`, la vieja
+  con `get_endpoint_url( $key )`. La pestaña también tiene la sección **API access** con la llave del
+  plugin (`citykleta_plugin_key`, enmascarada), que generan en Back Office; hoy solo la usa
+  `Citykleta_Contact_Reveal`, aparcado. Los campos de path por recurso (`citykleta_path_{key}`, la vieja
   constante `ENDPOINTS`) **se eliminaron en 2026-08**, una vez confirmadas las rutas reales contra
   `citykleta-sharing-api`: un typo en un campo de texto no puede romper un sync en silencio.
   - `bikes` → **`/bikesPublic/sync`**, el catálogo sin PII hecho para este plugin. Es público a
@@ -591,6 +596,20 @@ probado de punta a punta (Splide montado, flechas/puntos, ida y vuelta completa)
 mano `_citykleta_gallery_ids` de una bici de prueba con adjuntos reales ya en la Media
 Library, no contra un payload real de `/bikesPublic/sync` con varias fotos — eso solo se va a
 poder probar el día que el backend mande más de una.
+
+**Fotos extra inyectadas a mano (2026-10): meta aparte, que el sync no toca.** Mientras la API no
+mande más de una foto, las 68 bicis tienen 1–2 fotos adicionales puestas directo en WordPress,
+en `_citykleta_extra_gallery_ids` (`Citykleta_Bike_Meta::EXTRA_GALLERY_META`). Va aparte porque
+el sync reescribe `_citykleta_gallery_ids` en cada corrida (también a vacío) y borraría las
+extras. `gallery_ids()` suma, en orden: destacada, `GALLERY_META`, `EXTRA_GALLERY_META`,
+deduplicado y recortado a `MAX_IMAGES`. Origen: Wikimedia Commons; 53 bicis con fotos de su
+propia marca y 15 (Forever, Priority, Java, Momentum, Santa Cruz, Basso, Linus, Public,
+Papillionaire, Viva, Origami, Airnimal, Diamondback, Yeti) con una del mismo tipo de bici, y
+ninguna es el modelo exacto. Cada adjunto lleva `_citykleta_image_source_url` = `commons:File:…`,
+el crédito en el extracto del adjunto y en `_citykleta_image_credit` (fuente/autor/licencia, casi
+todo CC BY-SA); **el sitio todavía no muestra los créditos**. La herramienta que las cargó se
+borró: no hay forma de regenerarlas desde el repo. Cuando la API mande varias fotos, se quita
+este meta (o se deja: el dedupe evita repetidas).
 
 **Un adjunto por URL de origen, compartido entre bicis.** El meta
 `_citykleta_image_source_url` (`Citykleta_Bike_Sync::IMAGE_SOURCE_META`) se escribe en los
@@ -1750,81 +1769,34 @@ Para descargar los archivos que faltan:
 `https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css` → `assets/css/MarkerCluster.css`,
 `https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css` → `assets/css/MarkerCluster.Default.css`.
 
-## Muro de descarga de la app (Subscribers → HubSpot)
+## Muro de descarga y HubSpot: retirados (2026-10-27)
 
-Una de las dos conversiones del sitio es: **muro de sign-up (correo + nombre +
-consentimiento) → botón de descarga de la app**. Reemplazó al viejo "Contactar por
-WhatsApp" (el botón ya se quitó de `single-bike.php`; la pestaña Communication de
-Settings se conserva). De qué bici salió una descarga **no** se rastrea a propósito —
-las inscripciones y descargas son globales, solo las *vistas* son por bici (ver
-`Citykleta_View_Stats`).
+Hubo un muro de sign-up (`[citykleta_app_download]`: correo + nombre + consentimiento → enlaces a
+las tiendas), su lista privada de leads (CPT `citykleta_subscriber`, carpeta `includes/subscribers/`)
+y un plugin aparte, `citykleta-hubspot-crm-connector`, que los empujaba a HubSpot. **Se quitaron
+los tres** por decisión del usuario: el conector nunca llegó a sincronizar (el único lead quedó
+`pending` siete semanas sin avisar) y la captura de leads de marketing pasa al **plugin oficial de
+HubSpot**. El código sigue en el historial de git y el conector en
+`github.com/Citykleta/citykleta-hubspot-crm-connector`.
 
-**La otra conversión es la solicitud de una bici concreta** (ver "Solicitudes de
-bicicleta" más abajo), y las dos compiten por el mismo visitante: quien solicita por
-web ya no necesita instalar la app. Fue una decisión consciente, no un accidente —
-pero conviene mirar los dos números juntos antes de empujar más una que la otra. A
-diferencia de la descarga, la solicitud **sí** es por bici, y su consentimiento de
-marketing es opcional y aparte.
+**La conversión que se registra ahora es la solicitud de bici** (ver la sección siguiente): cada
+solicitud queda como un post `citykleta_bike_req`, y el widget "Citykleta Stats" pinta el embudo
+Vistas de bicis → Solicitudes → Confirmadas.
 
-`Citykleta_App_Cta` registra el shortcode `[citykleta_app_download]` (colócalo donde
-sea — página, widget, Elementor). Las URLs de tienda van por atributos, así no hace
-falta una sección de Settings todavía:
-`[citykleta_app_download ios="https://apps.apple.com/…" android="https://play.google.com/…" button="Descargar la app"]`.
-Si no se pasa ninguna URL, el shortcode no renderiza nada (en vez de un botón muerto).
-Flujo en `assets/js/citykleta-app-cta.js`: botón → formulario → tiendas; el sign-up se
-captura por REST y el clic en una tienda reporta la descarga de ese lead. Un visitante
-que ya se inscribió (recordado en `localStorage`) salta del botón directo a las tiendas,
-y la descarga se reporta una sola vez por navegador. El formulario trae un honeypot
-(campo `website` oculto) contra bots.
-
-`Citykleta_Subscriber` es un **CPT privado** `citykleta_subscriber` (no público, sin
-front-end, sin REST — el correo es dato personal y solo se ve en wp-admin), listado como
-submenú "Subscribers" bajo "Shared Bikes". Campos (meta interno): correo (identidad
-única — un sign-up repetido actualiza el registro, no duplica la persona),
-consentimiento + timestamp (la base legal que le importa a HubSpot, **no** un correo
-verificado), `source`, estado de sync (`pending` → `synced_to_hubspot`) y `downloaded_at`
-(mide el paso sign-up → descarga por persona). Columnas y caja de detalle de solo lectura
-en wp-admin.
-
-**WP es solo staging; la fuente de verdad de leads es HubSpot** (igual que la app lo es
-de las bicis). Por eso WP **nunca crea cuentas** (no `WP_User`) ni **manda correo de
-verificación** — el doble opt-in lo hace HubSpot, que tiene mejor entregabilidad (el
-envío desde WP en local/Cuba es poco fiable) y en el free es sensible a los rebotes. WP
-solo valida el correo con `is_email()`, guarda el consentimiento y marca `pending`. La
-sincronización a HubSpot vive en un **plugin aparte** (`citykleta-hubspot-crm-connector`,
-carpeta hermana de este plugin), no en este plugin, porque HubSpot es un CRM de toda la
-empresa, no algo específico de bicis.
-
-**Contrato con ese conector (lo único que este plugin expone hacia HubSpot):**
-- `Citykleta_Subscriber_Rest::capture()` dispara la action `citykleta_subscriber_captured`
-  (`$post_id`, `$email`, `$name`, `$source`) tras guardar el lead. Es el único punto de
-  acoplamiento; este plugin no sabe que HubSpot existe. La action también se dispara en
-  re-inscripciones (el push del conector es idempotente, create-or-update por email).
-- `Citykleta_Subscriber` es el dueño de los datos del lead, así que el conector nunca
-  toca las meta keys directo: se las pide por métodos estáticos — `get_data()`,
-  `get_pending_ids()` (reintentos por cron), `get_synced_before()` (purga), `mark_synced()`
-  (setea `STATUS_SYNCED` + el nuevo `META_SYNCED_AT`) y `delete()` (borrado real, sin
-  papelera). Regla: si el conector necesita otro dato del suscriptor, se agrega un método
-  acá, no un `get_post_meta()` con la key hardcodeada del otro lado.
-
-El conector es **push-only** (WP → HubSpot, nunca al revés), tiempo real con
-auto-reparación (push inmediato en la action; si falla, el lead queda `pending` y un
-WP-Cron cada 15 min reintenta y sincroniza el backlog viejo), auth por Private App token,
-y una purga opcional configurable (30/60/90 días / nunca) que solo borra los ya
-sincronizados. Ver el propio plugin para el detalle.
-
-`Citykleta_Subscriber_Rest` expone dos rutas públicas (mismo criterio que `Citykleta_View_Stats`:
-un visitante anónimo no puede firmar un nonce, así que se valida el payload):
-`POST /wp-json/citykleta/v1/subscribers` (captura: exige correo válido y consentimiento,
-descarta el honeypot) y `POST /wp-json/citykleta/v1/subscribers/{id}/download` (marca
-`downloaded_at` una sola vez). El abuso máximo es inflar un lead basura o el conteo de
-descargas — agregar rate-limit por IP si algún día importa.
+Lo que quedó a propósito: los posts `citykleta_subscriber` que ya existan en una base **no se
+borraron** (contienen correos). Sin el CPT registrado no se ven en wp-admin; si hacen falta, hay que
+exportarlos antes de actualizar el plugin en ese sitio, o leerlos por SQL.
 
 ## Solicitudes de bicicleta
 
-La página individual tiene un formulario **"Solicitar esta bicicleta"** (periodo de renta, código
-de verificación, mensaje opcional). Reemplazó la nota *"La reserva se hace desde la app"* que había
-en `single-bike.php`.
+La página individual tiene una tarjeta **"Contactar al propietario"**: periodo de renta, nombre y
+correo, y un botón verde de WhatsApp que abre el chat con el dueño. Reemplazó la nota *"La reserva
+se hace desde la app"* que había en `single-bike.php`.
+
+**Estado actual (2026-10): un solo paso, sin verificación.** Se lanza el sitio sin el paso de
+verificación para ganar tiempo; el flujo de dos pasos con código quedó aparcado (ver más abajo).
+El nombre y el correo son obligatorios y se guardan como lead; ya no hay campo de mensaje (en
+WhatsApp la persona escribe lo que quiera) ni pantalla de "solicitud enviada".
 
 **Ya no pide nombre ni correo/teléfono (2026-09).** El código de verificación es el identificador
 único de la persona dentro de la plataforma — quien ya se verificó tiene un nombre y un contacto en
@@ -1848,8 +1820,7 @@ algún sitio, así que preguntárselos de nuevo en este formulario era pedir dos
   seña, ni logos de método de pago (PayPal/Zelle/etc.) — aunque una referencia de diseño los muestre,
   no corresponden a como funciona (ni va a funcionar) el producto.
 
-Por eso WP hace de **staging**, el mismo papel que ya juega con los leads (ver `Citykleta_Subscriber`,
-del que este CPT está calcado): captura la intención, guarda el registro, y alguien confirma a mano.
+Por eso WP hace de **staging**: captura la intención, guarda el registro, y alguien confirma a mano.
 
 **Diseño de la página (patrón ListNRide)** — dos columnas desde arriba: a la izquierda, la
 galería (un carrusel de una foto a la vez, deslizable — motor **Splide**, ver más abajo;
@@ -1883,13 +1854,34 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   **Nunca deduplica**: la misma persona pidiendo dos veces son dos solicitudes reales, a diferencia de
   un sign-up repetido que sí hace upsert.
 - **`Citykleta_Bike_Request_Rest`** — `POST /citykleta/v1/bike-requests`, público con el mismo criterio
-  que el muro y el contador de vistas (un visitante anónimo no puede firmar un nonce, así que se valida
+  que el contador de vistas (un visitante anónimo no puede firmar un nonce, así que se valida
   el payload). Honeypot `website`. La bici tiene que ser un post `bike` **publicado** — el id viaja en
   el HTML y nada impide mandar un número cualquiera.
-- **El formulario va en dos pasos, dentro del mismo `<form>`.** Paso 1 = lo de la bici (periodo de
-  renta + código de verificación); paso 2 = un mensaje opcional. No es cosmético: el paso 1 es lo que
-  vive dentro de la tarjeta de precio, al lado de la bici. **Los pasos son paneles, no peticiones**: no
-  se manda nada hasta el submit del paso 2, así que sigue habiendo un solo POST por solicitud.
+- **Intentos clasificados (2026-10-27).** Además de guardar las solicitudes buenas, se cuenta **cada
+  intento** por resultado en una sola opción, `citykleta_request_attempts` (`'Y-m-d' => [resultado => n]`,
+  90 días, sin datos personales; `Citykleta_Bike_Request::record_attempt()` / `attempt_totals()` /
+  `failures_by_day()`). Resultados: `saved`, `spam` (honeypot, aparte, nunca cuenta como fallo) y los
+  fallos de `failure_outcomes()`. **Dos fallos ocurren en el navegador** y el servidor nunca los vería:
+  sin nombre y correo inválido. `citykleta-bike-request.js` los reporta a
+  `POST /citykleta/v1/bike-requests/attempt` (solo acepta esos dos, una vez por motivo y por vista de
+  página). Los demás (`bike_unavailable`, `invalid_dates`, `reversed_dates`, `save_failed`) los registra
+  `capture()` del lado del servidor, **y en todos ellos el WhatsApp ya se abrió**: el visitante llegó al
+  dueño, pero no quedó registro. El widget "Citykleta Stats" muestra exitosos / fallidos / tasa de éxito,
+  los fallos por motivo (30 días) y las columnas Exitosas / Fallidas por día. Ojo: las exitosas por día
+  salen de los posts (tienen historia), las fallidas solo existen desde que se empezó a contar.
+- **El formulario es de un solo paso** (`Citykleta_Bike_Request_Form`, `citykleta-bike-request.js`):
+  periodo de renta (mismo selector que el buscador), nombre, correo y el botón de WhatsApp. Un clic
+  en el botón valida nombre y correo, manda el lead por `POST /citykleta/v1/bike-requests`
+  (`fetch` con `keepalive`, así sobrevive a que la pestaña cambie) y abre el enlace `wa.me`. Si la
+  petición REST falla, el chat se abre igual: perder el lead cuesta menos que bloquear el contacto.
+  El enlace `wa.me/<teléfono>?text=…` lo reconstruye el JS con las fechas elegidas (placeholder
+  `{dates}` de la plantilla de Settings → Communication). El teléfono sale de
+  `Citykleta_Bike_Request_Form::owner_phone()`: primero el contacto manual de
+  `Citykleta_Owner_Contact` (si es teléfono), luego el meta `owner_phone`, solo dígitos. **Una bici sin
+  número muestra un aviso "sin WhatsApp" en vez del botón**, y hoy son casi todas: el catálogo no
+  manda teléfonos (ver más abajo), hay que cargarlos a mano en la caja "Owner contact".
+  **Sin verificación, el número del dueño viaja en el HTML de la página** (atributo `data-phone`),
+  o sea que es raspable. Es un riesgo aceptado para lanzar; la verificación lo cerraría.
 - **El periodo de renta es el mismo selector que el del buscador**, no otro calendario parecido.
   `initRange()` en `citykleta-search-widget.js` dejó de conocer las clases de la barra de búsqueda: hoy
   el contrato son atributos — el contenedor lleva `data-citykleta-range`, los dos inputs ocultos
@@ -1905,54 +1897,29 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
     solicitud no puede perder sus fechas en silencio por un archivo que falta. Y el formulario encola
     Flatpickr él mismo en vez de confiar en `Citykleta_Elementor`: se puede soltar en una página que no
     tenga ningún buscador.
-- **Código de verificación: se valida contra el backend y de ahí sale el WhatsApp al dueño (2026-10).**
-  El paso 1 pide un código y ofrece un enlace "Verificarme ahora" (URL configurable en el widget, abre
-  en pestaña nueva con `rel="noopener noreferrer"` para que el formulario a medio llenar siga ahí al
-  volver). Al enviar, `Citykleta_Bike_Request_Rest::capture()` llama a `POST /contact/reveal` vía
-  `Citykleta_Contact_Reveal::request()` — **después** de validar fechas (cada reveal queda en el log del
-  backend y gasta el cupo de consultas del código, así que unas fechas malas no deben gastarlo) y
-  **antes** de guardar nada. Validar el código y traer el teléfono del dueño son la misma llamada.
-
-  **El backend responde con `{ message }` y nada más (sin campo `code`), así que el resultado se
-  distingue por status** (leído de `citykleta-sharing-api`: `contactRoutes.ts`, `authMiddleware.ts`,
-  `verificationServiceImpl.ts`, `errorsObjects.ts`):
-
-  | Status | Qué es | Qué hace el plugin |
-  |---|---|---|
-  | 200 | código bueno → `{requester:{name}, owner:{name,phone}}` | guarda la solicitud verificada y devuelve un enlace `wa.me` |
-  | 403 | código inexistente / no aprobado / cuenta cerrada (el backend las responde igual a propósito) | **rechaza**; el JS vuelve al paso 1 donde está el campo |
-  | 429 | ese código ya consultó demasiados dueños distintos hoy | **rechaza** con el mensaje del backend |
-  | 400 | la bici no existe o está retirada en la app | **rechaza** ("ya no está disponible") |
-  | 401 | llave mal puesta: cae en el `verifyAuth` de la sesión | guarda **sin verificar** + `error_log`; es error NUESTRO, no del visitante |
-  | otro / red caída / 8 s | backend no responde | guarda **sin verificar** + `error_log` |
-
-  **Guardar sin verificar es a propósito:** perder la solicitud por una caída nuestra (la conexión en
-  Cuba lo hace probable) cuesta más que una solicitud con el código sin comprobar. En wp-admin esas
-  salen con **"NOT verified"** en rojo y la causa (`META_VERIFIED` / `META_VERIFICATION_NOTE`). Tampoco
-  se verifica si no se escribió código (la pieza tiene un switch `require_code`) o si la bici no tiene
-  `external_id` numérico (una hecha a mano).
-
-  **La llave va en `wp-config.php`, no en la base de datos:**
-  `define( 'CITYKLETA_PLUGIN_KEY', '…' );` — mismo valor que el `WORDPRESS_PLUGIN_KEY` del `.env` del
-  backend. Se descartó un campo en Settings porque dejaría una credencial en cada volcado de la base y
-  en el HTML de wp-admin. **Sin la constante todo sigue funcionando pero nada se verifica** (cada
-  solicitud sale "NOT verified: CITYKLETA_PLUGIN_KEY is not defined"), así que si en wp-admin todas
-  salen sin verificar, mirar eso primero. La ruta es fija en `Citykleta_Settings::PATHS['contact_reveal']`.
-
-  **El teléfono del dueño NO se guarda en la solicitud.** Viaja una sola vez, dentro del enlace `wa.me`
-  de la respuesta REST, hacia el navegador del visitante que se verificó. Guardar una copia saltaría el
-  registro y el límite que el backend le pone a cada reveal. Consecuencia: si el visitante cierra la
-  pestaña antes de apretar el botón, el enlace se perdió (hay que repetir la solicitud), y
-  `render_owner_actions()` en wp-admin sigue dependiendo del contacto manual de `Citykleta_Owner_Contact`.
-  El mensaje sale de la plantilla de Settings → Communication, con el placeholder nuevo `{dates}`
-  (` del 20/11/2026 al 23/11/2026`, con su espacio inicial para que vacío no deje hueco).
-  **Ojo:** `/contact/reveal` solo devuelve el nombre del *solicitante*, no cómo contactarlo — el teléfono
-  que trae es el del dueño. Sigue sin existir un correo/teléfono al que responderle al solicitante.
-
-  Verificado: el cliente contra un servidor falso que imita los status/cuerpos reales (los 9 casos de
-  arriba, más llave mala y backend caído), la ruta REST viva por `curl` (rama sin verificar), y el JS en el
-  navegador con respuestas simuladas (403 → paso 1 con el mensaje; 201 verificado → botón de WhatsApp).
-  **Pendiente de verlo con el backend real**: hace falta definir la constante y un código verificado.
+- **Verificación contra el backend: APARCADA (2026-10).** Existió un flujo de dos pasos con código de
+  verificación: `Citykleta_Bike_Request_Rest::capture()` llamaba a `POST /contact/reveal` vía
+  `Citykleta_Contact_Reveal::request()` y devolvía el `wa.me` con el teléfono del dueño. Se quitó del
+  formulario para lanzar sin ese paso, pero **`Citykleta_Contact_Reveal` y el endpoint del backend
+  siguen ahí, listos para reconectarse**. El cliente es el único código del plugin que manda una
+  llave (`x-citykleta-plugin-key`), y esa llave ya no va en `wp-config.php`:
+  - **Se guarda en Bicicletas → Settings → Sync → "API access" → "Plugin key"** (opción
+    `citykleta_plugin_key`, leída con `Citykleta_Settings::plugin_key()`; el campo se muestra
+    enmascarado). Se prefirió esto a la constante para poder cambiarla sin tocar archivos; el costo es
+    que la llave queda en la base de datos.
+  - **La genera Back Office**: Ajustes → Integraciones → sección "WordPress" (generar/rotar, se muestra
+    una sola vez con botón Copiar, revocar). El backend guarda solo el hash SHA-256 en
+    `system_setting` (`wordpressPluginKeyServiceImpl`, prefijo `ckwp_`); la variable de entorno
+    `WORDPRESS_PLUGIN_KEY` queda como respaldo. `requireAppOrPlugin` acepta cualquiera de las dos.
+  - Tabla de respuestas de `/contact/reveal` (por status, el backend no manda `code`): 200 código bueno
+    → `{requester, owner:{name,phone}}`; 403 código inexistente/no aprobado/cuenta cerrada; 429 el
+    código ya consultó demasiados dueños hoy; 400 la bici no existe o está retirada; 401 llave mal
+    puesta (error nuestro); otro/red caída = backend no responde.
+  - Al reconectarlo: validar fechas **antes** del reveal (cada reveal gasta cupo y queda en el log),
+    guardar sin verificar si el backend cae (perder la solicitud cuesta más), y **no guardar el teléfono
+    del dueño** en la solicitud (viaja una sola vez en el `wa.me` de la respuesta).
+  - Los leads de hoy se guardan con `verified = false` y la nota "No verification step: name and email
+    as typed".
 - **Total estimado en vivo (2026-10).** Al elegir las dos fechas, el formulario muestra
   `$13 USD × 3 días` y `Total estimado $39 USD` (`citykleta-bike-request.js`, `updateTotal()`; el precio
   viaja en `data-price` de la raíz). **Es "estimado" a propósito, y es el mínimo posible:** el backend cobra
@@ -1964,12 +1931,14 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   ajuste `rental_cutoff_hour` del backend, que no es público). Para que se entere de los cambios,
   `initRange()` ahora dispara un `change` en los campos ocultos al elegir fechas (Flatpickr asigna `.value`
   por script y eso no emite evento).
-- **El título del formulario es una etiqueta pequeña, no un titular**, y el botón del paso 1 dice "Pedir
-  esta bici". **Ojo:** una plantilla ya guardada desde el editor de Elementor conserva
-  `"next_text":"Continuar"` en su `_elementor_data` — el default nuevo solo llega a plantillas nuevas o a un
-  `Reset`; en una existente se cambia en el widget → Content → Buttons → Continue.
-- **`citykleta_bike_request_captured`** (`$post_id`, `$bike_id`, `$data`) es el punto de acoplamiento,
-  igual que `citykleta_subscriber_captured` lo es para HubSpot. `Citykleta_Bike_Request_Notifier` se
+- **El widget "Bike Request" quedó simple**: Content con título (switch), etiquetas de nombre/correo/
+  fechas y el texto del botón de WhatsApp; Style con Card, título, etiquetas, campos y "WhatsApp Button"
+  (normal/hover). Se quitaron las secciones Verification y Buttons. **Ojo:** una plantilla ya guardada
+  desde el editor de Elementor conserva en `_elementor_data` el título viejo ("Solicitar esta
+  bicicleta"): el default nuevo ("Contactar al propietario") solo llega a plantillas nuevas o a un
+  `Reset`; en una existente se cambia en el widget → Content.
+- **`citykleta_bike_request_captured`** (`$post_id`, `$bike_id`, `$data`) es el punto de acoplamiento.
+  `Citykleta_Bike_Request_Notifier` se
   engancha ahí para los correos, y es donde entraría el push de la Fase 2.
 
 ### El contacto del dueño: no viaja en el catálogo, pero SÍ hay cómo pedirlo
@@ -2008,7 +1977,7 @@ x-citykleta-plugin-key: <WORDPRESS_PLUGIN_KEY>     ← ya configurada en el .env
   ventana configurable, y cada llamada deja fila en `contact_reveal` como auditoría — entrega un
   teléfono sin sesión de por medio, así que queda registro de quién pidió qué.
 
-Eso es **el mismo código** que el formulario ya le pide al visitante en el paso 1. Conectarlo cierra
+Es el código de verificación que el formulario le pedía al visitante (hoy aparcado). Conectarlo cierra
 el círculo completo: validar el código y obtener el teléfono del dueño son **una sola llamada**.
 
 **Corrección (2026-09), por si alguien lee código viejo:** este documento afirmaba que WordPress "no
@@ -2038,7 +2007,7 @@ dueño" cuando no salió nada del servidor. El canal fiable es wp-admin; el corr
 Un `POST /bikesPublic/requests` público en `citykleta-sharing-api` (mismo criterio que
 `/bikesPublic/sync`) que reciba la solicitud y **notifique al dueño desde el backend**, que sí conoce su
 contacto. WP pasaría de dueño del dato a proxy, y `citykleta_bike_req` quedaría como staging con su
-estado de sync — exactamente el patrón Subscriber → HubSpot. Mientras tanto, el contacto manual de
+estado de sync. Mientras tanto, el contacto manual de
 `Citykleta_Owner_Contact` es el puente.
 
 ## Destinos
@@ -2110,6 +2079,18 @@ un destino sin trucos), no como término de taxonomía.
   por pedido del usuario; ningún destino lo usaba (verificado en la base: todos apagados y vacíos). Las
   metas viejas `citykleta_destination_faq_override` / `_faq_items_raw` pueden seguir en la base, nadie
   las lee. `faq_for( $post_id )` conserva su firma y devuelve siempre el FAQ de Settings.
+- **El tiempo** — pieza `Destination Weather` (`citykleta_destination_weather`,
+  `[citykleta_destination_weather]`): pronóstico de 1–7 días (3 por defecto) en el **centro de la
+  geocerca**, con ícono (emoji, sin archivos), máx/mín, descripción, probabilidad de lluvia y UV, cada
+  uno con su switch. Los datos los trae **el servidor** (decisión del usuario, 2026-11, pensando en la
+  conexión en Cuba) desde **Open-Meteo** (gratis, sin llave) en `Citykleta_Weather`
+  (`includes/weather/`): caché fresca de 3 h, copia vieja de 2 días que se sirve si la renovación falla,
+  y un fallo se recuerda 15 min para no reintentar en cada visita (timeout 4 s). La caché es por celda
+  de ~1 km (lat/lng a 2 decimales) y siempre guarda 7 días, así que varias piezas o destinos cercanos
+  comparten una sola consulta. Sin centro de geocerca o sin pronóstico, la pieza no imprime nada (en
+  el editor deja una nota). El crédito "Pronóstico: Open-Meteo" lo exige su licencia (CC BY 4.0): no
+  quitarlo. Verificado contra la API real (parser y caché); el render del widget, todavía no en una
+  página.
 - **El CPT es idéntico a una Página, a propósito.** `supports` no es una lista escrita a mano:
   sale de `array_keys( get_all_post_type_supports( 'page' ) )` más `'elementor'` (ver
   `Citykleta_Destination_Post_Type::page_supports()`). Así hereda lo que una página tenga en
@@ -2138,15 +2119,19 @@ un destino sin trucos), no como término de taxonomía.
 
 - **Muro de registro sobre la ficha de la bici** — la idea original era enseñar sólo algunos
   datos y esconder el resto tras un sign up, como los periódicos de pago. No se hizo así:
-  `single-bike.php` ya existe y muestra la ficha **completa**, y el muro terminó siendo global
-  (el de descarga de la app, ver esa sección). Queda como decisión abierta si conviene volver
-  a esconder algo, ahora que la conversión también puede ser una solicitud.
-- **Probar `POST /contact/reveal` con el backend real** — ya está conectado (ver "Código de
-  verificación" en "Solicitudes de bicicleta"), pero solo se probó contra un servidor falso. Falta
-  definir `CITYKLETA_PLUGIN_KEY` en `wp-config.php` y usar un código de una verificación aprobada. Se
-  decidió hacer el reveal **al enviar** la solicitud (no al confirmarla desde wp-admin): gasta cupo del
-  límite por dueño aunque nadie atienda la solicitud, a cambio de que el visitante reciba el WhatsApp en el
-  momento. Si ese cupo molesta, la alternativa es moverlo a wp-admin.
+  `single-bike.php` ya existe y muestra la ficha **completa**; el único muro que existió fue
+  el global de descarga de la app, ya retirado. Queda como decisión abierta si conviene volver
+  a esconder algo, ahora que la conversión es la solicitud.
+- **Reconectar la verificación (`POST /contact/reveal`)** — aparcada, ver "Verificación contra el
+  backend" en "Solicitudes de bicicleta". Cuando se retome: pegar la llave generada en Back Office en
+  Settings → Sync → API access y probar con un código de una verificación aprobada (solo se probó
+  contra un servidor falso). Decisión previa: hacer el reveal **al enviar**, no al confirmar desde
+  wp-admin; gasta cupo del límite por dueño aunque nadie atienda la solicitud, a cambio de que el
+  visitante reciba el WhatsApp al momento.
+- **Cargar los teléfonos de los dueños** — sin número la tarjeta muestra "sin WhatsApp". El catálogo no
+  los manda; mientras tanto se escriben a mano en la caja "Owner contact" de cada bici.
+- **Mostrar los créditos de las fotos de Commons** (autor/licencia, ya guardados en
+  `_citykleta_image_credit`) antes de publicar.
 - **Formato del teléfono del dueño** — `whatsapp_url()` solo deja los dígitos, y `wa.me` exige el
   número internacional. El dueño de la bici 292 en este LocalWP tiene `+53 53003003`, pero si el
   backend manda un móvil cubano de 8 dígitos sin `53`, el enlace no abre el chat correcto.
@@ -2172,9 +2157,6 @@ un destino sin trucos), no como término de taxonomía.
   Es lo mismo que impide que una solicitud sea una reserva de verdad (ver "Solicitudes
   de bicicleta"): sin ocupación por fecha, dos personas pueden pedir la misma bici el
   mismo día y nadie lo detecta hasta que un humano lo mira.
-- Embudo de solicitudes en el widget "Citykleta Stats" del dashboard — `Citykleta_Bike_Request`
-  ya expone `count()`, `count( $status )` y `requests_by_day()` para eso, pero
-  `Citykleta_Search_Stats` todavía no los pinta.
 
 ## Cómo probar
 

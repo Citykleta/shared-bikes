@@ -121,6 +121,7 @@ class Citykleta_Widget_Shortcodes {
 		'citykleta_destination_price'       => 'Citykleta_Destination_Price_Widget',
 		'citykleta_destination_articles'    => 'Citykleta_Destination_Articles_Widget',
 		'citykleta_destination_faq'         => 'Citykleta_Destination_Faq_Widget',
+		'citykleta_destination_weather'     => 'Citykleta_Destination_Weather_Widget',
 	);
 
 	/**

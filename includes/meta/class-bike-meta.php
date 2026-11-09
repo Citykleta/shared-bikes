@@ -278,6 +278,15 @@ class Citykleta_Bike_Meta {
 	const GALLERY_META = '_citykleta_gallery_ids';
 
 	/**
+	 * Extra photos added on the WordPress side, as attachment IDs. Same shape as
+	 * GALLERY_META, but the sync never touches it: GALLERY_META is rewritten on
+	 * every run to mirror exactly what the API sent (so a photo removed in the
+	 * app disappears here), which would wipe anything put there by hand. This one
+	 * holds photos the API doesn't carry yet — they come after the API's own.
+	 */
+	const EXTRA_GALLERY_META = '_citykleta_extra_gallery_ids';
+
+	/**
 	 * How many photos a bike shows at most, featured image included.
 	 *
 	 * The single-bike template's mosaic is laid out for up to this many; the
@@ -305,11 +314,14 @@ class Citykleta_Bike_Meta {
 			$ids[] = $featured;
 		}
 
-		$extra = get_post_meta( $post_id, self::GALLERY_META, true );
+		// The API's photos first, then the ones added on this side.
+		foreach ( array( self::GALLERY_META, self::EXTRA_GALLERY_META ) as $meta_key ) {
+			$extra = get_post_meta( $post_id, $meta_key, true );
 
-		if ( is_array( $extra ) ) {
-			foreach ( $extra as $id ) {
-				$ids[] = (int) $id;
+			if ( is_array( $extra ) ) {
+				foreach ( $extra as $id ) {
+					$ids[] = (int) $id;
+				}
 			}
 		}
 

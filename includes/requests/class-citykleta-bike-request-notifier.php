@@ -5,8 +5,7 @@
  *
  * Kept apart from the REST route and hooked onto
  * `citykleta_bike_request_captured` rather than called directly, so the
- * capture stays the single seam other code hangs off — the same arrangement
- * the HubSpot connector uses for `citykleta_subscriber_captured`.
+ * capture stays the single seam other code hangs off.
  *
  * Mail is best-effort. wp_mail() from a LocalWP install (or from a Cuban host
  * with an intermittent connection) frequently fails, so nothing here treats a

@@ -65,6 +65,103 @@ class Citykleta_Owner_Contact {
 	public function register() {
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 		add_action( 'save_post_' . Citykleta_Bike_Post_Type::POST_TYPE, array( $this, 'save' ) );
+		add_action( 'pre_get_posts', array( $this, 'hide_uncontactable' ) );
+	}
+
+	/**
+	 * Meta query matching bikes that HAVE a phone: a manual contact typed as a
+	 * phone, or a synced `owner_phone`. Mirrors
+	 * Citykleta_Bike_Request_Form::owner_phone(), which is what the WhatsApp
+	 * button needs; keep the two in step.
+	 *
+	 * @return array
+	 */
+	public static function has_phone_meta_query() {
+		return array(
+			'relation' => 'OR',
+			array(
+				'key'   => self::META_TYPE,
+				'value' => self::TYPE_PHONE,
+			),
+			array(
+				'key'     => 'owner_phone',
+				'value'   => '',
+				'compare' => '!=',
+			),
+		);
+	}
+
+	/**
+	 * Meta query matching bikes WITHOUT a phone (the exact complement of
+	 * has_phone_meta_query()).
+	 *
+	 * @return array
+	 */
+	public static function missing_phone_meta_query() {
+		return array(
+			'relation' => 'AND',
+			array(
+				'relation' => 'OR',
+				array(
+					'key'     => self::META_TYPE,
+					'compare' => 'NOT EXISTS',
+				),
+				array(
+					'key'     => self::META_TYPE,
+					'value'   => self::TYPE_PHONE,
+					'compare' => '!=',
+				),
+			),
+			array(
+				'relation' => 'OR',
+				array(
+					'key'     => 'owner_phone',
+					'compare' => 'NOT EXISTS',
+				),
+				array(
+					'key'   => 'owner_phone',
+					'value' => '',
+				),
+			),
+		);
+	}
+
+	/**
+	 * Keeps bikes with no owner phone off the public site: a visitor could not
+	 * contact anyone about them. Applies to every bike query on the front end and
+	 * the public REST API; wp-admin, WP-Cron and WP-CLI are left alone so staff
+	 * can still see and fix those bikes and the sync can reconcile the full set.
+	 * A query can opt out with 'citykleta_include_uncontactable' => true.
+	 *
+	 * @param WP_Query $query The query being built.
+	 */
+	public function hide_uncontactable( $query ) {
+		if ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			return;
+		}
+
+		if ( $query->get( 'citykleta_include_uncontactable' ) ) {
+			return;
+		}
+
+		$post_type = $query->get( 'post_type' );
+		$is_bikes  = in_array( Citykleta_Bike_Post_Type::POST_TYPE, (array) $post_type, true )
+			|| $query->is_tax( array( Citykleta_Bike_Type_Taxonomy::TAXONOMY, Citykleta_Bike_Tag_Taxonomy::TAXONOMY ) );
+
+		if ( ! $is_bikes ) {
+			return;
+		}
+
+		$meta_query = array( 'relation' => 'AND' );
+		$existing   = $query->get( 'meta_query' );
+
+		if ( ! empty( $existing ) ) {
+			$meta_query[] = $existing;
+		}
+
+		$meta_query[] = self::has_phone_meta_query();
+
+		$query->set( 'meta_query', $meta_query );
 	}
 
 	/**

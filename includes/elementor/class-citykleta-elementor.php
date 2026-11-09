@@ -26,6 +26,7 @@ class Citykleta_Elementor {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_rows_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_chat_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_story_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_dropdown_tabs_assets' ) );
 		add_action( 'elementor/editor/before_enqueue_scripts', array( $this, 'enqueue_dropdown_tabs_editor_script' ) );
 	}
@@ -81,6 +82,27 @@ class Citykleta_Elementor {
 		wp_enqueue_script(
 			'citykleta-chat',
 			CITYKLETA_URL . 'assets/js/citykleta-chat.js',
+			array(),
+			CITYKLETA_VERSION,
+			true
+		);
+	}
+
+	/**
+	 * Scroll Story widget: its structure CSS and the scroll-driven script.
+	 * Early, for the same reason as enqueue_styles().
+	 */
+	public function enqueue_story_assets() {
+		wp_enqueue_style(
+			'citykleta-story',
+			CITYKLETA_URL . 'assets/css/story.css',
+			array(),
+			CITYKLETA_VERSION
+		);
+
+		wp_enqueue_script(
+			'citykleta-story',
+			CITYKLETA_URL . 'assets/js/citykleta-story.js',
 			array(),
 			CITYKLETA_VERSION,
 			true
@@ -387,6 +409,11 @@ class Citykleta_Elementor {
 		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-chat-widget.php';
 		$widgets_manager->register( new Citykleta_Chat_Widget() );
 
+		// A story told in scenes inside one card, driven by its own scroll
+		// (the Community tab): cover, slides and closing, all editable.
+		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-story-widget.php';
+		$widgets_manager->register( new Citykleta_Story_Widget() );
+
 		// Tabs switched from a dropdown; each tab shows a saved template.
 		require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-dropdown-tabs-widget.php';
 		$widgets_manager->register( new Citykleta_Dropdown_Tabs_Widget() );
@@ -419,5 +446,6 @@ class Citykleta_Elementor {
 		$widgets_manager->register( new Citykleta_Destination_Price_Widget() );
 		$widgets_manager->register( new Citykleta_Destination_Articles_Widget() );
 		$widgets_manager->register( new Citykleta_Destination_Faq_Widget() );
+		$widgets_manager->register( new Citykleta_Destination_Weather_Widget() );
 	}
 }

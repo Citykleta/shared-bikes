@@ -1,0 +1,324 @@
+/**
+ * "Scroll Story" widget (Citykleta_Story_Widget).
+ *
+ * Structure only: colors, height, radius and typography come from the widget's
+ * controls (their defaults live there). citykleta-story.js adds .is-ready and
+ * drives every position from the scroll; without it, the scenes are listed one
+ * under another (see the end of this file).
+ */
+
+/* Size containment gives the card no intrinsic width, so inside a flex
+   container (every Elementor container) it would shrink to 0 px. Both the
+   widget wrapper and the card take the full width instead. */
+.elementor-widget-citykleta_story {
+	align-self: stretch;
+	width: 100%;
+}
+
+/* The card: it scrolls on its own and is the size container for everything in it. */
+.citykleta-story {
+	position: relative;
+	width: 100%;
+	height: var(--citykleta-story-height, 640px); /* the Height control sets the variable */
+	overflow: hidden;
+	container-type: size;
+}
+
+.citykleta-story__scroller {
+	position: absolute;
+	inset: 0;
+	overflow-y: auto;
+	scrollbar-width: none;
+}
+
+.citykleta-story__scroller::-webkit-scrollbar {
+	display: none;
+}
+
+/* One card height per scene (times "Scroll Per Scene"), plus one so the last
+   scene stays on screen a while. */
+.citykleta-story__track {
+	height: calc(100cqh * (var(--citykleta-story-scenes, 3) + 1) * var(--citykleta-story-pace, 1));
+}
+
+.citykleta-story__stage {
+	position: sticky;
+	top: 0;
+	height: 100cqh;
+	overflow: hidden;
+}
+
+/* Photos */
+
+.citykleta-story__window {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+}
+
+/* A scene's photo. The figure slides and clips; its picture moves inside. */
+.citykleta-story__shot {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	overflow: hidden;
+	opacity: 0;
+}
+
+.citykleta-story__shot > * {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	will-change: transform;
+}
+
+/* The cover picture is laid out at its natural size and placed by the script. */
+.citykleta-story.is-ready .citykleta-story__shot.is-cover img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: auto;
+	max-width: none;
+	height: auto;
+	transform-origin: 0 0;
+}
+
+/* Slides: half of the card, alternating sides. */
+.citykleta-story__shot.is-slot {
+	left: 50%;
+}
+
+.citykleta-story__shot.is-slot.is-left {
+	right: 50%;
+	left: 0;
+}
+
+/* Closing: the whole card, darkened at the bottom under its text. */
+.citykleta-story__shot.is-full::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(0deg, rgba(21, 27, 29, var(--citykleta-story-shade, 0.8)) 0%, rgba(21, 27, 29, calc(var(--citykleta-story-shade, 0.8) * 0.45)) 30%, rgba(21, 27, 29, 0) 55%);
+	pointer-events: none;
+}
+
+.citykleta-story__placeholder {
+	display: grid;
+	place-items: center;
+	padding: 1rem;
+	background: linear-gradient(135deg, #d9cfbd, #a89b84);
+	color: rgba(255, 255, 255, 0.9);
+	font-weight: 600;
+	text-align: center;
+}
+
+/* Texts */
+
+.citykleta-story__copy {
+	position: absolute;
+	top: 50%;
+	left: 5cqw;
+	width: min(30rem, 38cqw);
+	height: 20rem;
+	transform: translateY(-50%);
+}
+
+.citykleta-story__step {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	pointer-events: none;
+	will-change: transform, opacity;
+}
+
+.citykleta-story__step.is-active {
+	pointer-events: auto;
+}
+
+.citykleta-story__final {
+	position: absolute;
+	bottom: 2.5rem;
+	left: 50%;
+	width: min(42rem, 84cqw);
+	text-align: center;
+	transform: translateX(-50%);
+}
+
+.citykleta-story__final .citykleta-story__step {
+	position: relative;
+	inset: auto;
+}
+
+.citykleta-story__num {
+	position: absolute;
+	top: -3rem;
+	left: -0.5rem;
+	z-index: -1;
+	color: transparent;
+	font-size: clamp(5rem, 9cqw, 8rem);
+	font-weight: 700;
+	line-height: 1;
+	-webkit-text-stroke-width: 1.5px;
+}
+
+.citykleta-story__kicker {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+}
+
+.citykleta-story__title {
+	margin: 0.4rem 0 1rem;
+	color: inherit;
+	font-size: clamp(1.6rem, 3.2cqw, 2.8rem);
+	font-weight: 700;
+	line-height: 1.1;
+}
+
+.citykleta-story__text {
+	margin: 0;
+	font-size: clamp(0.9rem, 1.2cqw, 1.05rem);
+	line-height: 1.6;
+}
+
+/* The highlight under the key word draws itself when its scene comes in. */
+.citykleta-story mark {
+	background: linear-gradient(var(--citykleta-story-highlight, #fed94c), var(--citykleta-story-highlight, #fed94c)) no-repeat 0 88% / 0 0.38em;
+	color: inherit;
+	transition: background-size 0.7s 0.2s;
+}
+
+.citykleta-story__step.is-active mark {
+	background-size: 100% 0.38em;
+}
+
+.citykleta-story__final mark {
+	background-image: linear-gradient(color-mix(in srgb, var(--citykleta-story-highlight, #fed94c) 55%, transparent), color-mix(in srgb, var(--citykleta-story-highlight, #fed94c) 55%, transparent));
+}
+
+.citykleta-story__cta {
+	display: inline-block;
+	margin-top: 1.25rem;
+	padding: 0.85rem 1.4rem;
+	border-radius: 999px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+/* Scroll hint and scene dots */
+
+.citykleta-story__hint {
+	position: absolute;
+	bottom: 1.25rem;
+	left: 50%;
+	padding: 0.45rem 0.9rem;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.85);
+	color: #151b1d;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+	transform: translateX(-50%);
+	transition: opacity 0.3s;
+	pointer-events: none;
+}
+
+.citykleta-story__dots {
+	position: absolute;
+	top: 50%;
+	right: 1.25rem;
+	display: grid;
+	gap: 0.35rem;
+	transform: translateY(-50%);
+}
+
+.citykleta-story__dots button {
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	background: none;
+	cursor: pointer;
+}
+
+.citykleta-story__dots button::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.5);
+	box-shadow: 0 0 0 1px rgba(21, 27, 29, 0.3);
+	transition: 0.3s;
+}
+
+.citykleta-story__dots button.is-active::before {
+	background: #fff;
+	transform: scale(1.4);
+}
+
+/* Narrow card: same side-by-side layout, smaller text in its half. */
+@container (max-width: 700px) {
+	.citykleta-story__copy {
+		left: 1rem;
+		width: calc(50% - 2rem);
+		height: 16rem;
+	}
+
+	.citykleta-story__num { top: -1.5rem; }
+	.citykleta-story__title { font-size: clamp(1.05rem, 4.6cqw, 1.5rem); }
+	.citykleta-story__text { font-size: 0.8rem; line-height: 1.5; }
+	.citykleta-story__kicker { font-size: 0.65rem; }
+	.citykleta-story__cta { padding: 0.6rem 1rem; font-size: 0.8rem; }
+	.citykleta-story__dots,
+	.citykleta-story__hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.citykleta-story mark { transition: none; }
+}
+
+/* Without the script: every scene listed one under another, all visible. */
+.citykleta-story:not(.is-ready) {
+	height: auto;
+}
+
+.citykleta-story:not(.is-ready) .citykleta-story__scroller,
+.citykleta-story:not(.is-ready) .citykleta-story__stage,
+.citykleta-story:not(.is-ready) .citykleta-story__window,
+.citykleta-story:not(.is-ready) .citykleta-story__copy,
+.citykleta-story:not(.is-ready) .citykleta-story__final {
+	position: static;
+	width: auto;
+	height: auto;
+	overflow: visible;
+	transform: none;
+}
+
+.citykleta-story:not(.is-ready) .citykleta-story__track {
+	height: auto;
+}
+
+.citykleta-story:not(.is-ready) .citykleta-story__shot,
+.citykleta-story:not(.is-ready) .citykleta-story__step {
+	position: relative;
+	inset: auto;
+	opacity: 1;
+}
+
+.citykleta-story:not(.is-ready) .citykleta-story__shot {
+	height: 320px;
+}
+
+.citykleta-story:not(.is-ready) .citykleta-story__step {
+	padding: 1.5rem;
+}
+
+.citykleta-story:not(.is-ready) .citykleta-story__hint,
+.citykleta-story:not(.is-ready) .citykleta-story__dots {
+	display: none;
+}

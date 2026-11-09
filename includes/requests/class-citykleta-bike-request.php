@@ -5,9 +5,9 @@
  * This is a REQUEST, not a reservation. The app (citykleta-sharing-api) owns
  * real reservations, and its /reservations route is staff-only (401 without a
  * session), so WordPress cannot book anything. What WP can do is capture the
- * intent, keep the record, and let someone confirm it by hand — the same
- * staging role it already plays for leads (see Citykleta_Subscriber, which this
- * class is modelled on).
+ * intent, keep the record, and let someone confirm it by hand. Every request
+ * made on the site lands here, and the "Citykleta Stats" dashboard widget
+ * counts them (Citykleta_Search_Stats).
  *
  * There is deliberately NO availability check: no date-level availability
  * exists anywhere in the data (the `available` meta is a single boolean synced
@@ -18,9 +18,9 @@
  * Private CPT — the requester's contact details are personal data, so no
  * front-end, no archive, no REST exposure. Only visible inside wp-admin.
  *
- * Phase 2, once the backend grows a public request route, is to push these the
- * way leads are pushed to HubSpot: the status meta and the
- * `citykleta_bike_request_captured` action are the seams for that.
+ * Phase 2, once the backend grows a public request route, is to push these to
+ * it: the status meta and the `citykleta_bike_request_captured` action are the
+ * seams for that.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -168,6 +168,51 @@ class Citykleta_Bike_Request {
 	const STATUS_NONCE = 'citykleta_request_status';
 
 	/**
+	 * Option holding every request ATTEMPT, classified by outcome:
+	 * 'Y-m-d' => array( outcome => count ). Aggregated like the search stats —
+	 * one small option, no row per attempt and no personal data — and pruned to
+	 * self::ATTEMPT_DAYS days so it can't grow forever.
+	 */
+	const OPTION_ATTEMPTS = 'citykleta_request_attempts';
+
+	/**
+	 * How many days of attempts are kept.
+	 */
+	const ATTEMPT_DAYS = 90;
+
+	/**
+	 * Attempt outcome: the request was stored.
+	 */
+	const OUTCOME_SAVED = 'saved';
+
+	/**
+	 * Attempt outcome: the honeypot was filled — a bot, not a visitor. Kept
+	 * apart so it never counts as a failed attempt.
+	 */
+	const OUTCOME_SPAM = 'spam';
+
+	/**
+	 * Failed outcomes, key => label. The first two are caught in the browser
+	 * before anything is sent (the form reports them, see
+	 * Citykleta_Bike_Request_Rest::record_client_attempt()); the rest are the
+	 * server rejecting the payload. In every server-side case the WhatsApp link
+	 * has already opened, so a failure there means "the visitor contacted the
+	 * owner but WP has no record of it", not "the visitor was stopped".
+	 *
+	 * @return array<string,string>
+	 */
+	public static function failure_outcomes() {
+		return array(
+			'missing_name'     => 'Sin nombre',
+			'invalid_email'    => 'Correo inválido',
+			'bike_unavailable' => 'Bici no disponible',
+			'invalid_dates'    => 'Fechas mal formadas',
+			'reversed_dates'   => 'Fechas al revés',
+			'save_failed'      => 'Error al guardar',
+		);
+	}
+
+	/**
 	 * Human labels for each status, in workflow order.
 	 *
 	 * @return array<string,string>
@@ -191,6 +236,37 @@ class Citykleta_Bike_Request {
 		add_action( 'manage_' . self::POST_TYPE . '_posts_custom_column', array( $this, 'render_column' ), 10, 2 );
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes' ) );
 		add_action( 'save_post_' . self::POST_TYPE, array( $this, 'save_status' ) );
+		add_action( 'pre_get_posts', array( $this, 'filter_list_by_status' ) );
+	}
+
+	/**
+	 * Lets the admin list be opened pre-filtered with ?request_status=new (the
+	 * dashboard widget links "Nuevas sin atender" there). Read-only filter on a
+	 * list screen, so no nonce; the value must be one of the known statuses.
+	 *
+	 * @param WP_Query $query The query being built.
+	 */
+	public function filter_list_by_status( $query ) {
+		if ( ! is_admin() || ! $query->is_main_query() || self::POST_TYPE !== $query->get( 'post_type' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter.
+		$status = isset( $_GET['request_status'] ) ? sanitize_key( wp_unslash( $_GET['request_status'] ) ) : '';
+
+		if ( '' === $status || ! isset( self::statuses()[ $status ] ) ) {
+			return;
+		}
+
+		$query->set(
+			'meta_query',
+			array(
+				array(
+					'key'   => self::META_STATUS,
+					'value' => $status,
+				),
+			)
+		);
 	}
 
 	/**
@@ -215,7 +291,7 @@ class Citykleta_Bike_Request {
 			array(
 				'labels'              => $labels,
 				// Private: the requester's contact details are personal data and
-				// must stay inside wp-admin — same reasoning as Subscribers.
+				// must stay inside wp-admin.
 				'public'              => false,
 				'publicly_queryable'  => false,
 				'exclude_from_search' => true,
@@ -322,8 +398,7 @@ class Citykleta_Bike_Request {
 
 	/**
 	 * Returns everything about a request, so other code (a future connector,
-	 * the notifier) never has to know the meta keys. Same rule as
-	 * Citykleta_Subscriber::get_data(): this class owns its meta.
+	 * the notifier) never has to know the meta keys: this class owns its meta.
 	 *
 	 * @param int $post_id Request ID.
 	 * @return array<string,mixed>
@@ -381,7 +456,7 @@ class Citykleta_Bike_Request {
 
 	/**
 	 * Requests grouped by day ('Y-m-d' => count) over the last $days days.
-	 * Feeds the Stats funnel next to views / sign-ups / downloads.
+	 * Feeds the per-day table of the Stats dashboard widget.
 	 *
 	 * @param int $days How many days back to include.
 	 * @return array<string,int>
@@ -409,6 +484,116 @@ class Citykleta_Bike_Request {
 		}
 
 		return $by_day;
+	}
+
+	/**
+	 * Counts one request attempt under today's bucket. Unknown outcomes are
+	 * ignored, so a public caller can't add arbitrary keys to the option.
+	 * Concurrent attempts can occasionally lose a count (read-modify-write on
+	 * one option) — fine for a stat, same trade-off as the search stats.
+	 *
+	 * @param string $outcome self::OUTCOME_SAVED, self::OUTCOME_SPAM or a key of failure_outcomes().
+	 */
+	public static function record_attempt( $outcome ) {
+		$known = array_merge( array( self::OUTCOME_SAVED, self::OUTCOME_SPAM ), array_keys( self::failure_outcomes() ) );
+
+		if ( ! in_array( $outcome, $known, true ) ) {
+			return;
+		}
+
+		$attempts = self::attempts();
+		$today    = current_time( 'Y-m-d' );
+
+		if ( ! isset( $attempts[ $today ][ $outcome ] ) ) {
+			$attempts[ $today ][ $outcome ] = 0;
+		}
+
+		++$attempts[ $today ][ $outcome ];
+
+		// Drop the days that fell out of the window.
+		$cutoff = gmdate( 'Y-m-d', current_time( 'timestamp' ) - ( self::ATTEMPT_DAYS - 1 ) * DAY_IN_SECONDS );
+
+		foreach ( array_keys( $attempts ) as $day ) {
+			if ( $day < $cutoff ) {
+				unset( $attempts[ $day ] );
+			}
+		}
+
+		// Not autoloaded: only the dashboard widget reads it.
+		update_option( self::OPTION_ATTEMPTS, $attempts, false );
+	}
+
+	/**
+	 * Attempts per outcome (outcome => count) summed over the last $days days.
+	 *
+	 * @param int $days How many days back to include.
+	 * @return array<string,int>
+	 */
+	public static function attempt_totals( $days = 30 ) {
+		$totals = array();
+
+		foreach ( self::attempts_since( $days ) as $outcomes ) {
+			foreach ( $outcomes as $outcome => $count ) {
+				$totals[ $outcome ] = ( isset( $totals[ $outcome ] ) ? $totals[ $outcome ] : 0 ) + (int) $count;
+			}
+		}
+
+		return $totals;
+	}
+
+	/**
+	 * Failed attempts per day ('Y-m-d' => count) over the last $days days —
+	 * the counterpart of requests_by_day(), which already counts the saved ones.
+	 *
+	 * @param int $days How many days back to include.
+	 * @return array<string,int>
+	 */
+	public static function failures_by_day( $days = 14 ) {
+		$failed = array_keys( self::failure_outcomes() );
+		$by_day = array();
+
+		foreach ( self::attempts_since( $days ) as $day => $outcomes ) {
+			$count = 0;
+
+			foreach ( $failed as $outcome ) {
+				$count += isset( $outcomes[ $outcome ] ) ? (int) $outcomes[ $outcome ] : 0;
+			}
+
+			if ( $count > 0 ) {
+				$by_day[ $day ] = $count;
+			}
+		}
+
+		return $by_day;
+	}
+
+	/**
+	 * The stored attempts option, always as an array.
+	 *
+	 * @return array<string,array<string,int>>
+	 */
+	private static function attempts() {
+		$attempts = get_option( self::OPTION_ATTEMPTS, array() );
+
+		return is_array( $attempts ) ? $attempts : array();
+	}
+
+	/**
+	 * The stored attempts limited to the last $days days.
+	 *
+	 * @param int $days How many days back to include.
+	 * @return array<string,array<string,int>>
+	 */
+	private static function attempts_since( $days ) {
+		$cutoff = gmdate( 'Y-m-d', current_time( 'timestamp' ) - ( (int) $days - 1 ) * DAY_IN_SECONDS );
+
+		return array_filter(
+			self::attempts(),
+			function ( $outcomes, $day ) use ( $cutoff ) {
+				return $day >= $cutoff && is_array( $outcomes );
+			},
+			ARRAY_FILTER_USE_BOTH
+		);
 	}
 
 	/**

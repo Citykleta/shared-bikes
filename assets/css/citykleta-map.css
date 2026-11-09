@@ -16,6 +16,17 @@
 	font-family: 'Inter', sans-serif;
 }
 
+/* Leaflet 1.9+ ships `mix-blend-mode: plus-lighter` on tile <img>s as a
+   Chromium rendering-bug workaround (see leaflet.css). On a chunk of real
+   GPU/Chromium combinations that blend mode composites to fully invisible
+   instead — the tiles download fine (200, real pixels) but never paint, so
+   the map looks empty/gray forever. Overriding back to `normal` here (after
+   leaflet.css in the enqueue order) trades that narrow Chromium bug fix for
+   tiles that reliably render. */
+.leaflet-container.citykleta-map img.leaflet-tile {
+	mix-blend-mode: normal;
+}
+
 /* Cluster bubbles (Leaflet.markercluster default classes) — small/medium/large
    already vary in size via the vendor CSS; each tier now has its own
    configurable color (Settings → Maps → "Cluster Color (Small/Medium/Large)"),

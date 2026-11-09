@@ -85,3 +85,57 @@
 	margin-top: 0.5rem;
 	color: #5a5250;
 }
+
+/* Destination Weather (Citykleta_Destination_Weather_Widget). */
+.citykleta-weather__days {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+	gap: 0.75rem;
+}
+
+.citykleta-weather__day {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.75rem 0.5rem;
+	border: 1px solid #e5e0d3;
+	border-radius: 8px;
+	background: #fffbee;
+	text-align: center;
+}
+
+.citykleta-weather__name {
+	font-weight: 600;
+}
+
+.citykleta-weather__icon {
+	font-size: 1.75rem;
+	line-height: 1;
+}
+
+.citykleta-weather__temp {
+	font-size: 1.125rem;
+	font-weight: 600;
+}
+
+.citykleta-weather__min {
+	font-weight: 400;
+	opacity: 0.6;
+}
+
+.citykleta-weather__label,
+.citykleta-weather__rain,
+.citykleta-weather__uv {
+	font-size: 0.8125rem;
+	opacity: 0.8;
+}
+
+.citykleta-weather__credit {
+	margin: 0.5rem 0 0;
+	font-size: 0.75rem;
+	opacity: 0.6;
+}

@@ -18,10 +18,10 @@
  * if that noise ever matters, move to a browser beacon like the view counter.
  *
  * This class also owns the "Citykleta Stats" wp-admin dashboard widget. Besides
- * the search tables it renders the app-download funnel on top (Views -> Sign-ups
- * -> Downloads), reading site views from Citykleta_View_Stats::site_total() and
- * the sign-up/download aggregates from Citykleta_Subscriber — this class only
- * lays them out, each module still owns its own data.
+ * the search tables it renders the bike-request funnel on top (Views -> Requests
+ * -> Confirmed), reading site views from Citykleta_View_Stats::site_total() and
+ * the request counts from Citykleta_Bike_Request — this class only lays them
+ * out, each module still owns its own data.
  *
  * @package Citykleta_Shared_Bikes
  */
@@ -172,7 +172,7 @@ class Citykleta_Search_Stats {
 	/**
 	 * Adds the "Citykleta Stats" widget to the wp-admin dashboard. Same
 	 * capability the old "Stats" page required, since this is still the same
-	 * data (search terms, sign-up/download funnel).
+	 * data (search terms, bike-request funnel).
 	 */
 	public function add_dashboard_widget() {
 		if ( ! current_user_can( 'edit_posts' ) ) {
@@ -187,11 +187,20 @@ class Citykleta_Search_Stats {
 	}
 
 	/**
-	 * Renders the whole widget: the app-download funnel on top (the site's
+	 * Renders the whole widget: the bike-request funnel on top (the site's
 	 * conversion), then the search tables below.
 	 */
 	public function render_widget() {
-		$this->render_download_wall();
+		// Tables run edge to edge of the box (cancelling its 12px side padding)
+		// with light borders, like core's own widgets (e.g. the 404 log).
+		echo '<style>
+			#citykleta_search_stats table.widefat { width: calc(100% + 24px) !important; max-width: none; margin-left: -12px; margin-right: -12px; border-width: 1px 0; border-color: #e5e5e5; box-shadow: none; }
+			#citykleta_search_stats table.widefat th, #citykleta_search_stats table.widefat td { border-color: #f0f0f1; padding: 8px 12px; }
+			#citykleta_search_stats h3, #citykleta_search_stats h4 { font-weight: 600; }
+			#citykleta_search_stats table.widefat thead th { border-bottom-color: #e5e5e5; }
+		</style>';
+
+		$this->render_requests();
 
 		echo '<hr style="margin:1.5em 0;border:0;border-top:1px solid #dcdcde;" />';
 
@@ -199,36 +208,95 @@ class Citykleta_Search_Stats {
 	}
 
 	/**
-	 * Renders the app-download wall section: the Views -> Sign-ups -> Downloads
-	 * funnel, a few support numbers, and a per-day breakdown.
+	 * Renders the bike-request section: the Views -> Requests -> Confirmed
+	 * funnel, the requests still waiting on someone, and the last 30 days of attempts.
+	 * "Confirmed" is set by hand on each request in wp-admin, so it is the
+	 * closest thing WP has to a real rental.
 	 */
-	private function render_download_wall() {
-		$views          = Citykleta_View_Stats::site_total();
-		$signups        = Citykleta_Subscriber::count_signups();
-		$downloads      = Citykleta_Subscriber::count_downloads();
-		$pending        = Citykleta_Subscriber::count_pending();
-		$not_downloaded = max( 0, $signups - $downloads );
+	private function render_requests() {
+		$views     = Citykleta_View_Stats::site_total();
+		$requests  = Citykleta_Bike_Request::count();
+		$confirmed = Citykleta_Bike_Request::count( Citykleta_Bike_Request::STATUS_CONFIRMED );
 
-		// With no base yet (0 views / 0 sign-ups) the rate is shown as 0%, not a
+		// With no base yet (0 views / 0 requests) the rate is shown as 0%, not a
 		// dash — the user prefers always seeing a number.
-		$view_to_signup = $views > 0 ? (int) round( $signups / $views * 100 ) : 0;
-		$signup_to_dl   = $signups > 0 ? (int) round( $downloads / $signups * 100 ) : 0;
+		$view_to_request    = $views > 0 ? (int) round( $requests / $views * 100 ) : 0;
+		$request_to_confirm = $requests > 0 ? (int) round( $confirmed / $requests * 100 ) : 0;
 
-		echo '<h3 style="margin-top:0;">App download wall</h3>';
+		echo '<h3 style="margin-top:0;">Bike requests <span style="font-weight:400;color:#646970;">(total)</span></h3>';
 
-		echo '<div style="display:flex;flex-wrap:wrap;gap:8px;max-width:640px;margin:12px 0 20px;">';
-		echo self::funnel_step( 'Vistas del sitio', $views, false, $view_to_signup ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		echo self::funnel_step( 'Inscripciones', $signups, false, $signup_to_dl ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::funnel_step( 'Descargas', $downloads, true, null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px;">';
+		echo self::funnel_step( 'Vistas de bicis', $views, false, $view_to_request ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo self::funnel_step( 'Solicitudes', $requests, false, $request_to_confirm ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::funnel_step( 'Confirmadas', $confirmed, true, null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '</div>';
 
-		echo '<div style="display:flex;gap:12px;max-width:640px;margin-bottom:24px;">';
-		echo self::stat_card( 'Conversión inscrito → descarga', $signup_to_dl . '%' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::stat_card( 'Sin descargar aún', (string) $not_downloaded ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::stat_card( 'Pendientes de HubSpot', (string) $pending ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$list_url = admin_url( 'edit.php?post_type=' . Citykleta_Bike_Request::POST_TYPE );
+		$no_phone = self::bikes_without_phone();
+
+		echo '<div style="display:flex;gap:12px;margin-bottom:12px;">';
+		echo self::stat_card( 'Nuevas sin atender', (string) Citykleta_Bike_Request::count( Citykleta_Bike_Request::STATUS_NEW ), add_query_arg( 'request_status', Citykleta_Bike_Request::STATUS_NEW, $list_url ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::stat_card( 'Contactadas', (string) Citykleta_Bike_Request::count( Citykleta_Bike_Request::STATUS_CONTACTED ), add_query_arg( 'request_status', Citykleta_Bike_Request::STATUS_CONTACTED, $list_url ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::stat_card( 'Bicis sin teléfono', $no_phone['missing'] . ' de ' . $no_phone['total'], admin_url( 'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE . '&citykleta_phone=missing' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '</div>';
 
-		$this->render_by_day();
+		echo '<p style="margin:0 0 24px;"><a href="' . esc_url( $list_url ) . '">See all requests &rarr;</a></p>';
+
+		$this->render_attempts();
+	}
+
+	/**
+	 * Renders every request attempt of the last $days days, split into the ones
+	 * that were stored and the ones that failed, with the failures broken down
+	 * by reason. Bots caught by the honeypot are shown apart and never count as
+	 * a failed attempt.
+	 *
+	 * @param int $days How many days back to consider.
+	 */
+	private function render_attempts( $days = 30 ) {
+		$totals  = Citykleta_Bike_Request::attempt_totals( $days );
+		$reasons = array();
+		$failed  = 0;
+
+		foreach ( Citykleta_Bike_Request::failure_outcomes() as $outcome => $label ) {
+			if ( ! empty( $totals[ $outcome ] ) ) {
+				$reasons[ $label ] = (int) $totals[ $outcome ];
+				$failed           += (int) $totals[ $outcome ];
+			}
+		}
+
+		$saved    = isset( $totals[ Citykleta_Bike_Request::OUTCOME_SAVED ] ) ? (int) $totals[ Citykleta_Bike_Request::OUTCOME_SAVED ] : 0;
+		$spam     = isset( $totals[ Citykleta_Bike_Request::OUTCOME_SPAM ] ) ? (int) $totals[ Citykleta_Bike_Request::OUTCOME_SPAM ] : 0;
+		$attempts = $saved + $failed;
+		$rate     = $attempts > 0 ? (int) round( $saved / $attempts * 100 ) : 0;
+
+		echo '<h4 style="margin:0 0 8px;">Pedidos (últimos ' . (int) $days . ' días)</h4>';
+
+		echo '<div style="display:flex;gap:12px;margin-bottom:12px;">';
+		echo self::stat_card( 'Exitosos', (string) $saved ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::stat_card( 'Fallidos', (string) $failed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::stat_card( 'Tasa de éxito', $rate . '%' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '</div>';
+
+		if ( empty( $reasons ) ) {
+			echo '<p style="color:#646970;margin:0 0 24px;">No failed attempts.</p>';
+		} else {
+			arsort( $reasons );
+
+			echo '<table class="widefat striped" style="width:100%;margin-bottom:8px;">';
+			echo '<thead><tr><th>Motivo del fallo</th><th>Intentos</th></tr></thead><tbody>';
+
+			foreach ( $reasons as $label => $count ) {
+				echo '<tr><td>' . esc_html( $label ) . '</td><td>' . esc_html( (string) $count ) . '</td></tr>';
+			}
+
+			echo '</tbody></table>';
+			echo '<p style="color:#646970;font-size:12px;margin:0 0 24px;">"Sin nombre" and "Correo inválido" stop the visitor in the form. The other reasons happen after WhatsApp has already opened: the visitor reached the owner, but no request was stored.</p>';
+		}
+
+		if ( $spam > 0 ) {
+			echo '<p style="color:#646970;font-size:12px;margin:-16px 0 24px;">Bots blocked by the honeypot: ' . (int) $spam . ' (not counted above).</p>';
+		}
 	}
 
 	/**
@@ -266,42 +334,49 @@ class Citykleta_Search_Stats {
 	 * @param string $value Value to show (already formatted).
 	 * @return string HTML.
 	 */
-	private static function stat_card( $label, $value ) {
-		return '<div style="flex:1;background:#f6f7f7;border-radius:8px;padding:16px;">'
+	private static function stat_card( $label, $value, $url = '' ) {
+		$card = '<div style="background:#f6f7f7;border:1px solid #dcdcde;border-radius:12px;padding:16px;">'
 			. '<div style="font-size:13px;color:#646970;">' . esc_html( $label ) . '</div>'
 			. '<div style="font-size:24px;font-weight:600;color:#1d2327;margin-top:2px;">' . esc_html( $value ) . '</div>'
 			. '</div>';
+
+		// The whole card is the link when there is somewhere to drill into.
+		if ( '' === $url ) {
+			return '<div style="flex:1;">' . $card . '</div>';
+		}
+
+		return '<a href="' . esc_url( $url ) . '" style="flex:1;text-decoration:none;display:block;">' . $card . '</a>';
 	}
 
 	/**
-	 * The per-day table: sign-ups and downloads side by side, newest first.
+	 * How many published bikes have no usable owner phone, i.e. cannot be
+	 * contacted through the WhatsApp button.
 	 *
-	 * @param int $days How many days back to consider.
+	 * @return array{missing:int,total:int}
 	 */
-	private function render_by_day( $days = 14 ) {
-		$signups   = Citykleta_Subscriber::signups_by_day( $days );
-		$downloads = Citykleta_Subscriber::downloads_by_day( $days );
+	private static function bikes_without_phone() {
+		$ids = get_posts(
+			array(
+				'post_type'      => Citykleta_Bike_Post_Type::POST_TYPE,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
 
-		$all_days = array_unique( array_merge( array_keys( $signups ), array_keys( $downloads ) ) );
-		rsort( $all_days ); // 'Y-m-d' strings sort chronologically; newest first.
+		$missing = 0;
 
-		if ( empty( $all_days ) ) {
-			echo '<p style="color:#646970;">No sign-ups yet.</p>';
-			return;
+		foreach ( $ids as $id ) {
+			if ( '' === Citykleta_Bike_Request_Form::owner_phone( $id ) ) {
+				++$missing;
+			}
 		}
 
-		echo '<h4 style="margin:0 0 8px;">Últimos días</h4>';
-		echo '<table class="widefat striped" style="max-width:480px;">';
-		echo '<thead><tr><th>Día</th><th>Inscripciones</th><th>Descargas</th></tr></thead><tbody>';
-
-		foreach ( $all_days as $day ) {
-			$s = isset( $signups[ $day ] ) ? (int) $signups[ $day ] : 0;
-			$d = isset( $downloads[ $day ] ) ? (int) $downloads[ $day ] : 0;
-
-			echo '<tr><td>' . esc_html( $day ) . '</td><td>' . esc_html( (string) $s ) . '</td><td>' . esc_html( (string) $d ) . '</td></tr>';
-		}
-
-		echo '</tbody></table>';
+		return array(
+			'missing' => $missing,
+			'total'   => count( $ids ),
+		);
 	}
 
 	/**
@@ -346,13 +421,13 @@ class Citykleta_Search_Stats {
 		);
 
 		echo '<h4>Most searched locations</h4>';
-		self::render_table( array_slice( $by_count, 0, 50, true ), false );
+		self::render_table( array_slice( $by_count, 0, 10, true ), false );
 
 		echo '<h4 style="margin-top:2em;">Searched but not found (supply gaps)</h4>';
 		if ( empty( $gaps ) ) {
 			echo '<p>No zero-result searches yet — every search matched at least one bike.</p>';
 		} else {
-			self::render_table( array_slice( $gaps, 0, 50, true ), true );
+			self::render_table( array_slice( $gaps, 0, 10, true ), true );
 		}
 	}
 
@@ -363,7 +438,7 @@ class Citykleta_Search_Stats {
 	 * @param bool  $highlight_gap Whether to lead with the zero-result count.
 	 */
 	private static function render_table( array $rows, $highlight_gap ) {
-		echo '<table class="widefat striped" style="max-width:640px;">';
+		echo '<table class="widefat striped" style="width:100%;">';
 		echo '<thead><tr>';
 		echo '<th>Location</th>';
 		echo '<th>Searches</th>';

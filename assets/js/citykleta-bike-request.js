@@ -1,24 +1,46 @@
 /*
- * Drives the "request this bike" form on a bike's page. The form is always
- * visible (no open/close toggle) — submitting posts to the plugin REST API
- * (Citykleta_Bike_Request_Rest), which checks the verification code with the
- * app, stores the request, emails Citykleta (and the owner, when there's an
- * address on file) and answers with a WhatsApp link to the owner when the code
- * checked out.
+ * Drives the "contact the owner" card on a bike's page.
  *
- * Nothing is remembered between visits, unlike the app-download wall: asking
- * for a bike twice — different dates, or a follow-up — is two real requests,
- * so there is no localStorage short-circuit here.
+ * The card has a name, an email, a rental period, a live price estimate and a
+ * link to a WhatsApp chat with the owner. The message itself is never sent from
+ * here — the visitor sends it from WhatsApp. What this script does:
+ *
+ * - fills the estimate and rewrites the wa.me link so the message it pre-fills
+ *   mentions the chosen dates;
+ * - when the link is tapped, checks name and email, records them (with bike and
+ *   dates) through the plugin REST API so Citykleta knows who asked, and lets
+ *   the link open WhatsApp. The record is fire-and-forget: it is never waited on,
+ *   because opening WhatsApp must not depend on our server answering, and a tab
+ *   opened after an async call gets blocked as a popup.
  *
  * See includes/requests/class-citykleta-bike-request-form.php.
  */
 ( function () {
 	'use strict';
 
-	var config = window.CitykletaRequest;
+	var config = window.CitykletaRequest || {};
 
-	if ( ! config || ! config.restBase ) {
-		return;
+	/**
+	 * " del 20/09/2026 al 23/09/2026" — the same wording as
+	 * Citykleta_Bike_Request::dates_phrase() in PHP, with its leading space,
+	 * so the template's `{dates}` reads the same whichever side filled it in.
+	 */
+	function datesPhrase( from, to ) {
+		function fmt( ymd ) {
+			var p = ymd.split( '-' );
+
+			return p[2] + '/' + p[1] + '/' + p[0];
+		}
+
+		if ( from && to ) {
+			return from === to ? ' el ' + fmt( from ) : ' del ' + fmt( from ) + ' al ' + fmt( to );
+		}
+
+		if ( from ) {
+			return ' desde el ' + fmt( from );
+		}
+
+		return to ? ' hasta el ' + fmt( to ) : '';
 	}
 
 	function initWidget( root ) {
@@ -26,23 +48,18 @@
 			return;
 		}
 
-		var form    = root.querySelector( '.citykleta-bike-request__form' );
-		var done    = root.querySelector( '.citykleta-bike-request__done' );
-		var error   = root.querySelector( '.citykleta-bike-request__error' );
-		var submit  = root.querySelector( '.citykleta-bike-request__submit' );
-		var bikeId  = root.getAttribute( 'data-bike' );
+		var form = root.querySelector( '.citykleta-bike-request__form' );
 
-		if ( ! form || ! done || ! bikeId ) {
+		if ( ! form ) {
 			return;
 		}
 
 		root.dataset.citykletaRequestInit = '1';
 
 		// Keep the two date fields consistent: picking a start date can't leave
-		// an earlier end date selectable. The server checks this too — this is
-		// only so the visitor finds out before submitting. Only applies to the
-		// native-date fallback; with Flatpickr the range is one control and
-		// can't be inconsistent in the first place.
+		// an earlier end date selectable. Only applies to the native-date
+		// fallback; with Flatpickr the range is one control and can't be
+		// inconsistent in the first place.
 		var from = form.elements.from;
 		var to   = form.elements.to;
 
@@ -61,7 +78,7 @@
 		 *
 		 * An ESTIMATE, and the lowest the app could charge: it bills hotel-style
 		 * (calendar days between the dates, plus one when the bike comes back
-		 * after a cutoff hour), and this form collects dates but no hours. So it
+		 * after a cutoff hour), and this card collects dates but no hours. So it
 		 * shows the calendar days, never fewer than one — the same floor the app
 		 * applies — and the markup says the owner confirms the final total.
 		 */
@@ -92,138 +109,126 @@
 			totalBox.hidden = false;
 		}
 
-		form.addEventListener( 'change', updateTotal );
-
-		function showError( message ) {
-			if ( submit ) {
-				submit.disabled = false;
-			}
-
-			if ( error ) {
-				error.textContent = message || 'No se pudo enviar. Inténtalo de nuevo.';
-				error.hidden      = false;
-			}
-		}
-
 		/*
-		 * Swaps the form for the confirmation. When the server verified the
-		 * code and the owner has a phone it also returns a ready-made wa.me
-		 * link: show it as the next step. Only a https://wa.me/ URL is ever
-		 * put in the href, whatever the response says.
+		 * Rewrites the WhatsApp link with the chosen dates. The message template
+		 * arrives from the server with `{dates}` still in it (everything else
+		 * already filled), so this is the only substitution left. Only a
+		 * https://wa.me/<digits> URL is ever built, whatever the attributes say.
 		 */
-		function showDone( data ) {
-			var link = done.querySelector( '.citykleta-bike-request__whatsapp' );
-			var text = done.querySelector( '.citykleta-bike-request__done-text' );
-			var url  = data && 'string' === typeof data.whatsapp_url ? data.whatsapp_url : '';
+		var link = root.querySelector( '.citykleta-bike-request__whatsapp' );
 
-			if ( link && 0 === url.indexOf( 'https://wa.me/' ) ) {
-				link.href   = url;
-				link.hidden = false;
-
-				if ( text ) {
-					text.textContent = data.owner_name
-						? 'Tu código está verificado. Escríbele ahora a ' + data.owner_name + ' para coordinar.'
-						: 'Tu código está verificado. Escríbele ahora al propietario para coordinar.';
-				}
-			}
-
-			form.hidden = true;
-			done.hidden = false;
-		}
-
-		/*
-		 * Two panels, one form. "Continuar" only moves between them — nothing
-		 * is sent until the visitor submits from step 2, so a half-filled form
-		 * never reaches the server and there is still exactly one POST per
-		 * request.
-		 */
-		var stepOne = root.querySelector( '.citykleta-bike-request__step[data-step="1"]' );
-		var stepTwo = root.querySelector( '.citykleta-bike-request__step[data-step="2"]' );
-		var next    = root.querySelector( '.citykleta-bike-request__next' );
-		var back    = root.querySelector( '.citykleta-bike-request__back' );
-		var code    = form.elements.verification_code;
-
-		function goToStep( n ) {
-			if ( ! stepOne || ! stepTwo ) {
+		function updateLink() {
+			if ( ! link ) {
 				return;
 			}
 
-			stepOne.hidden = 1 !== n;
-			stepTwo.hidden = 2 !== n;
+			var phone    = ( link.getAttribute( 'data-phone' ) || '' ).replace( /\D+/g, '' );
+			var template = link.getAttribute( 'data-message' ) || '';
 
+			if ( ! phone ) {
+				return;
+			}
+
+			var text = template.split( '{dates}' ).join( datesPhrase( from ? from.value : '', to ? to.value : '' ) );
+
+			link.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent( text );
+		}
+
+		form.addEventListener( 'change', function () {
+			updateTotal();
+			updateLink();
+		} );
+
+		var nameField  = form.elements.name;
+		var emailField = form.elements.email;
+		var error      = root.querySelector( '.citykleta-bike-request__error' );
+
+		function showError( message, field ) {
 			if ( error ) {
-				error.hidden = true;
+				error.textContent = message;
+				error.hidden      = false;
+			}
+
+			if ( field ) {
+				field.focus();
 			}
 		}
 
-		if ( next ) {
-			next.addEventListener( 'click', function () {
-				if ( code && code.dataset.required && '' === code.value.trim() ) {
-					showError( 'Escribe tu código de verificación, o verifícate primero.' );
+		// Failures the server never sees (they stop here, before the POST) are
+		// reported so the Stats widget can count them. Once per reason per page
+		// view, so a visitor clicking a few times doesn't read as many failures.
+		var reported = {};
+
+		function reportFailure( outcome ) {
+			if ( reported[ outcome ] || ! config.restBase || ! window.fetch ) {
+				return;
+			}
+
+			reported[ outcome ] = true;
+
+			try {
+				window.fetch( config.restBase + '/bike-requests/attempt', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					keepalive: true,
+					body: JSON.stringify( { outcome: outcome } )
+				} ).catch( function () {} );
+			} catch ( e ) {}
+		}
+
+		if ( link ) {
+			link.addEventListener( 'click', function ( event ) {
+				var name  = nameField ? nameField.value.trim() : '';
+				var email = emailField ? emailField.value.trim() : '';
+
+				if ( error ) {
+					error.hidden = true;
+				}
+
+				// The link would open WhatsApp on its own; stop it until the
+				// visitor has said who they are.
+				if ( '' === name ) {
+					event.preventDefault();
+					showError( 'Escribe tu nombre para continuar.', nameField );
+					reportFailure( 'missing_name' );
 					return;
 				}
 
-				goToStep( 2 );
+				if ( ! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( email ) ) {
+					event.preventDefault();
+					showError( 'Escribe un correo válido para continuar.', emailField );
+					reportFailure( 'invalid_email' );
+					return;
+				}
+
+				// Make sure the href carries the dates as they stand right now,
+				// whether or not a change event fired for the last one.
+				updateLink();
+
+				if ( ! config.restBase || ! window.fetch ) {
+					return;
+				}
+
+				// Fire and forget; `keepalive` lets it finish even if the page
+				// goes away. A failure here must never get in the way of WhatsApp.
+				try {
+					window.fetch( config.restBase + '/bike-requests', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						keepalive: true,
+						body: JSON.stringify( {
+							bike_id: root.getAttribute( 'data-bike' ),
+							name: name,
+							email: email,
+							from: from ? from.value : '',
+							to: to ? to.value : '',
+							website: form.elements.website ? form.elements.website.value : '',
+							source: window.location.href
+						} )
+					} ).catch( function () {} );
+				} catch ( e ) {}
 			} );
 		}
-
-		if ( back ) {
-			back.addEventListener( 'click', function () {
-				goToStep( 1 );
-			} );
-		}
-
-		form.addEventListener( 'submit', function ( event ) {
-			event.preventDefault();
-
-			if ( error ) {
-				error.hidden      = true;
-				error.textContent = '';
-			}
-
-			if ( submit ) {
-				submit.disabled = true;
-			}
-
-			var payload = {
-				bike_id: bikeId,
-				from: from ? from.value : '',
-				to: to ? to.value : '',
-				message: form.elements.message.value,
-				verification_code: code ? code.value : '',
-				website: form.elements.website.value,
-				source: window.location.href
-			};
-
-			fetch( config.restBase + '/bike-requests', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify( payload )
-			} )
-				.then( function ( response ) {
-					return response.json().then( function ( data ) {
-						return { ok: response.ok, status: response.status, data: data };
-					} );
-				} )
-				.then( function ( result ) {
-					if ( result.ok && result.data && result.data.ok ) {
-						showDone( result.data );
-						return;
-					}
-
-					// 403 = the app rejected the code. The code field lives on
-					// step 1, so bring the visitor back to where they can fix it
-					// instead of leaving the error on a step with nothing to edit.
-					if ( 403 === result.status ) {
-						goToStep( 1 );
-					}
-
-					showError( result.data && result.data.message );
-				} )
-				.catch( function () {
-					showError();
-				} );
-		} );
 	}
 
 	function init() {

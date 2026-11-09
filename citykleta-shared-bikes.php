@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Constantes del plugin.
-define( 'CITYKLETA_VERSION', '0.3.39' );
+define( 'CITYKLETA_VERSION', '0.3.47' );
 define( 'CITYKLETA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CITYKLETA_URL', plugin_dir_url( __FILE__ ) );
 
@@ -39,15 +39,13 @@ require_once CITYKLETA_PATH . 'includes/sync/class-citykleta-bike-sync.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-settings.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-list-columns.php';
 require_once CITYKLETA_PATH . 'includes/map/class-citykleta-bike-map-data.php';
+require_once CITYKLETA_PATH . 'includes/weather/class-citykleta-weather.php';
 require_once CITYKLETA_PATH . 'includes/admin/class-citykleta-admin-map.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-template-defaults.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-templates.php';
 require_once CITYKLETA_PATH . 'includes/front/class-citykleta-bike-router.php';
 require_once CITYKLETA_PATH . 'includes/stats/class-citykleta-view-stats.php';
 require_once CITYKLETA_PATH . 'includes/stats/class-citykleta-search-stats.php';
-require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber.php';
-require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-subscriber-rest.php';
-require_once CITYKLETA_PATH . 'includes/subscribers/class-citykleta-app-cta.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-contact-reveal.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-rest.php';
@@ -140,19 +138,9 @@ function citykleta_init() {
 	( new Citykleta_View_Stats() )->register();
 
 	// Estadísticas de búsqueda: qué ubicaciones se buscan y cuáles no dan
-	// resultados (huecos de oferta). Página "Searches" bajo Shared Bikes.
+	// resultados (huecos de oferta). Dueña del widget "Citykleta Stats" del
+	// dashboard, que también pinta el embudo de solicitudes de bici.
 	( new Citykleta_Search_Stats() )->register();
-
-	// Lista de Subscribers (leads del muro de descarga): CPT privado en
-	// wp-admin, staging para sincronizar a HubSpot más adelante. WP no crea
-	// cuentas ni verifica correo — solo guarda el lead con su consentimiento.
-	( new Citykleta_Subscriber() )->register();
-
-	// Endpoints REST del muro: capturar el sign-up y marcar la descarga.
-	( new Citykleta_Subscriber_Rest() )->register();
-
-	// Muro de descarga de la app (shortcode [citykleta_app_download]).
-	( new Citykleta_App_Cta() )->register();
 
 	// Solicitudes de alquiler: CPT privado + endpoint REST + formulario en la
 	// página de la bici + los correos de aviso. Es una SOLICITUD, no una

@@ -41,7 +41,8 @@
       "Bash(curl -s -m 5 -o /dev/null -w \"bikesPublic/sync: %{http_code}\\\\n\" http://localhost:8001/bikesPublic/sync)",
       "Bash(curl -s -m 5 -o /dev/null -w \"reservations: %{http_code}\\\\n\" http://localhost:8001/reservations)",
       "Bash(curl -s -m 5 -o /dev/null -w \"orders: %{http_code}\\\\n\" http://localhost:8001/orders)",
-      "Bash(curl -s -m 5 -o /dev/null -w \"root: %{http_code}\\\\n\" http://localhost:8001/)"
+      "Bash(curl -s -m 5 -o /dev/null -w \"root: %{http_code}\\\\n\" http://localhost:8001/)",
+      "Bash(ls \"/c/Users/Yasser/AppData/Local/Temp/claude/C--Users-Yasser-Local-Sites-mysite-app-public-wp-content-plugins-shared-bikes/a8b93c2a-a11f-453f-bf54-47df81730dda/scratchpad\" 2>&1 | head)"
     ]
   }
 }

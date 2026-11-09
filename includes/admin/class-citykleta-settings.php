@@ -45,6 +45,13 @@ class Citykleta_Settings {
 	const PAGE_SLUG = 'citykleta-settings';
 
 	/**
+	 * Option holding the shared key for POST /contact/reveal (Sync tab → API
+	 * access). A CITYKLETA_PLUGIN_KEY constant in wp-config.php, if defined,
+	 * takes precedence — see self::plugin_key().
+	 */
+	const PLUGIN_KEY_OPTION = 'citykleta_plugin_key';
+
+	/**
 	 * Tabs shown on the settings page, in order.
 	 */
 	const TABS = array(
@@ -617,6 +624,33 @@ class Citykleta_Settings {
 			'citykleta_sync_section'
 		);
 
+		register_setting(
+			self::OPTION_GROUP_SYNC,
+			self::PLUGIN_KEY_OPTION,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_plugin_key' ),
+				'default'           => '',
+			)
+		);
+
+		add_settings_section(
+			'citykleta_api_access_section',
+			'API access',
+			function () {
+				echo '<p>Shared key the API asks for before it checks a visitor\'s verification code and hands out a bike owner\'s phone (<code>' . esc_html( self::PATHS['contact_reveal'] ) . '</code>). It must match <code>WORDPRESS_PLUGIN_KEY</code> in the API\'s environment.</p>';
+			},
+			self::PAGE_SLUG . '-sync'
+		);
+
+		add_settings_field(
+			self::PLUGIN_KEY_OPTION,
+			'Plugin key',
+			array( $this, 'render_plugin_key_field' ),
+			self::PAGE_SLUG . '-sync',
+			'citykleta_api_access_section'
+		);
+
 		// The "Maps" tab's fields below are read-only — no register_setting()
 		// calls for them, since Citykleta_Map_Settings_Sync writes these
 		// options directly (update_option()) from Back Office instead of a
@@ -1071,6 +1105,63 @@ class Citykleta_Settings {
 	}
 
 	/**
+	 * The key sent to POST /contact/reveal: the wp-config.php constant when one
+	 * is defined, the saved option otherwise. '' when neither is set.
+	 *
+	 * @return string
+	 */
+	public static function plugin_key() {
+		if ( defined( 'CITYKLETA_PLUGIN_KEY' ) && '' !== (string) constant( 'CITYKLETA_PLUGIN_KEY' ) ) {
+			return (string) constant( 'CITYKLETA_PLUGIN_KEY' );
+		}
+
+		return (string) get_option( self::PLUGIN_KEY_OPTION, '' );
+	}
+
+	/**
+	 * Keeps the stored key when the field comes back blank (the input never
+	 * prints the saved value), and clears it only when "Remove" is ticked.
+	 *
+	 * @param mixed $value Submitted value.
+	 * @return string
+	 */
+	public function sanitize_plugin_key( $value ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- options.php already checked the nonce.
+		if ( ! empty( $_POST['citykleta_plugin_key_clear'] ) ) {
+			return '';
+		}
+
+		$value = trim( sanitize_text_field( (string) $value ) );
+
+		return '' !== $value ? $value : (string) get_option( self::PLUGIN_KEY_OPTION, '' );
+	}
+
+	/**
+	 * Renders the plugin key field. The saved key is never printed back into
+	 * the page, only a masked hint that one is stored.
+	 */
+	public function render_plugin_key_field() {
+		$saved = (string) get_option( self::PLUGIN_KEY_OPTION, '' );
+
+		if ( defined( 'CITYKLETA_PLUGIN_KEY' ) && '' !== (string) constant( 'CITYKLETA_PLUGIN_KEY' ) ) {
+			echo '<p class="description"><strong>CITYKLETA_PLUGIN_KEY is defined in wp-config.php and is the one in use.</strong> This field is ignored while it is there.</p>';
+		}
+
+		echo '<input type="password" name="' . esc_attr( self::PLUGIN_KEY_OPTION ) . '" value="" class="regular-text" autocomplete="new-password" placeholder="' . esc_attr( '' !== $saved ? 'Saved — leave blank to keep it' : 'Paste the key' ) . '" />';
+
+		if ( '' !== $saved ) {
+			$masked = strlen( $saved ) > 8
+				? substr( $saved, 0, 4 ) . str_repeat( '•', 8 ) . substr( $saved, -4 )
+				: str_repeat( '•', strlen( $saved ) );
+
+			echo '<p class="description">Saved: <code>' . esc_html( $masked ) . '</code></p>';
+			echo '<p><label><input type="checkbox" name="citykleta_plugin_key_clear" value="1" /> Remove the saved key</label></p>';
+		} else {
+			echo '<p class="description">Without a key, bike requests are saved as <em>not verified</em> and no WhatsApp link is offered.</p>';
+		}
+	}
+
+	/**
 	 * Renders the destination URL slug field. Same shape as self::render_slug_field()
 	 * for bikes — see self::sanitize_destination_slug() for why it can't be blank.
 	 */
@@ -1279,18 +1370,12 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * The settings tabs, slug => label. Filterable so a separate plugin (e.g.
-	 * the HubSpot connector) can add its own tab to this page without its code
-	 * living here: it adds a slug/label via the 'citykleta_settings_tabs'
-	 * filter and renders that tab's body on the matching
-	 * 'citykleta_settings_render_tab_{slug}' action (see render_page()). The
-	 * external tab owns its own <form>, option group, and settings_fields() —
-	 * same "one option group per form" rule the built-in tabs follow.
+	 * The settings tabs, slug => label.
 	 *
 	 * @return array<string,string>
 	 */
 	public static function tabs() {
-		return apply_filters( 'citykleta_settings_tabs', self::TABS );
+		return self::TABS;
 	}
 
 	/**
@@ -1394,16 +1479,6 @@ class Citykleta_Settings {
 					submit_button( 'Save changes' );
 					?>
 				</form>
-			<?php else : ?>
-				<?php
-				/**
-				 * Body of a tab registered by another plugin through the
-				 * 'citykleta_settings_tabs' filter. That plugin hooks this
-				 * action and prints its own <form> (its own option group +
-				 * settings_fields()). See self::tabs().
-				 */
-				do_action( 'citykleta_settings_render_tab_' . $active_tab );
-				?>
 			<?php endif; ?>
 		</div>
 		<?php

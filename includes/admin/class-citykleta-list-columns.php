@@ -27,6 +27,186 @@ class Citykleta_List_Columns {
 
 		add_action( 'restrict_manage_posts', array( $this, 'add_category_filter' ) );
 		add_filter( 'parse_query', array( $this, 'filter_by_category' ) );
+
+		add_filter( "views_edit-{$post_type}", array( $this, 'phone_views' ) );
+		add_action( 'pre_get_posts', array( $this, 'filter_by_phone' ) );
+		add_filter( "bulk_actions-edit-{$post_type}", array( $this, 'bulk_actions' ) );
+		add_filter( "handle_bulk_actions-edit-{$post_type}", array( $this, 'handle_bulk_actions' ), 10, 3 );
+		add_action( 'admin_notices', array( $this, 'bulk_notice' ) );
+	}
+
+	/**
+	 * Meta: bike flagged by staff as "needs an owner phone" (value '1').
+	 */
+	const META_FOLLOWUP = '_citykleta_phone_followup';
+
+	/**
+	 * Counts bikes for one phone view.
+	 *
+	 * @param string $view 'missing' (no phone) or 'marked' (flagged for follow-up).
+	 * @return int
+	 */
+	private static function count_phone_view( $view ) {
+		$query = new WP_Query(
+			array(
+				'post_type'      => Citykleta_Bike_Post_Type::POST_TYPE,
+				'post_status'    => 'any',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'meta_query'     => self::phone_view_meta_query( $view ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			)
+		);
+
+		return (int) $query->found_posts;
+	}
+
+	/**
+	 * Meta query for a phone view.
+	 *
+	 * @param string $view 'missing' or 'marked'.
+	 * @return array
+	 */
+	private static function phone_view_meta_query( $view ) {
+		if ( 'marked' === $view ) {
+			return array(
+				array(
+					'key'   => self::META_FOLLOWUP,
+					'value' => '1',
+				),
+			);
+		}
+
+		return array( Citykleta_Owner_Contact::missing_phone_meta_query() );
+	}
+
+	/**
+	 * Adds "No phone" and "Flagged" links above the list, with counts. Bikes with
+	 * no phone are hidden from the public site, so staff need a quick way to find
+	 * them here.
+	 *
+	 * @param array $views Existing views.
+	 * @return array
+	 */
+	public function phone_views( $views ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter.
+		$current = isset( $_GET['citykleta_phone'] ) ? sanitize_key( wp_unslash( $_GET['citykleta_phone'] ) ) : '';
+		$base    = admin_url( 'edit.php?post_type=' . Citykleta_Bike_Post_Type::POST_TYPE );
+
+		$labels = array(
+			'missing' => 'No phone',
+			'marked'  => 'Flagged to follow up',
+		);
+
+		foreach ( $labels as $view => $label ) {
+			$views[ 'citykleta_phone_' . $view ] = sprintf(
+				'<a href="%s"%s>%s <span class="count">(%d)</span></a>',
+				esc_url( add_query_arg( 'citykleta_phone', $view, $base ) ),
+				$current === $view ? ' class="current" aria-current="page"' : '',
+				esc_html( $label ),
+				self::count_phone_view( $view )
+			);
+		}
+
+		return $views;
+	}
+
+	/**
+	 * Applies ?citykleta_phone=missing|marked to the bike list.
+	 *
+	 * @param WP_Query $query Current admin query.
+	 */
+	public function filter_by_phone( $query ) {
+		if ( ! is_admin() || ! $query->is_main_query() || Citykleta_Bike_Post_Type::POST_TYPE !== $query->get( 'post_type' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter.
+		$view = isset( $_GET['citykleta_phone'] ) ? sanitize_key( wp_unslash( $_GET['citykleta_phone'] ) ) : '';
+
+		if ( ! in_array( $view, array( 'missing', 'marked' ), true ) ) {
+			return;
+		}
+
+		$meta_query = array( 'relation' => 'AND' );
+		$existing   = $query->get( 'meta_query' );
+
+		if ( ! empty( $existing ) ) {
+			$meta_query[] = $existing;
+		}
+
+		$meta_query[] = self::phone_view_meta_query( $view )[0];
+
+		$query->set( 'meta_query', $meta_query );
+	}
+
+	/**
+	 * Adds the flag / unflag bulk actions.
+	 *
+	 * @param array $actions Existing bulk actions.
+	 * @return array
+	 */
+	public function bulk_actions( $actions ) {
+		$actions['citykleta_flag_phone']   = 'Flag: needs owner phone';
+		$actions['citykleta_unflag_phone'] = 'Clear follow-up flag';
+
+		return $actions;
+	}
+
+	/**
+	 * Handles the bulk actions above. WordPress already verified the bulk-action
+	 * nonce before calling this filter.
+	 *
+	 * @param string $redirect_to Redirect URL.
+	 * @param string $action      Chosen bulk action.
+	 * @param array  $post_ids    Selected bike IDs.
+	 * @return string
+	 */
+	public function handle_bulk_actions( $redirect_to, $action, $post_ids ) {
+		if ( ! in_array( $action, array( 'citykleta_flag_phone', 'citykleta_unflag_phone' ), true ) ) {
+			return $redirect_to;
+		}
+
+		$done = 0;
+
+		foreach ( $post_ids as $post_id ) {
+			if ( ! current_user_can( 'edit_post', $post_id ) ) {
+				continue;
+			}
+
+			if ( 'citykleta_flag_phone' === $action ) {
+				update_post_meta( $post_id, self::META_FOLLOWUP, '1' );
+			} else {
+				delete_post_meta( $post_id, self::META_FOLLOWUP );
+			}
+
+			++$done;
+		}
+
+		return add_query_arg(
+			array(
+				'citykleta_flagged' => $done,
+				'citykleta_cleared' => 'citykleta_unflag_phone' === $action ? 1 : 0,
+			),
+			$redirect_to
+		);
+	}
+
+	/**
+	 * Confirms the bulk action on the list screen.
+	 */
+	public function bulk_notice() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only confirmation message.
+		if ( ! isset( $_GET['citykleta_flagged'] ) ) {
+			return;
+		}
+
+		$count   = (int) $_GET['citykleta_flagged']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$cleared = ! empty( $_GET['citykleta_cleared'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		printf(
+			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+			esc_html( sprintf( $cleared ? 'Follow-up flag cleared on %d bike(s).' : 'Flagged %d bike(s) as needing an owner phone.', $count ) )
+		);
 	}
 
 	/**
@@ -48,6 +228,7 @@ class Citykleta_List_Columns {
 
 		$new_columns['citykleta_brand']    = 'Brand';
 		$new_columns['citykleta_location'] = 'Location';
+		$new_columns['citykleta_phone']    = 'Owner phone';
 
 		return $new_columns;
 	}
@@ -65,6 +246,21 @@ class Citykleta_List_Columns {
 					echo get_the_post_thumbnail( $post_id, array( 60, 60 ) );
 				} else {
 					echo '—';
+				}
+				break;
+
+			case 'citykleta_phone':
+				$phone = Citykleta_Bike_Request_Form::owner_phone( $post_id );
+
+				if ( '' !== $phone ) {
+					echo esc_html( '+' . $phone );
+					break;
+				}
+
+				echo '<strong style="color:#b32d2e;">Missing</strong> <span style="color:#646970;">(hidden from site)</span>';
+
+				if ( '1' === get_post_meta( $post_id, self::META_FOLLOWUP, true ) ) {
+					echo '<br><span style="background:#fcf0c3;color:#6e4c00;padding:1px 6px;border-radius:3px;font-size:11px;">Flagged to follow up</span>';
 				}
 				break;
 
@@ -118,7 +314,7 @@ class Citykleta_List_Columns {
 	public function add_category_filter() {
 		global $typenow;
 		$post_type = Citykleta_Bike_Post_Type::POST_TYPE;
-		$taxonomy  = 'category'; // Change if your taxonomy has a different name.
+		$taxonomy  = Citykleta_Bike_Type_Taxonomy::TAXONOMY;
 
 		if ( $typenow !== $post_type ) {
 			return;
@@ -127,14 +323,14 @@ class Citykleta_List_Columns {
 		$selected = isset( $_GET[$taxonomy] ) ? $_GET[$taxonomy] : '';
 
 		wp_dropdown_categories( array(
-			'show_option_all' => 'All Categories',
+			'show_option_all' => 'All types',
 			'taxonomy'        => $taxonomy,
 			'name'            => $taxonomy,
 			'orderby'         => 'name',
 			'selected'        => $selected,
 			'value_field'     => 'slug', // Important: WP filters by slug.
 			'hierarchical'    => true,
-			'hide_empty'      => true,
+			'hide_empty'      => false, // A top-level type owns no bikes directly, only through its subtypes.
 		) );
 	}
 
@@ -146,7 +342,7 @@ class Citykleta_List_Columns {
 	public function filter_by_category( $query ) {
 		global $pagenow;
 		$post_type = Citykleta_Bike_Post_Type::POST_TYPE;
-		$taxonomy  = 'category';
+		$taxonomy  = Citykleta_Bike_Type_Taxonomy::TAXONOMY;
 
 		if ( 'edit.php' !== $pagenow ) {
 			return;

@@ -352,8 +352,51 @@
 				item.classList.remove( 'is-entering' );
 			} );
 			state.index = 0;
+			// With hover, the first message is always already there (see below).
+			if ( 'hover' === trigger ) {
+				items[ 0 ].classList.remove( 'is-pending' );
+				if ( stage ) {
+					stage.reveal( items[ 0 ] );
+				}
+				state.index = 1;
+			}
 			body.scrollTop = 0;
 			schedule( next, 400 );
+		}
+
+		// The chat lives in a tab panel (Elementor's Tabs, Dropdown Tabs, …): when
+		// its tab is shown again, start over from zero, whatever point the chat
+		// was at. Cancels the pending step first (restart() only schedules a new
+		// one) and hides a "typing…" bubble left over from the middle of a message.
+		function restartFromZero() {
+			if ( ! document.body.contains( root ) ) {
+				return;
+			}
+			if ( state.timer ) {
+				window.clearTimeout( state.timer );
+				state.timer = null;
+			}
+			state.fn = null;
+			hideTyping();
+			restart();
+		}
+
+		// Shown = it has a box. Whatever widget swaps the tabs (they all hide the
+		// panel with display:none, at any nesting level) takes the chat's box away
+		// and gives it back, and a ResizeObserver reports both without having to
+		// know which tabs widget it is.
+		function isShown() {
+			return root.getClientRects().length > 0;
+		}
+
+		var wasShown = isShown();
+
+		function onBoxChange() {
+			var shown = isShown();
+			if ( shown && ! wasShown ) {
+				restartFromZero();
+			}
+			wasShown = shown;
 		}
 
 		items.forEach( function ( item ) {
@@ -401,6 +444,14 @@
 			} );
 		} else {
 			resumePlayback();
+		}
+
+		if ( 'ResizeObserver' in window ) {
+			var boxObserver = new ResizeObserver( onBoxChange );
+			boxObserver.observe( root );
+			cleanups.push( function () {
+				boxObserver.disconnect();
+			} );
 		}
 
 		root._citykletaChat = {
