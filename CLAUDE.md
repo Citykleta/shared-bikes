@@ -165,8 +165,14 @@ includes/
                                          (cover.webp, closing.webp). La altura es una variable CSS
                                          (`--citykleta-story-height`) para que el layout sin JS (escenas en lista)
                                          pueda anularla. CSS/JS: story.css, citykleta-story.js. Nace de la maqueta
-                                         de 2026-11; render probado con stubs (HTML real + CSS/JS del plugin), el
-                                         editor de Elementor SIN probar.
+                                         de 2026-11. Verificado en vivo en la portada (dentro de una pestaña
+                                         atómica de Elementor) y en el editor (el control Height responde).
+                                         Dos trampas ya resueltas: `container-type: size` le quita el ancho
+                                         intrínseco, y dentro de un contenedor flex de Elementor la tarjeta medía
+                                         0 px — por eso story.css fuerza `width: 100%` en el widget y la tarjeta;
+                                         y dentro de una pestaña oculta arranca en 0 × 0, así que el JS se
+                                         recalcula con un ResizeObserver al mostrarse. En el editor, con la pestaña
+                                         cerrada el widget sale vacío: hay que abrir la pestaña en la vista previa.
     class-citykleta-dropdown-tabs-widget.php → Widget "Dropdown Tabs": pestañas que se cambian con un
                                          selector tipo combobox (botón + listbox con ✓, teclado WAI-ARIA) en vez
                                          de botones. Es un widget ANIDADO como el Tabs de Elementor
@@ -1813,12 +1819,13 @@ algún sitio, así que preguntárselos de nuevo en este formulario era pedir dos
   derivado de `status === 'active'`. Dos personas pueden solicitar la misma bici el mismo día: ambas
   solicitudes entran y una persona resuelve. Inventar un sistema de reservas encima de datos que no
   lo soportan sería peor que no tenerlo.
-- **No hay, ni va a haber, pago procesado por esta plataforma.** Citykleta no cobra pagos
-  internacionales ni locales — decisión explícita del producto, no una limitación técnica temporal. El
-  MVP termina en la solicitud: le llega al dueño y **él** coordina el resto, cobro en efectivo incluido,
-  por su cuenta. Por eso el formulario **no** tiene talla/cantidad, hora de recogida/entrega, monto de
-  seña, ni logos de método de pago (PayPal/Zelle/etc.) — aunque una referencia de diseño los muestre,
-  no corresponden a como funciona (ni va a funcionar) el producto.
+- **Hoy no hay pago procesado por esta plataforma — por ahora.** Citykleta no cobra en esta etapa; los
+  cobros se activarán en una etapa posterior (corrección del usuario, 2026-11: antes este documento decía
+  "ni va a haber", y no es así). Mientras tanto el MVP termina en la solicitud: le llega al dueño y **él**
+  coordina el resto, cobro en efectivo incluido, por su cuenta. Por eso el formulario **no** tiene
+  talla/cantidad, hora de recogida/entrega, monto de seña, ni logos de método de pago (PayPal/Zelle/etc.)
+  — aunque una referencia de diseño los muestre. Ojo con los pagos internacionales: Stripe está bloqueado
+  en Cuba, así que cuando se activen los cobros hará falta otra vía.
 
 Por eso WP hace de **staging**: captura la intención, guarda el registro, y alguien confirma a mano.
 
