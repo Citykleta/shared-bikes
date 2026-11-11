@@ -39,7 +39,8 @@ Proposals, Frontend).
 
 ## Setting up a fresh checkout
 
-The vendor libraries are not in the repository. Download them from `https://cdn.jsdelivr.net/npm/`:
+The vendor libraries are committed with the plugin. To update one, download it again from
+`https://cdn.jsdelivr.net/npm/`:
 
 | File | Source |
 |---|---|
@@ -48,10 +49,10 @@ The vendor libraries are not in the repository. Download them from `https://cdn.
 | `assets/js/flatpickr.min.js`, `assets/css/flatpickr.min.css`, `assets/js/flatpickr-es.js` | `flatpickr@4/dist/` (locale from `l10n/es.js`) |
 | `assets/js/splide.min.js`, `assets/css/splide.min.css` | `@splidejs/splide@4/dist/` |
 
-Without them the pages still work, just without the map, the date range picker or the gallery
-carousel. The map markers also need a bike glyph at `assets/images/marker-bike.svg`.
+If one goes missing the pages still work, just without the map, the date range picker or the
+gallery carousel.
 
-Then set the API base URL in **Settings → API** and run **Sync now**.
+On a new install, set the API base URL in **Settings → API** and run **Sync now**.
 
 ## Notes to self
 
