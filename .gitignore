@@ -48,3 +48,9 @@ wp-config.php
 #/wp-content/themes
 # Claude Code: personal, per-machine permissions
 .claude/settings.local.json
+
+# Editor settings (per machine)
+.vscode/
+
+# Internal notes, kept locally only
+HANDOFF-*.md
