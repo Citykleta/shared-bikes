@@ -1,6 +1,7 @@
 <?php
 /**
- * Settings page: "Sync" tab (bike API URL, sync frequency, URL slug),
+ * Settings page: "API" tab (bike API URL, sync frequency, plugin key; its
+ * tab key is still "sync"), "Slugs" tab (where bike and destination pages live),
  * "Maps" tab (read-only display of the base map style/token, marker size,
  * and cluster behavior/colors used by the bikes map everywhere it appears —
  * Elementor widget and the wp-admin overview page; administered from Back
@@ -36,7 +37,7 @@ class Citykleta_Settings {
 	 */
 	const OPTION_GROUP_SYNC = 'citykleta_settings_sync';
 	const OPTION_GROUP_COMM = 'citykleta_settings_comm';
-	const OPTION_GROUP_DEST = 'citykleta_settings_dest';
+	const OPTION_GROUP_SLUGS = 'citykleta_settings_slugs';
 	const OPTION_GROUP_TPL  = 'citykleta_settings_tpl';
 
 	/**
@@ -45,7 +46,7 @@ class Citykleta_Settings {
 	const PAGE_SLUG = 'citykleta-settings';
 
 	/**
-	 * Option holding the shared key for POST /contact/reveal (Sync tab → API
+	 * Option holding the shared key for POST /contact/reveal (API tab → API
 	 * access). A CITYKLETA_PLUGIN_KEY constant in wp-config.php, if defined,
 	 * takes precedence — see self::plugin_key().
 	 */
@@ -55,12 +56,13 @@ class Citykleta_Settings {
 	 * Tabs shown on the settings page, in order.
 	 */
 	const TABS = array(
-		'sync'     => 'Sync',
-		'maps'     => 'Maps',
-		'comm'     => 'Communication',
-		'dest'     => 'Destinations',
-		'tpl'      => 'Templates',
-		'frontend' => 'Frontend',
+		'sync'      => 'API',
+		'maps'      => 'Maps',
+		'comm'      => 'Communication',
+		'slugs'     => 'Slugs',
+		'tpl'       => 'Templates',
+		'frontend'  => 'Frontend',
+		'proposals' => 'Proposals',
 	);
 
 	/**
@@ -371,18 +373,6 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * The default FAQ (Destinations tab), parsed into
-	 * { 'question' => string, 'answer' => string }[]. Read by
-	 * Citykleta_Destination_Post_Type::faq_for() — every destination shows
-	 * this list; there is no per-destination override anymore.
-	 *
-	 * @return array
-	 */
-	public static function destination_faq_default() {
-		return Citykleta_Destination_Post_Type::parse_faq_text( get_option( 'citykleta_destination_faq_default', '' ) );
-	}
-
-	/**
 	 * Fills the message template's placeholders (see
 	 * self::MESSAGE_PLACEHOLDERS) with a single bike's data.
 	 *
@@ -579,16 +569,6 @@ class Citykleta_Settings {
 			)
 		);
 
-		register_setting(
-			self::OPTION_GROUP_SYNC,
-			'citykleta_bike_slug',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( $this, 'sanitize_slug' ),
-				'default'           => 'bikes',
-			)
-		);
-
 		add_settings_section(
 			'citykleta_sync_section',
 			'Bike sync',
@@ -612,14 +592,6 @@ class Citykleta_Settings {
 			'citykleta_sync_frequency',
 			'Update frequency',
 			array( $this, 'render_frequency_field' ),
-			self::PAGE_SLUG . '-sync',
-			'citykleta_sync_section'
-		);
-
-		add_settings_field(
-			'citykleta_bike_slug',
-			'URL slug',
-			array( $this, 'render_slug_field' ),
 			self::PAGE_SLUG . '-sync',
 			'citykleta_sync_section'
 		);
@@ -802,8 +774,21 @@ class Citykleta_Settings {
 			'citykleta_requests_section'
 		);
 
+		// Slugs tab: where the plugin's public pages live. Both slugs share one
+		// option group, so saving this tab never touches another tab's options
+		// (see the note on the option groups at the top of the class).
 		register_setting(
-			self::OPTION_GROUP_DEST,
+			self::OPTION_GROUP_SLUGS,
+			'citykleta_bike_slug',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_slug' ),
+				'default'           => 'bikes',
+			)
+		);
+
+		register_setting(
+			self::OPTION_GROUP_SLUGS,
 			'citykleta_destination_slug',
 			array(
 				'type'              => 'string',
@@ -813,47 +798,28 @@ class Citykleta_Settings {
 		);
 
 		add_settings_section(
-			'citykleta_dest_url_section',
-			'URL',
+			'citykleta_slugs_section',
+			'URL slugs',
 			function () {
-				echo '<p>Where destination pages live.</p>';
+				echo '<p>Where the bike pages and the destination pages live. Changing a slug moves every URL under it.</p>';
 			},
-			self::PAGE_SLUG . '-dest'
+			self::PAGE_SLUG . '-slugs'
+		);
+
+		add_settings_field(
+			'citykleta_bike_slug',
+			'Bikes',
+			array( $this, 'render_slug_field' ),
+			self::PAGE_SLUG . '-slugs',
+			'citykleta_slugs_section'
 		);
 
 		add_settings_field(
 			'citykleta_destination_slug',
-			'URL slug',
+			'Destinations',
 			array( $this, 'render_destination_slug_field' ),
-			self::PAGE_SLUG . '-dest',
-			'citykleta_dest_url_section'
-		);
-
-		register_setting(
-			self::OPTION_GROUP_DEST,
-			'citykleta_destination_faq_default',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => 'sanitize_textarea_field',
-				'default'           => '',
-			)
-		);
-
-		add_settings_section(
-			'citykleta_dest_section',
-			'Default FAQ',
-			function () {
-				echo '<p>Shown on every destination page (Bicicletas → Destinations → a destination, e.g. "Vedado"), unless that destination has its own FAQ switched on — see the "Custom FAQ" field on its edit screen.</p>';
-			},
-			self::PAGE_SLUG . '-dest'
-		);
-
-		add_settings_field(
-			'citykleta_destination_faq_default',
-			'FAQ items',
-			array( $this, 'render_destination_faq_field' ),
-			self::PAGE_SLUG . '-dest',
-			'citykleta_dest_section'
+			self::PAGE_SLUG . '-slugs',
+			'citykleta_slugs_section'
 		);
 
 		// Templates: which layout each of the plugin's own front-end views is
@@ -1303,19 +1269,6 @@ class Citykleta_Settings {
 	}
 
 	/**
-	 * Renders the default destination FAQ field: a plain textarea, one
-	 * "Question :: Answer" pair per line — same format (and same reasoning:
-	 * a JS repeater is overkill here) as Citykleta_Destination_Post_Type's
-	 * per-destination override field, which parses this with the exact same
-	 * Citykleta_Destination_Post_Type::parse_faq_text().
-	 */
-	public function render_destination_faq_field() {
-		$value = get_option( 'citykleta_destination_faq_default', '' );
-		echo '<textarea name="citykleta_destination_faq_default" rows="6" class="large-text">' . esc_textarea( $value ) . '</textarea>';
-		echo '<p class="description">One question per line: "Question :: Answer".</p>';
-	}
-
-	/**
 	 * Renders the marker icon's size value — read-only, see
 	 * self::render_tile_style_field().
 	 */
@@ -1408,7 +1361,7 @@ class Citykleta_Settings {
 					<p>
 						This tab is read-only: map settings are administered from Back Office and synced
 						automatically on each "Sync now" / scheduled sync (see the "Map settings" path on the
-						<a href="<?php echo esc_url( $base_url . '&tab=sync' ); ?>">Sync</a> tab).
+						<a href="<?php echo esc_url( $base_url . '&tab=sync' ); ?>">API</a> tab).
 						<?php if ( $map_settings_last_sync ) : ?>
 							Last synced: <?php echo esc_html( $map_settings_last_sync ); ?>.
 						<?php else : ?>
@@ -1433,13 +1386,11 @@ class Citykleta_Settings {
 					submit_button( 'Save changes' );
 					?>
 				</form>
-			<?php elseif ( 'dest' === $active_tab ) : ?>
-				<p>Destination pages are managed under Bicicletas → Destinations — this tab only
-				holds the FAQ every destination falls back to.</p>
+			<?php elseif ( 'slugs' === $active_tab ) : ?>
 				<form method="post" action="options.php">
 					<?php
-					settings_fields( self::OPTION_GROUP_DEST );
-					do_settings_sections( self::PAGE_SLUG . '-dest' );
+					settings_fields( self::OPTION_GROUP_SLUGS );
+					do_settings_sections( self::PAGE_SLUG . '-slugs' );
 					submit_button( 'Save changes' );
 					?>
 				</form>
@@ -1457,6 +1408,8 @@ class Citykleta_Settings {
 				</form>
 			<?php elseif ( 'frontend' === $active_tab ) : ?>
 				<?php $this->render_frontend_tab(); ?>
+			<?php elseif ( 'proposals' === $active_tab ) : ?>
+				<?php ( new Citykleta_Proposal_Intake_Page() )->render_tab(); ?>
 			<?php elseif ( 'sync' === $active_tab ) : ?>
 				<?php if ( isset( $_GET['citykleta_synced'] ) ) : ?>
 					<div class="notice notice-success"><p>Sync completed.</p></div>
@@ -1549,7 +1502,7 @@ class Citykleta_Settings {
 		<style>
 			.citykleta-frontend-ref { max-width: 820px; }
 			.citykleta-frontend-ref > p { font-size: 14px; line-height: 1.7; color: #3c434a; }
-			.citykleta-frontend-ref table { border-collapse: collapse; width: 100%; margin: 1.5em 0; background: #fff; }
+			.citykleta-frontend-ref table { border-collapse: collapse; width: 100%; margin: 1.5em 0; background: transparent; }
 			.citykleta-frontend-ref th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #646970; padding: 0 0 10px; }
 			.citykleta-frontend-ref td { padding: 18px 24px 18px 0; border-top: 1px solid #e5e0d3; vertical-align: top; }
 			.citykleta-frontend-ref tr:first-child td { border-top: 1px solid #dcdcde; }

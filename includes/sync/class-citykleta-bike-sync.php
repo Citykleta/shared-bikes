@@ -793,6 +793,17 @@ class Citykleta_Bike_Sync {
 			update_post_meta( $post_id, 'lat', floatval( $item['coordinates']['lat'] ) );
 			update_post_meta( $post_id, 'lng', floatval( $item['coordinates']['lng'] ) );
 		}
+
+		/**
+		 * Fires when a bike from the API has been written to its post, whether it
+		 * was created or updated. Citykleta_Bike_Proposal hooks here to give a bike
+		 * that came from the owner form the owner's WhatsApp, which the catalogue
+		 * does not carry.
+		 *
+		 * @param int $post_id     The bike's post ID.
+		 * @param int $external_id The bike's ID in the API.
+		 */
+		do_action( 'citykleta_bike_synced', $post_id, (int) $item['id'] );
 	}
 
 	/**

@@ -51,6 +51,10 @@ require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-contact-reveal.
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-rest.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-form.php';
 require_once CITYKLETA_PATH . 'includes/requests/class-citykleta-bike-request-notifier.php';
+require_once CITYKLETA_PATH . 'includes/proposals/class-citykleta-proposal-fields.php';
+require_once CITYKLETA_PATH . 'includes/proposals/class-citykleta-bike-proposal.php';
+require_once CITYKLETA_PATH . 'includes/proposals/class-citykleta-bike-proposal-rest.php';
+require_once CITYKLETA_PATH . 'includes/proposals/class-citykleta-proposal-intake-page.php';
 require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-elementor.php';
 require_once CITYKLETA_PATH . 'includes/elementor/class-citykleta-widget-shortcodes.php';
 
@@ -149,6 +153,13 @@ function citykleta_init() {
 	( new Citykleta_Bike_Request_Rest() )->register();
 	( new Citykleta_Bike_Request_Form() )->register();
 	( new Citykleta_Bike_Request_Notifier() )->register();
+
+	// Bandeja de propuestas de propietarios: el formulario de Elementor las
+	// manda por Webhook, y la API las trae (no al revés). Se aprueban o
+	// rechazan en el Back Office, no aquí. Ver includes/proposals/.
+	( new Citykleta_Bike_Proposal() )->register();
+	( new Citykleta_Bike_Proposal_Rest() )->register();
+	( new Citykleta_Proposal_Intake_Page() )->register();
 
 	// Widget de Elementor (no hace nada si Elementor no está activo).
 	( new Citykleta_Elementor() )->register();

@@ -193,7 +193,7 @@ class Citykleta_Admin_Map {
 			echo (int) $missing . ' bike' . ( 1 === $missing ? '' : 's' );
 			echo ' ' . ( 1 === $missing ? 'has' : 'have' ) . ' no coordinates yet and ';
 			echo ( 1 === $missing ? "isn't" : "aren't" ) . ' shown on the map — run a sync';
-			echo ' (Bicicletas &rarr; Settings &rarr; Sync) to pull ' . ( 1 === $missing ? 'it' : 'them' ) . ' in.';
+			echo ' (Bicicletas &rarr; Settings &rarr; API) to pull ' . ( 1 === $missing ? 'it' : 'them' ) . ' in.';
 			echo '</p></div>';
 		}
 

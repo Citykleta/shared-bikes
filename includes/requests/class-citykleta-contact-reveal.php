@@ -9,7 +9,7 @@
  * the API's global verifyAuth precisely so this plugin, which has no user
  * session, can call it.
  *
- * The key is entered in Settings → Sync → API access (option
+ * The key is entered in Settings → API → API access (option
  * Citykleta_Settings::PLUGIN_KEY_OPTION, never printed back into the page). A
  * CITYKLETA_PLUGIN_KEY constant in wp-config.php overrides it, for installs that
  * prefer to keep the credential out of the database.
@@ -91,12 +91,12 @@ class Citykleta_Contact_Reveal {
 		$url = Citykleta_Settings::get_endpoint_url( 'contact_reveal' );
 
 		if ( '' === $key ) {
-			$result['note'] = 'No plugin key (Settings → Sync → API access)';
+			$result['note'] = 'No plugin key (Settings → API → API access)';
 			return self::logged( $result );
 		}
 
 		if ( '' === $url ) {
-			$result['note'] = 'No API base URL configured (Settings → Sync)';
+			$result['note'] = 'No API base URL configured (Settings → API)';
 			return self::logged( $result );
 		}
 
@@ -169,7 +169,7 @@ class Citykleta_Contact_Reveal {
 				// ordinary session check, which answers 401. That is OUR
 				// misconfiguration, not a bad code, so it must not be reported
 				// to the visitor as one.
-				$result['note'] = 'API rejected the plugin key (401) — check Settings → Sync → API access';
+				$result['note'] = 'API rejected the plugin key (401) — check Settings → API → API access';
 				return self::logged( $result );
 
 			default:
