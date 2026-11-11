@@ -301,9 +301,9 @@ class Citykleta_Templates {
 
 	/**
 	 * The destination layout as Elementor Containers: header, description and
-	 * average price, then the bikes assigned to it, then related articles and
-	 * the FAQ — the same reading order the fixed template had, with every part
-	 * now movable.
+	 * average price, then the bikes assigned to it, then related articles — the
+	 * same reading order the fixed template had, with every part now movable.
+	 * (The weather piece is not in the default layout: drop it in where wanted.)
 	 *
 	 * The section titles are native Elementor Headings, not something a widget
 	 * prints: they are static text, so they belong to whoever is designing.
@@ -351,12 +351,6 @@ class Citykleta_Templates {
 					$t::widget( 'citykleta_destination_articles' ),
 				)
 			),
-			$t::container(
-				array(
-					$t::heading( 'Preguntas frecuentes' ),
-					$t::widget( 'citykleta_destination_faq' ),
-				)
-			),
 		);
 	}
 
@@ -377,8 +371,6 @@ class Citykleta_Templates {
 				self::shortcode_block( '[citykleta_destination_bikes]' ),
 				self::heading_block( 'Artículos relacionados' ),
 				self::shortcode_block( '[citykleta_destination_articles]' ),
-				self::heading_block( 'Preguntas frecuentes' ),
-				self::shortcode_block( '[citykleta_destination_faq]' ),
 			)
 		);
 	}

@@ -445,7 +445,6 @@ class Citykleta_Elementor {
 		$widgets_manager->register( new Citykleta_Destination_Description_Widget() );
 		$widgets_manager->register( new Citykleta_Destination_Price_Widget() );
 		$widgets_manager->register( new Citykleta_Destination_Articles_Widget() );
-		$widgets_manager->register( new Citykleta_Destination_Faq_Widget() );
 		$widgets_manager->register( new Citykleta_Destination_Weather_Widget() );
 	}
 }

@@ -6,7 +6,7 @@
  * A post type, not a taxonomy — reconsidered after building it as a
  * taxonomy first (see CLAUDE.md, "Destinos"): a destination needs a real
  * editor (rich description, not a one-line term description), a featured
- * image, and a handful of its own fields (geofence, FAQ override), which is
+ * image, and a handful of its own fields (geofence), which is
  * exactly what a CPT + meta box gives for free and a taxonomy term screen
  * doesn't. The bike → destination relationship moved from
  * wp_set_object_terms() to a repeatable post meta row on the bike (see
@@ -35,9 +35,8 @@ class Citykleta_Destination_Post_Type {
 	const POST_TYPE = 'destination';
 
 	/**
-	 * Post meta keys: the geofence. (A per-destination FAQ override lived here
-	 * too — `citykleta_destination_faq_override` / `_faq_items_raw` — and was
-	 * removed: every destination shows the default FAQ from Settings.)
+	 * Post meta keys: the geofence. (There used to be a FAQ too, per destination
+	 * and a site-wide default; both were removed on 2026-11-10 — nobody used them.)
 	 */
 	const META_LAT       = 'citykleta_destination_lat';
 	const META_LNG       = 'citykleta_destination_lng';
@@ -98,7 +97,7 @@ class Citykleta_Destination_Post_Type {
 			'all_items'     => 'Destinations',
 		);
 
-		// Editable from Settings → Destinations → URL slug (Citykleta_Settings).
+		// Editable from Settings → Slugs (Citykleta_Settings).
 		// Dropping the prefix entirely was tried and reverted — see
 		// Citykleta_Settings::sanitize_destination_slug() for why the option
 		// can never actually be blank.
@@ -288,53 +287,5 @@ class Citykleta_Destination_Post_Type {
 		update_post_meta( $post_id, self::META_LAT, $lat );
 		update_post_meta( $post_id, self::META_LNG, $lng );
 		update_post_meta( $post_id, self::META_RADIUS_KM, max( 0.0, $radius ) );
-	}
-
-	/**
-	 * Parses the "Question :: Answer" per-line textarea format into a list of
-	 * { question, answer } pairs. Shared with Citykleta_Settings' global
-	 * default FAQ field, which uses the exact same format.
-	 *
-	 * @param string $text Raw textarea value.
-	 * @return array
-	 */
-	public static function parse_faq_text( $text ) {
-		$items = array();
-
-		foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
-			$line = trim( $line );
-
-			if ( '' === $line || false === strpos( $line, '::' ) ) {
-				continue;
-			}
-
-			list( $question, $answer ) = array_map( 'trim', explode( '::', $line, 2 ) );
-
-			if ( '' === $question ) {
-				continue;
-			}
-
-			$items[] = array(
-				'question' => $question,
-				'answer'   => $answer,
-			);
-		}
-
-		return $items;
-	}
-
-	/**
-	 * The FAQ list a destination page should show: always Citykleta_Settings'
-	 * default (Settings → Destinations) since the per-destination override was
-	 * removed. Keeps the destination parameter so callers don't change if a
-	 * per-destination source comes back.
-	 *
-	 * @param int $post_id Destination ID (unused).
-	 * @return array { 'question' => string, 'answer' => string }[].
-	 */
-	public static function faq_for( $post_id ) {
-		unset( $post_id );
-
-		return Citykleta_Settings::destination_faq_default();
 	}
 }

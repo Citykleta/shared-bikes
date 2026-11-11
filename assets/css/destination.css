@@ -3,7 +3,7 @@
  * Mismo palette que bike-cards.css: fondo crema #FFFBEE, texto #151B1D,
  * acento amarillo #FED94C. El grid de bicis reutiliza .citykleta-bike-card
  * de bike-cards.css sin cambios — esta hoja solo cubre lo que ese archivo
- * no tiene: encabezado del destino, artículos relacionados y FAQ.
+ * no tiene: encabezado del destino y artículos relacionados.
  */
 
 .citykleta-destination {
@@ -38,15 +38,13 @@
 	margin-bottom: 3rem;
 }
 
-.citykleta-destination__articles,
-.citykleta-destination__faq {
+.citykleta-destination__articles {
 	margin-top: 3rem;
 	padding-top: 2rem;
 	border-top: 1px solid #e5e0d3;
 }
 
-.citykleta-destination__articles h2,
-.citykleta-destination__faq h2 {
+.citykleta-destination__articles h2 {
 	font-family: 'Poppins', sans-serif;
 	font-weight: 600;
 	color: #151b1d;
@@ -65,25 +63,6 @@
 .citykleta-destination__article-list a {
 	color: #282120;
 	text-decoration: underline;
-}
-
-.citykleta-destination__faq-item {
-	border: 1px solid #e5e0d3;
-	border-radius: 8px;
-	padding: 0.75rem 1rem;
-	margin-bottom: 0.75rem;
-	background: #fffbee;
-}
-
-.citykleta-destination__faq-item summary {
-	cursor: pointer;
-	font-weight: 600;
-	color: #151b1d;
-}
-
-.citykleta-destination__faq-item p {
-	margin-top: 0.5rem;
-	color: #5a5250;
 }
 
 /* Destination Weather (Citykleta_Destination_Weather_Widget). */

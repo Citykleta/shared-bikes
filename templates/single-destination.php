@@ -7,7 +7,7 @@
  *
  * Lo que hace que una sola plantilla sirva para todos los destinos: las
  * piezas de adentro ([citykleta_destination_header],
- * [citykleta_destination_faq], …, ver Citykleta_Destination_Part_Widgets) no
+ * [citykleta_destination_price], …, ver Citykleta_Destination_Part_Widgets) no
  * reciben ningún destino por parámetro — cada una resuelve sola cuál es,
  * leyéndolo de la query. Por eso no hacen falta los Dynamic Tags de Pro.
  *

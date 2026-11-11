@@ -1,7 +1,7 @@
 <?php
 /**
  * The pieces a Destination layout is built from: header, description, average
- * price, related articles and FAQ. Each one is an Elementor widget (and a
+ * price, related articles and weather. Each one is an Elementor widget (and a
  * shortcode, via Citykleta_Widget_Shortcodes), so a destination page is
  * arranged by hand in Elementor instead of being a fixed PHP file — the same
  * arrangement already used for bikes, see Citykleta_Bike_Part_Widgets.
@@ -16,7 +16,7 @@
  * the card markup and its whole Style tab are shared rather than copied. Same
  * reasoning that merged the pickup map into Citykleta_Map_Widget.
  *
- * Static section titles ("Artículos relacionados", "Preguntas frecuentes") are
+ * Static section titles ("Artículos relacionados") are
  * NOT printed by these widgets — they are native Elementor Headings placed by
  * the default layout, so they can be restyled, renamed or removed like any
  * other element. See the note in Citykleta_Bike_Part_Widgets.
@@ -512,71 +512,6 @@ class Citykleta_Destination_Articles_Widget extends Citykleta_Destination_Part_W
 				</li>
 			<?php endforeach; ?>
 		</ul>
-		<?php
-	}
-}
-
-/**
- * The destination's FAQ (its own, or the site-wide default).
- */
-class Citykleta_Destination_Faq_Widget extends Citykleta_Destination_Part_Widget {
-
-	/**
-	 * Internal widget name.
-	 *
-	 * @return string
-	 */
-	public function get_name() {
-		return 'citykleta_destination_faq';
-	}
-
-	/**
-	 * Title shown in the Elementor editor.
-	 *
-	 * @return string
-	 */
-	public function get_title() {
-		return 'Destination FAQ';
-	}
-
-	/**
-	 * Widget icon in the Elementor panel.
-	 *
-	 * @return string
-	 */
-	public function get_icon() {
-		return 'eicon-help-o';
-	}
-
-	/**
-	 * No controls: which FAQ shows is decided per destination (its "Custom
-	 * FAQ" switch) or site-wide in Settings → Destinations, not per widget.
-	 */
-	protected function register_controls() {
-		$this->start_controls_section( 'section_content', array( 'label' => 'Content' ) );
-		$this->end_controls_section();
-	}
-
-	/**
-	 * Prints the FAQ.
-	 */
-	protected function render() {
-		$destination_id = $this->destination_id();
-		$faq            = $destination_id ? Citykleta_Destination_Post_Type::faq_for( $destination_id ) : array();
-
-		if ( ! $faq ) {
-			$this->render_editor_note( 'Destination FAQ: nothing set, here or in Settings -> Destinations.' );
-			return;
-		}
-		?>
-		<div class="citykleta-destination__faq">
-			<?php foreach ( $faq as $item ) : ?>
-				<details class="citykleta-destination__faq-item">
-					<summary><?php echo esc_html( $item['question'] ); ?></summary>
-					<p><?php echo esc_html( $item['answer'] ); ?></p>
-				</details>
-			<?php endforeach; ?>
-		</div>
 		<?php
 	}
 }
