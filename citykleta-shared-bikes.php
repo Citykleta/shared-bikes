@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Citykleta Shared Bikes
  * Description: Integración de bicicletas compartidas de Citykleta.
- * Version: 0.3.13
+ * Version: 0.3.47
  * Author: Yasser
  * License: GPL-2.0-or-later
  * Text Domain: citykleta-shared-bikes
