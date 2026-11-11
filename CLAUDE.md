@@ -45,7 +45,7 @@ includes/
                                         queda aquí, y el widget "Citykleta Stats" las cuenta.
     class-citykleta-contact-reveal.php → Cliente de POST /contact/reveal del backend: canjea el código de
                                         verificación por el teléfono del dueño. Lo único del plugin que
-                                        manda una llave (Settings → Sync → API access). APARCADO: el
+                                        manda una llave (Settings → API → API access). APARCADO: el
                                         formulario actual no lo llama (ver "Solicitudes de bicicleta").
     class-citykleta-bike-request-rest.php → POST /citykleta/v1/bike-requests, público, valida el payload
                                         (nombre + correo + fechas) y guarda el lead. No verifica nada.
@@ -68,10 +68,10 @@ includes/
     class-citykleta-bike-sync.php    → Trae bicis de la API configurada y crea/actualiza posts "bike".
                                         Corre por WP-Cron (frecuencia configurable) o manualmente.
   admin/
-    class-citykleta-settings.php     → Página "Settings" (submenú de "Bicicletas") con dos pestañas:
-                                        "Sync" (URL de la API, frecuencia, slug) y "Maps" (colores del
-                                        mapa de bicis, usados por el widget de Elementor y por
-                                        Citykleta_Admin_Map).
+    class-citykleta-settings.php     → Página "Settings" (submenú de "Bicicletas") con siete pestañas
+                                        (ver "Settings page"): "API" (URL de la API, frecuencia,
+                                        llave), "Maps" (colores del mapa de bicis, usados por el widget
+                                        de Elementor y por Citykleta_Admin_Map), "Slugs" y más.
     class-citykleta-list-columns.php → Columnas de imagen, marca y ubicación en la lista de bicis de
                                         wp-admin (marca y ubicación son ordenables con un click).
     class-citykleta-admin-map.php    → Mapa con TODAS las bicis que tengan lat/lng, mostrado arriba de la
@@ -200,12 +200,12 @@ templates/
                                         editable con Elementor (ver "Archivo de bicis" más abajo), armada
                                         por defecto con los tres shortcodes de arriba.
   single-destination.php             → Página de un Destino (/destination/{slug}/): bicis asignadas por
-                                        geocerca, precio promedio, artículos relacionados, FAQ. Ver
+                                        geocerca, precio promedio, artículos relacionados. Ver
                                         sección "Destinos" más abajo.
 assets/css/
   bike-cards.css                     → Estilos del grid de tarjetas (archivo + widget de bicis).
   bike-request.css                   → Formulario de solicitud dentro de la tarjeta de precio.
-  destination.css                    → Encabezado/artículos/FAQ de la página de Destino (el grid de
+  destination.css                    → Encabezado/artículos de la página de Destino (el grid de
                                         bicis reusa bike-cards.css tal cual).
   search-bar.css                     → Estilos base de la barra de búsqueda (la mayoría sobreescribible
                                         desde la pestaña Style del widget).
@@ -276,10 +276,15 @@ muestra dos avisos en la pantalla de edición de una bici (`render_sync_warning(
 a `admin_notices`, más un párrafo dentro de la propia caja de campos) explicando que esos
 datos vienen de la app y que editar ahí no se guarda en el origen.
 
-Por la misma razón, `Citykleta_Bike_Post_Type` quita el enlace "Añadir nueva" del menú
-lateral y oculta el botón "Añadir bicicleta" de la lista (solo CSS, no toca capacidades de
-usuario — la URL `post-new.php?post_type=bike` sigue siendo accesible a mano si alguien la
-escribe). `Citykleta_Bike_Tag_Taxonomy` hace lo mismo con el formulario "Añadir etiqueta",
+Por la misma razón, **nadie puede crear ni publicar una bici desde WordPress** (decidido el
+2026-11-10): `Citykleta_Bike_Post_Type` pone `create_posts` y `publish_posts` en `do_not_allow`,
+con `map_meta_cap => true` (sin eso WordPress ignora el mapeo). Vale para wp-admin y para la REST
+de WordPress, `post-new.php?post_type=bike` incluido. Lo ya publicado se sigue pudiendo editar
+y mandar a la papelera, y el sync no se ve afectado: escribe con `wp_insert_post()` /
+`wp_update_post()`, que no comprueban capacidades. Antes solo se ocultaba el enlace "Añadir
+nueva" con CSS; ese CSS se quitó, porque WordPress ya no pinta el botón ni el menú. La bici de
+un propietario llega como propuesta (ver "Propuestas de propietarios") y se aprueba en el Back
+Office. `Citykleta_Bike_Tag_Taxonomy` oculta el formulario "Añadir etiqueta",
 porque las etiquetas también llegan solas al sincronizar. `bike_type` es mixta y por eso **no**
 oculta su formulario: los tipos de arriba (Urbano, Carretera…) los crea el administrador a mano;
 los subtipos de abajo los crea el sync. Ver "Bike types y etiquetas".
@@ -287,7 +292,7 @@ los subtipos de abajo los crea el sync. Ver "Bike types y etiquetas".
 **Esa API real ya existe y es la única fuente: `citykleta-sharing-api`.** En desarrollo corre
 en `http://localhost:8001` (ojo: `http://localhost:5175` es el **Back Office**, un dev server de
 Vite que responde 200 a cualquier ruta por el fallback del SPA — apuntar el sync ahí parece
-funcionar y no sincroniza nada). Esa URL base se configura en Settings → Sync; los paths van
+funcionar y no sincroniza nada). Esa URL base se configura en Settings → API; los paths van
 fijos en código (`Citykleta_Settings::PATHS`).
 
 **Ya no hay mock ni datos de prueba.** Existieron una API falsa dentro del plugin
@@ -298,22 +303,29 @@ quitaron porque hacían daño activo: inventaban un contrato (`{ data, meta: { h
 código para una API imaginaria. Si hace falta volver a probar sin backend, levantar un servidor
 que imite `GET /bikesPublic/sync` **de verdad** — nunca reintroducir un contrato inventado.
 
-## Settings page (pestañas Sync / Maps)
+## Settings page (pestañas API / Maps)
 
-`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con seis pestañas
+`Citykleta_Settings` es una sola página en wp-admin (Bicicletas → **Settings**) con siete pestañas
 propias (`self::TABS`, controladas por `?tab=` en la URL, patrón `nav-tab-wrapper` estándar de WordPress).
-De esas seis, **Sync**, **Communication**, **Destinations** y **Templates** tienen formulario guardable
+Desde el 2026-11-10 la pestaña **Sync** se llama **API** y **Destinations** se llama **Slugs**: solo
+cambió la etiqueta de la primera (su clave en `?tab=` sigue siendo `sync`, para no romper enlaces); la
+segunda pasó de clave `dest` a `slugs` (un `?tab=dest` viejo cae en la pestaña API).
+De esas siete, **API**, **Communication**, **Slugs** y **Templates** tienen formulario guardable
 — **Maps** es de solo lectura desde que su configuración se mudó a Back Office (ver más abajo) y
-**Frontend** es documentación (la tabla de shortcodes). **Templates** elige qué plantilla dibuja cada
-vista, ver "Varias plantillas por vista" más abajo. **Destinations** guarda
-el slug de URL (`citykleta_destination_slug`) y el FAQ por defecto (`citykleta_destination_faq_default`)
-— los destinos en sí (geocerca) se administran como posts del CPT `destination`, ver la
-sección "Destinos" más abajo.
+**Frontend** es documentación (la tabla de shortcodes). **Proposals** (añadida el 2026-11-10) no usa la
+Settings API: la dibuja `Citykleta_Proposal_Intake_Page::render_tab()` y sus formularios (generar las dos
+llaves, dos opciones) postean a la propia URL de la pestaña, donde los recoge `admin_init`; ver
+"Propuestas de propietarios". **Templates** elige qué plantilla dibuja cada
+vista, ver "Varias plantillas por vista" más abajo. **Slugs** guarda los dos slugs de URL juntos, el de
+las bicis (`citykleta_bike_slug`, antes en la pestaña API) y el de los destinos
+(`citykleta_destination_slug`), bajo `OPTION_GROUP_SLUGS` — los destinos en sí (geocerca) se
+administran como posts del CPT `destination`, ver la sección "Destinos" más abajo. La **FAQ por
+defecto de los destinos se eliminó** (2026-11-10, ver "Destinos").
 
 Cada pestaña registra sus secciones/campos bajo su propio "page" interno (`self::PAGE_SLUG . '-sync'` /
 `'-maps'` / `'-comm'`), así que `do_settings_sections()` únicamente muestra los campos de la pestaña
-activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso Sync y Communication (las
-dos con formulario) usan `OPTION_GROUP` **distintos** (`OPTION_GROUP_SYNC` / `OPTION_GROUP_COMM`), cada
+activa — pero eso solo controla qué se *muestra*, no qué se *guarda*. Por eso API, Communication y Slugs (las
+con formulario) usan `OPTION_GROUP` **distintos** (`OPTION_GROUP_SYNC` / `OPTION_GROUP_COMM` / `OPTION_GROUP_SLUGS`), cada
 uno con su propio `settings_fields()` en el `<form>` correspondiente. Maps sigue usando
 `add_settings_section()`/`add_settings_field()` para el mismo layout en tabla, pero sin
 `register_setting()` ni `<form>` — no tiene nada que guardar, ver más abajo.
@@ -326,7 +338,7 @@ campos en el POST) borraría los valores de la otra, porque WordPress los tratar
 blanco" en vez de "no tocados". La regla es: un `OPTION_GROUP` por cada `<form>` que se pueda guardar
 por separado, nunca uno compartido entre formularios distintos.
 
-- **Sync** (antes toda la página se llamaba así) — URL base de la API, frecuencia, slug de la URL,
+- **API** (clave `sync`; antes toda la página se llamaba Sync) — URL base de la API, frecuencia,
   estado de la última sincronización y el botón "Sync now". **Lo único editable de la conexión es la
   URL base**: el *path* de cada recurso vive en código, en `Citykleta_Settings::PATHS`, y se resuelve
   con `get_endpoint_url( $key )`. La pestaña también tiene la sección **API access** con la llave del
@@ -558,7 +570,7 @@ para siempre. Las dos cosas van juntas a propósito — el retiro sin paginació
      bici desactualizada hasta el próximo sync; por el otro lado deja el sitio vacío.
   Un fallo de red o un HTTP != 200 cortan antes todavía (`return` temprano en `run()`), así que
   tampoco retiran.
-- **Qué se ve en wp-admin** — la pestaña Sync reporta cuántas se pasaron a borrador junto al conteo
+- **Qué se ve en wp-admin** — la pestaña API reporta cuántas se pasaron a borrador junto al conteo
   de procesadas, y los avisos de las redes de seguridad salen como "Heads up" en
   `citykleta_last_sync_warning`, aparte de `citykleta_last_sync_error`: son corridas que salieron
   bien pero que a propósito hicieron menos de lo normal, no fallos.
@@ -1388,7 +1400,7 @@ haga un flush de rewrite rules — no basta con que el código esté bien. Se pu
 forzar visitando Ajustes → Enlaces permanentes en wp-admin (guardar sin cambiar
 nada ya lo dispara).
 
-El slug (`bikes` en `/bikes/`) es editable en Bicicletas → Settings → Sync (opción
+El slug (`bikes` en `/bikes/`) es editable en Bicicletas → Settings → Slugs (opción
 `citykleta_bike_slug`). Cambiarlo mueve la URL de **todas** las bicicletas. El
 flush no puede pasar en la misma petición donde se guarda el cambio (el CPT de esa
 petición ya se registró con el slug viejo, antes de que options.php actualice la
@@ -1910,7 +1922,7 @@ checkout sin el vendor sigue mostrando la foto, solo sin el carrusel. Para desca
   formulario para lanzar sin ese paso, pero **`Citykleta_Contact_Reveal` y el endpoint del backend
   siguen ahí, listos para reconectarse**. El cliente es el único código del plugin que manda una
   llave (`x-citykleta-plugin-key`), y esa llave ya no va en `wp-config.php`:
-  - **Se guarda en Bicicletas → Settings → Sync → "API access" → "Plugin key"** (opción
+  - **Se guarda en Bicicletas → Settings → API → "API access" → "Plugin key"** (opción
     `citykleta_plugin_key`, leída con `Citykleta_Settings::plugin_key()`; el campo se muestra
     enmascarado). Se prefirió esto a la constante para poder cambiarla sin tocar archivos; el costo es
     que la llave queda en la base de datos.
@@ -2017,12 +2029,51 @@ contacto. WP pasaría de dueño del dato a proxy, y `citykleta_bike_req` quedar�
 estado de sync. Mientras tanto, el contacto manual de
 `Citykleta_Owner_Contact` es el puente.
 
+## Propuestas de propietarios (bandeja)
+
+Decidido el 2026-11-09 (plan completo en `docs/plan-despliegue.md` § 2 C, repo
+`citykleta-sharing-api`). El formulario de Elementor Pro ("Atomic Form") manda cada envío por
+**Webhook** a esta bandeja; **la API las trae** (la API le pregunta a WordPress, no al revés) y el
+equipo las publica o rechaza en el Back Office. **Aquí no se aprueba ni se rechaza nada.** Código en
+`includes/proposals/`:
+
+| Clase | Qué hace |
+|---|---|
+| `Citykleta_Bike_Proposal` | CPT privado `citykleta_bike_sub` (no se crea a mano). Guarda campos, etiquetas, fotos (rutas relativas) y el estado `pending` / `imported`. Prepara lo que lee la API y borra las fotos al importarse. |
+| `Citykleta_Proposal_Fields` | Convierte lo que llega en campos con nombre. **Las claves del Webhook son el TEXTO DE LA ETIQUETA** del campo (o su ID si no tiene etiqueta enlazada), así que cambiar o traducir una etiqueta cambia la clave: se reconocen por una lista de grafías (`citykleta_proposal_field_aliases`, sin tildes ni mayúsculas, `*` = cualquier final). Lo que no se reconoce va a `extra`, no se pierde. Las fotos se detectan por VALOR (una URL de `uploads/elementor/forms/`), no por clave. |
+| `Citykleta_Bike_Proposal_Rest` | `POST /citykleta/v1/proposals/webhook?key=…` (Elementor; la llave va en la URL porque el Webhook solo tiene ese campo; límite de 30 por hora, `citykleta_proposal_hourly_cap`; un envío repetido se ignora). `GET /citykleta/v1/proposals?after=&limit=` y `POST /citykleta/v1/proposals/{id}/imported` (la API; llave en la cabecera `x-citykleta-proposals-key`). |
+| `Citykleta_Proposal_Intake_Page` | Pestaña **Proposals** de Bicicletas → Settings (no tiene página propia desde el 2026-11-10): genera las dos llaves (se muestran **una vez**; solo se guarda su SHA-256) y dos opciones (filtrar por nombre de formulario; rechazar envíos incompletos, apagado hasta que exista el formulario real). |
+
+Reglas que no hay que "simplificar":
+- **Las dos llaves son distintas a propósito.** La del Webhook solo sirve para añadir a la bandeja
+  (si se filtra, lo peor es basura); la de la API lee datos personales y por eso WordPress guarda solo
+  su hash.
+- **Solo se leen y se borran fotos de `uploads/elementor/forms/`**, ya sin `..` ni enlaces
+  simbólicos (`Citykleta_Bike_Proposal::absolute_path()`). Se borran **solo cuando la API confirma**
+  con `/imported`.
+- **La IP del remitente no sirve:** Elementor llama desde el propio servidor del sitio.
+- **El Webhook no hace nada lento** (ni llamadas a la API ni correo): Elementor se rinde con una
+  respuesta lenta y le muestra un error a la persona.
+- **El WhatsApp vuelve a la bici por la propuesta.** El sync dispara
+  `citykleta_bike_synced( $post_id, $external_id )` al final de `upsert_bike()`, y
+  `Citykleta_Bike_Proposal::fill_owner_contact()` copia el WhatsApp de la propuesta importada
+  (empareja `_citykleta_sub_api_bike_id` con `external_id`) a "Owner contact", **solo si está vacío
+  y solo una vez por bici** (`_citykleta_owner_contact_copied_from`): lo escrito a mano gana, y un
+  contacto borrado a propósito no se rellena otra vez. Hace falta porque el catálogo no trae
+  contactos y `Citykleta_Owner_Contact::hide_uncontactable()` oculta del sitio toda bici sin
+  teléfono. Por eso la propuesta conserva el teléfono después de importar, y **no se borra ningún
+  dato de una propuesta, ni hay plazo** (D13, decidido el 2026-11-10: se necesitarán más adelante).
+  Lo único que se borra son las fotos, al confirmar la API con `/imported`.
+- Estado: probado con peticiones REST simuladas contra el LocalWP (50 del receptor y la pestaña, 15 de la copia
+  del WhatsApp, 16 de los permisos del tipo `bike`); **no** con el formulario real ni con un sync
+  real. El importador de la API y la pantalla del Back Office no existen todavía.
+
 ## Destinos
 
 Páginas por lugar (ej. "Vedado", "Playa") creadas a mano en wp-admin, cada una mostrando las bicis
 disponibles ahí. `destination` es un **custom post type**, no una taxonomía — se probó como taxonomía
 primero y se descartó: un destino necesita un editor de verdad (descripción con bloques, no la
-descripción de una línea de un término), imagen destacada, y varios campos propios (geocerca, FAQ), que
+descripción de una línea de un término), imagen destacada, y varios campos propios (geocerca), que
 es justo lo que un CPT + meta box da gratis y una pantalla de término no. Nace bajo el mismo menú
 "Bicicletas" que las bicis (`show_in_menu` apunta al CPT `bike`), no como entrada propia de nivel
 superior.
@@ -2034,7 +2085,7 @@ relación vive como post meta repetible en la bici (`_citykleta_destination_id`,
 asignado — no un array serializado, así una `WP_Query` con `meta_query` normal encuentra las bicis de
 un destino sin trucos), no como término de taxonomía.
 
-- **URL slug editable** — `citykleta_destination_slug` (Settings → Destinations → URL, default
+- **URL slug editable** — `citykleta_destination_slug` (Settings → Slugs, default
   `destination`), igual que `citykleta_bike_slug` para bicis: al guardarlo se marca
   `citykleta_destination_flush_rewrite_flag`, revisado al **final** de `citykleta_init()` (a
   diferencia del de bicis, revisado dentro de `Citykleta_Bike_Post_Type::register()`, que corre
@@ -2078,14 +2129,19 @@ un destino sin trucos), no como término de taxonomía.
 - **Precio promedio** — calculado en PHP sobre los resultados de la misma query de bicis del destino
   (`array_sum/count` sobre `Citykleta_Bike_Meta::price_amount()`), no con un `AVG()` en SQL aparte: la lista de bicis de un
   destino es chica (geocerca local), no vale la pena una segunda consulta.
-- **FAQ, uno solo para todos los destinos** — `Citykleta_Settings` tiene una pestaña **Destinations**
-  con un textarea de formato libre ("una pregunta por línea: `Pregunta :: Respuesta`", el mismo truco de
-  "textarea plano en vez de repeater JS" que ya usa la plantilla de WhatsApp) que guarda el FAQ
-  (`citykleta_destination_faq_default`, parseado por `Citykleta_Destination_Post_Type::parse_faq_text()`).
-  Hubo un FAQ propio por destino (switch "Custom FAQ" + textarea "FAQ items") y **se quitó en 2026-10**
-  por pedido del usuario; ningún destino lo usaba (verificado en la base: todos apagados y vacíos). Las
-  metas viejas `citykleta_destination_faq_override` / `_faq_items_raw` pueden seguir en la base, nadie
-  las lee. `faq_for( $post_id )` conserva su firma y devuelve siempre el FAQ de Settings.
+- **FAQ: eliminada (2026-11-10), por pedido del usuario: "ya no lo usaremos".** Había un FAQ por
+  defecto para todos los destinos (opción `citykleta_destination_faq_default`, un textarea "una
+  pregunta por línea: `Pregunta :: Respuesta`" en la pestaña Destinations, hoy Slugs) y antes uno
+  propio por destino, quitado en 2026-10. Se borró todo: el ajuste, `Citykleta_Settings::destination_faq_default()`,
+  `Citykleta_Destination_Post_Type::faq_for()` / `parse_faq_text()`, el widget
+  `Citykleta_Destination_Faq_Widget` y su shortcode `[citykleta_destination_faq]`, la sección del
+  layout por defecto de la plantilla de destino y las reglas CSS. **Lo que queda en una base ya
+  existente:** una opción `citykleta_destination_faq_default` y las metas viejas
+  `citykleta_destination_faq_override` / `_faq_items_raw` pueden seguir ahí, nadie las lee. **Una
+  plantilla de destino ya guardada en la base que use el widget** (era una sección entera de
+  Elementor: rótulo + título "Preguntas frecuentes" + widget) hay que limpiarla a mano o con un
+  script: Elementor ya no conoce el widget y lo muestra vacío en el editor. En el sitio local se
+  quitó esa sección de la plantilla "Destination" (copia de seguridad hecha antes).
 - **El tiempo** — pieza `Destination Weather` (`citykleta_destination_weather`,
   `[citykleta_destination_weather]`): pronóstico de 1–7 días (3 por defecto) en el **centro de la
   geocerca**, con ícono (emoji, sin archivos), máx/mín, descripción, probabilidad de lluvia y UV, cada
@@ -2110,11 +2166,11 @@ un destino sin trucos), no como término de taxonomía.
   ya no arma el diseño, imprime la plantilla de tipo `destination`
   (`Citykleta_Templates::ensure_destination_template()`). Las piezas viven en
   `includes/elementor/class-citykleta-destination-part-widgets.php` — encabezado
-  (título + imagen destacada), descripción, precio promedio, artículos y FAQ — y cada una
+  (título + imagen destacada), descripción, precio promedio, artículos y el tiempo — y cada una
   resuelve el destino sola desde la query, igual que las piezas de bici. **Las bicis del
   destino no son una pieza propia**: son `Citykleta_Bike_Widget` con
   `Source = Destination Bikes` (ver la nota sobre un widget por trabajo, más arriba). Los
-  títulos de sección ("Artículos relacionados", "Preguntas frecuentes") son Headings nativos
+  títulos de sección ("Artículos relacionados") son Headings nativos
   de Elementor puestos por el layout por defecto, no algo que imprima un widget.
   `Citykleta_Destination_Part_Widget::bikes_query_args()` es dueño de la forma de esa
   consulta, para que la grilla y el precio promedio no puedan discrepar sobre qué son "las
@@ -2131,7 +2187,7 @@ un destino sin trucos), no como término de taxonomía.
   a esconder algo, ahora que la conversión es la solicitud.
 - **Reconectar la verificación (`POST /contact/reveal`)** — aparcada, ver "Verificación contra el
   backend" en "Solicitudes de bicicleta". Cuando se retome: pegar la llave generada en Back Office en
-  Settings → Sync → API access y probar con un código de una verificación aprobada (solo se probó
+  Settings → API → API access y probar con un código de una verificación aprobada (solo se probó
   contra un servidor falso). Decisión previa: hacer el reveal **al enviar**, no al confirmar desde
   wp-admin; gasta cupo del límite por dueño aunque nadie atienda la solicitud, a cambio de que el
   visitante reciba el WhatsApp al momento.
@@ -2182,7 +2238,7 @@ un destino sin trucos), no como término de taxonomía.
    design" (tamaño), "Cluster Behavior" y "Cluster Colors" (pequeño/mediano/grande), todo sincronizado
    desde `/map-settings`, no editable a mano.
 7. El estado de la última sincronización (fecha, cuántas se procesaron, cuántas se retiraron,
-   errores y avisos) se ve **solo** en esa misma pestaña Sync. Los endpoints `/sync-status` y
+   errores y avisos) se ve **solo** en esa misma pestaña API. Los endpoints `/sync-status` y
    `/trigger-sync` que permitían mirarlo y dispararlo por `curl` vivían en el mock y ya no existen:
    hoy el disparo manual es el botón "Sync now".
 8. Ver el grid de tarjetas en: `http://<tu-sitio-local>/bikes/`
