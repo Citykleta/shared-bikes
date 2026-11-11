@@ -52,6 +52,20 @@ class Citykleta_Bike_Post_Type {
 			// native custom fields box, since we build our own meta box).
 			'supports'     => array( 'title', 'editor', 'thumbnail', 'custom-fields' ),
 			'show_in_rest' => true, // Enables the block editor and the REST API.
+			// Bikes come from the app through the sync, never from WordPress: nobody
+			// can create or publish one in wp-admin or through the REST API (the
+			// "Add New" menu item and button disappear on their own). What is
+			// already published can still be edited and trashed. The sync is not
+			// affected: it writes with wp_insert_post() / wp_update_post(), which do
+			// not check capabilities. An owner's bike arrives as a proposal
+			// (Citykleta_Bike_Proposal) and is approved in the Back Office.
+			'capabilities' => array(
+				'create_posts'  => 'do_not_allow',
+				'publish_posts' => 'do_not_allow',
+			),
+			// Needed whenever 'capabilities' is set: without it WordPress ignores
+			// the mapping above and falls back to the plain "post" capabilities.
+			'map_meta_cap' => true,
 			// The slug is configurable under Shared Bikes → Sync.
 			'rewrite'      => array( 'slug' => get_option( 'citykleta_bike_slug', 'bikes' ) ),
 		);
@@ -65,32 +79,5 @@ class Citykleta_Bike_Post_Type {
 			flush_rewrite_rules();
 			delete_option( 'citykleta_flush_rewrite_flag' );
 		}
-
-		add_action( 'admin_menu', array( $this, 'remove_add_new_menu' ), 999 );
-		add_action( 'admin_head-edit.php', array( $this, 'hide_add_new_button' ) );
-	}
-
-	/**
-	 * Removes "Add New" from the sidebar menu — bikes are created by
-	 * sync, not by hand (see the warning in Citykleta_Bike_Meta). Doesn't
-	 * block the URL directly, only the menu link.
-	 */
-	public function remove_add_new_menu() {
-		remove_submenu_page( 'edit.php?post_type=' . self::POST_TYPE, 'post-new.php?post_type=' . self::POST_TYPE );
-	}
-
-	/**
-	 * Hides the "Add Bike" button next to the title on the bike list.
-	 * Visual only (CSS) — doesn't touch user capabilities, so it can't
-	 * accidentally lock down anything else on the site.
-	 */
-	public function hide_add_new_button() {
-		$screen = get_current_screen();
-
-		if ( ! $screen || self::POST_TYPE !== $screen->post_type ) {
-			return;
-		}
-
-		echo '<style>.page-title-action { display: none; }</style>';
 	}
 }
