@@ -63,11 +63,12 @@ themselves, the same as in the API and the Back Office.
 2. On GitHub, **Actions → Publish to production → Run workflow**. It checks that every PHP file
    parses on PHP 8.2 (what the site runs) and that the `Version:` header matches
    `CITYKLETA_VERSION`, then moves `production` to that commit and tags it `prod-<date>-<commit>`.
-3. In hPanel, in the Git page, deploy the repository installed at
-   `wp-content/plugins/citykleta-shared-bikes`. Its branch is `production`.
+3. Nothing else. Hostinger (hPanel, Git page) follows the `production` branch of this repo
+   and copies it into `wp-content/plugins/citykleta-shared-bikes` by itself a few seconds
+   after the branch moves. **Redeploy** in that page pulls it again by hand.
 
 To go back to an older version, run the workflow again with that commit or tag in `ref` and
-**rewind** ticked, then deploy.
+**rewind** ticked. Hostinger follows the branch back.
 
 ## Notes to self
 

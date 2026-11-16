@@ -116,5 +116,5 @@ jobs:
             echo
             echo "- Commit: \`${SHA}\`"
             echo "- Tag: \`${tag}\`"
-            echo "- Hostinger deploys the \`production\` branch: pull it from hPanel > Git."
+            echo "- Hostinger copies the \`production\` branch to the site by itself: see hPanel > Git."
           } >> "$GITHUB_STEP_SUMMARY"
