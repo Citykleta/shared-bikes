@@ -54,6 +54,21 @@ gallery carousel.
 
 On a new install, set the API base URL in **Settings → API** and run **Sync now**.
 
+## Publishing to production
+
+Hostinger deploys the **`production`** branch, never `main`. Commits on `main` go nowhere by
+themselves, the same as in the API and the Back Office.
+
+1. Push what you want to publish to `main`.
+2. On GitHub, **Actions → Publish to production → Run workflow**. It checks that every PHP file
+   parses on PHP 8.2 (what the site runs) and that the `Version:` header matches
+   `CITYKLETA_VERSION`, then moves `production` to that commit and tags it `prod-<date>-<commit>`.
+3. In hPanel, in the Git page, deploy the repository installed at
+   `wp-content/plugins/citykleta-shared-bikes`. Its branch is `production`.
+
+To go back to an older version, run the workflow again with that commit or tag in `ref` and
+**rewind** ticked, then deploy.
+
 ## Notes to self
 
 - Developed locally with LocalWP and pushed to GitHub only from time to time.

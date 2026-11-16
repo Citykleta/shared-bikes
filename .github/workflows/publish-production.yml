@@ -1,0 +1,120 @@
+name: Publish to production
+
+# The only way the plugin reaches production. Hostinger deploys the
+# `production` branch to the site; commits on main never go live by themselves.
+# Run it by hand from the Actions tab. It:
+# 1. checks the chosen commit: every PHP file parses on the PHP the site runs,
+#    and the version in the plugin header matches CITYKLETA_VERSION;
+# 2. moves `production` to that commit and tags it prod-<date>-<commit>.
+# The same scheme as the API (citykleta-sharing-api, RULES.md "Publicar en
+# producción"). Going back to an older version needs 'rewind'.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "What to publish: a branch, a tag or a commit"
+        required: true
+        default: main
+        type: string
+      rewind:
+        description: "Go back to an older version"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-production
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the PHP and the version
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Hostinger runs PHP 8.2.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Lint every PHP file
+        run: |
+          set -u
+          status=0
+          while IFS= read -r -d '' file; do
+            if ! output="$(php -l "${file}" 2>&1)"; then
+              echo "${output}" >&2
+              status=1
+            fi
+          done < <(find . -name '*.php' -not -path './.git/*' -print0)
+          exit "${status}"
+
+      # README: "bump CITYKLETA_VERSION and the Version: header". One without
+      # the other leaves WordPress and the cache-busting assets disagreeing.
+      - name: The two versions agree
+        run: |
+          set -euo pipefail
+          header="$(sed -nE 's/^ \* Version: *(.+)$/\1/p' citykleta-shared-bikes.php | head -1)"
+          constant="$(sed -nE "s/^define\( *'CITYKLETA_VERSION', *'([^']+)' *\);.*/\1/p" citykleta-shared-bikes.php | head -1)"
+          echo "header=${header} constant=${constant}"
+          if [ -z "${header}" ] || [ "${header}" != "${constant}" ]; then
+            echo "The Version: header and CITYKLETA_VERSION differ." >&2
+            exit 1
+          fi
+
+  promote:
+    name: Move production to this commit
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Move the production branch and tag the release
+        env:
+          SHA: ${{ needs.check.outputs.sha }}
+          REWIND: ${{ inputs.rewind }}
+        run: |
+          set -euo pipefail
+          branch="${SHA}:refs/heads/production"
+          if git rev-parse --verify --quiet refs/remotes/origin/production >/dev/null; then
+            current="$(git rev-parse refs/remotes/origin/production)"
+            if [ "${current}" = "${SHA}" ]; then
+              echo "production is already at ${SHA}: nothing to publish."
+              echo "production was already at \`${SHA}\`: nothing published." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            elif git merge-base --is-ancestor "${current}" "${SHA}"; then
+              :
+            elif [ "${REWIND}" = "true" ]; then
+              branch="+${branch}"
+            else
+              echo "production (${current}) is not behind ${SHA}. To go back to an older version, run again with 'rewind'." >&2
+              exit 1
+            fi
+          fi
+          # Seconds and the short commit keep two publications in one minute
+          # apart. Branch and tag go up in one atomic push: both or neither.
+          tag="prod-$(date -u +%Y-%m-%d-%H%M%S)-${SHA:0:7}"
+          git tag "${tag}" "${SHA}"
+          git push --atomic origin "${branch}" "refs/tags/${tag}"
+          {
+            echo "### Published to production"
+            echo
+            echo "- Commit: \`${SHA}\`"
+            echo "- Tag: \`${tag}\`"
+            echo "- Hostinger deploys the \`production\` branch: pull it from hPanel > Git."
+          } >> "$GITHUB_STEP_SUMMARY"
